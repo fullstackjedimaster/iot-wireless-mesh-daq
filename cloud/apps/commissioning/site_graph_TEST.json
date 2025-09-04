@@ -1,0 +1,81 @@
+{
+  "sitearray": {
+    "id": "SA-000001",
+    "devtype": "SA",
+    "label": "Site Array TEST",
+    "timezone": "America/Chicago",
+    "inputs": [
+      {
+        "id": "I-000001",
+        "devtype": "I",
+        "label": "Inverter 1",
+        "serial": "INV-7281-9321",
+        "inputs": [
+          {
+            "id": "S-000001",
+            "devtype": "S",
+            "label": "String 1",
+            "inputs": [
+              {
+                "id": "P-000001",
+                "devtype": "P",
+                "label": "PNL-1",
+                "x": 1,
+                "y": 1,
+                "inputs": [
+                  {
+                    "id": "M-000001",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:01"
+                  }
+                ]
+              },
+              {
+                "id": "P-000002",
+                "devtype": "P",
+                "label": "PNL-2",
+                "x": 2,
+                "y": 1,
+                "inputs": [
+                  {
+                    "id": "M-000002",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:02"
+                  }
+                ]
+              },
+              {
+                "id": "P-000003",
+                "devtype": "P",
+                "label": "PNL-3",
+                "x": 1,
+                "y": 2,
+                "inputs": [
+                  {
+                    "id": "M-000003",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:03"
+                  }
+                ]
+              },
+              {
+                "id": "P-000004",
+                "devtype": "P",
+                "label": "PNL-4",
+                "x": 2,
+                "y": 2,
+                "inputs": [
+                  {
+                    "id": "M-000004",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:04"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

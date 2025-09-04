@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloud DAQ Backend (FastAPI + Redis)
+After=network.target
+
+[Service]
+User=mesh-daq
+WorkingDirectory=/opt/projects/iot-wireless-mesh-daq/cloud
+ExecStart=/opt/projects/iot-wireless-mesh-daq/cloud/.venv/bin/python run_cloud.py
+Restart=on-failure
+EnvironmentFile=/opt/projects/iot-wireless-mesh-daq/.env
+
+[Install]
+WantedBy=multi-user.target

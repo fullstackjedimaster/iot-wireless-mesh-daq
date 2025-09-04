@@ -1,0 +1,27 @@
+[Unit]
+Description=NATS Server for MeshServer External PubSub (port 5222)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/nats-server -p 5222
+User=nats
+Group=nats
+
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

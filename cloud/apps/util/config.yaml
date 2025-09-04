@@ -1,0 +1,32 @@
+# ==============================
+# Main Configuration for cloud
+# ==============================
+database:
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 3
+
+postgres:
+    user: "ss"
+    password: "Y@$$p4644313?"
+    host: "localhost"
+    port: 5432
+    dbname: "ss"
+
+
+
+nats:
+  server: "nats://127.0.0.1:5222"
+  publish_topic: "mesh.data"  # This is what Catcher subscribes to
+
+logging:
+  level: "INFO"     # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: "/var/log/cloud.log"
+
+ephem:
+  lat: 37.7749
+  lon: -122.4194
+  sleep_no_sun: 3600
+  max_night: 43200
+  sleep_all_night: false

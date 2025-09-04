@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import subprocess
+import os
+import time
+import signal
+import sys
+
+# Global to store child PIDs
+child_procs = []
+
+def shutdown(signum, frame):
+    print(f"[run_mesh-daq] Received signal {signum}. Shutting down children...")
+    for proc in child_procs:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+                print(f"[run_mesh-daq] Terminated PID {proc.pid}")
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                print(f"[run_mesh-daq] Force-killed PID {proc.pid}")
+    sys.exit(0)
+
+def main():
+    base = os.path.dirname(os.path.abspath(__file__))
+
+    # Trap TERM and INT for clean shutdown
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+
+    print("[run_mesh-daq] Launching rundaq.py...")
+    rundaq_proc = subprocess.Popen([sys.executable, os.path.join(base, "rundaq.py")])
+    child_procs.append(rundaq_proc)
+
+    print("[run_mesh-daq] Launching emulator.py...")
+    emulator_proc =subprocess.Popen([sys.executable, os.path.join(base, "emulator.py")])
+    child_procs.append(emulator_proc)
+
+    print("[run_mesh-daq] mesh is running.")
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        shutdown(signal.SIGINT, None)
+
+if __name__ == "__main__":
+    main()
