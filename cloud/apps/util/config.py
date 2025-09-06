@@ -4,7 +4,7 @@ import redis
 import psycopg2
 from psycopg2.extras import DictCursor
 
-DEFAULT_APP_CONFIG = "/opt/projects/cloud/apps/util/config.yaml"
+DEFAULT_APP_CONFIG = "/opt/projects/iot-wireless-mesh-daq/cloud/apps/util/config.yaml"
 
 _config = None
 
