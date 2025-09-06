@@ -2,7 +2,7 @@
 
 import Head from "next/head";
 import Layout from "@/components/Layout";
-import { PanelMapOverlay } from "@/components/PanelMapOverlay";
+import { PanelMapOverlay, PanelTelemetry } from "@/components/PanelMapOverlay";
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
 import GroupBox from "@/components/GroupBox";
@@ -10,47 +10,48 @@ import { useEffect, useState } from "react";
 import { getLayout } from "@/lib/api";
 import { FaultLegend } from "@/components/FaultLegend";
 
-/** Expected layout item shape returned by getLayout() */
-type LayoutItem = {
-    x: number;
-    y: number;
-    mac: string;
-};
+type LayoutItem = { x: number; y: number; mac: string };
 
 export default function Home() {
     const [selectedMac, setSelectedMac] = useState<string>("");
+    const [currentTelemetry, setCurrentTelemetry] = useState<PanelTelemetry>({});
 
     // On first load, select the top-left panel by (y, then x)
     useEffect(() => {
         let mounted = true;
-
         const fetchAndSelectFirstPanel = async () => {
             try {
                 const layout: LayoutItem[] = await getLayout();
                 if (!mounted || !Array.isArray(layout) || layout.length === 0) return;
-
                 const sorted = [...layout].sort((a, b) => (a.y !== b.y ? a.y - b.y : a.x - b.x));
                 setSelectedMac(sorted[0]?.mac ?? "");
             } catch {
-                // ignore (keep current selection)
+                /* ignore */
             }
         };
-
         fetchAndSelectFirstPanel();
         return () => {
             mounted = false;
         };
     }, []);
 
-    // Broadcast selected MAC so ai-ui (in a sibling iframe) can sync
+    // Broadcast selection + telemetry so ai-ui (sibling iframe) can sync
     useEffect(() => {
         if (!selectedMac) return;
         try {
-            window.parent?.postMessage({ type: "SELECT_MAC", mac: selectedMac }, "*");
+            window.parent?.postMessage(
+                {
+                    type: "PANEL_SELECTED",
+                    mac: selectedMac,
+                    telemetry: currentTelemetry ?? null,
+                    source: "daq-ui",
+                },
+                "*"
+            );
         } catch {
             /* no-op */
         }
-    }, [selectedMac]);
+    }, [selectedMac, currentTelemetry]);
 
     return (
         <>
@@ -63,7 +64,14 @@ export default function Home() {
                     <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
 
                     <GroupBox title="Nodes">
-                        <PanelMapOverlay selectedMac={selectedMac} onPanelClick={setSelectedMac} />
+                        <PanelMapOverlay
+                            selectedMac={selectedMac}
+                            onPanelClick={setSelectedMac}
+                            onSelectionMeta={(mac, telem) => {
+                                // keep local telemetry (for dock or future UI) and trigger postMessage via effect
+                                if (mac === selectedMac) setCurrentTelemetry(telem);
+                            }}
+                        />
                         <FaultLegend />
                     </GroupBox>
 
