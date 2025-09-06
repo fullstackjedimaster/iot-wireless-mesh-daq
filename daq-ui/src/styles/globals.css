@@ -136,28 +136,27 @@ body {
     font-size: 0.9rem;
 }
 
-
+/* Disable Chrome's scroll anchoring (prevents jitter) */
 html, body {
-    overflow-anchor: none; /* disable scroll anchoring */
+    overflow-anchor: none;
     margin: 0;
     padding: 0;
-    overflow: hidden;
-}
-
-/* daq-ui: put in your global CSS, e.g., src/styles/globals.css */
-html, body, #__next, .main-section {
     height: auto !important;
     min-height: 0 !important;
-    overflow: hidden;            /* the iframe will scroll, not the child */
+    overflow-y: auto;   /* allow scrolling if content taller than viewport */
 }
 
-/* Defensive: if any Tailwind screen-height utilities slipped in */
-[class*="min-h-screen"], [class*="h-screen"] {
+/* Kill Tailwind's h-screen / min-h-screen locks inside iframe */
+[class*="min-h-screen"],
+[class*="h-screen"] {
     height: auto !important;
     min-height: 0 !important;
 }
 
-
+/* Defensive: don't let flex/grid children force artificial heights */
+* {
+    min-height: 0;
+}
 
 
 

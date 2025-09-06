@@ -1,53 +1,79 @@
-// daq-ui/src/components/EmbedHeightReporter.tsx
 "use client";
+
 import { useEffect } from "react";
+
+type Beacon = {
+    type: "EMBED_HEIGHT";
+    frameId?: string;
+    height: number;
+};
 
 export default function EmbedHeightReporter() {
     useEffect(() => {
-        const frameId = new URLSearchParams(location.search).get("frameId") || "iframe-1";
+        const params = new URLSearchParams(window.location.search);
+        const frameId = params.get("frameId") || undefined;
 
-        const contentHeight = () =>
-            Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+        let scheduled = false;
+        let lastSent = 0;
 
-        const post = (h: number) => {
-            window.parent?.postMessage({ type: "EMBED_HEIGHT", frameId, height: Math.ceil(h) }, "*");
-        };
+        // Use ResizeObserver for true layout size
+        const ro = new ResizeObserver(() => {
+            if (scheduled) return;
+            scheduled = true;
+            requestAnimationFrame(() => {
+                scheduled = false;
+                const body = document.body;
+                const html = document.documentElement;
 
-        let last = 0;
-        const rafId: number | null = null;
+                // Use the max of body and doc element scroll heights
+                const h = Math.max(
+                    body.scrollHeight,
+                    html.scrollHeight,
+                    body.offsetHeight,
+                    html.offsetHeight
+                );
 
-        let debounceTimer: number | null = null;
-        const send = () => {
-            if (debounceTimer !== null) clearTimeout(debounceTimer);
-            // @ts-expect-error cuz
-            debounceTimer = setTimeout(() => {
-                debounceTimer = null;
-                const h = contentHeight();
-                if (!Number.isFinite(h) || h <= 0 || Math.abs(h - last) < 2) return;
-                last = h;
-                post(h);
-            }, 100);  // Delay a bit to let styles settle
-        };
+                // Avoid spamming the parent with 1–2px jitter
+                if (Math.abs(h - lastSent) >= 4) {
+                    lastSent = h;
+                    const msg: Beacon = { type: "EMBED_HEIGHT", frameId, height: h };
+                    window.parent?.postMessage(msg, "*");
+                }
+            });
+        });
 
-
-        // Initial + observers
-        send();
-        const ro = new ResizeObserver(send);
         ro.observe(document.documentElement);
-        const mo = new MutationObserver(send);
-        mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
-        addEventListener("load", send);
-        addEventListener("resize", send);
+        ro.observe(document.body);
 
-        const t = setInterval(send, 500); // belt & suspenders
+        // MutationObserver fallback — just trigger ResizeObserver manually
+        const mo = new MutationObserver(() => {
+            ro.disconnect();
+            ro.observe(document.documentElement);
+            ro.observe(document.body);
+        });
+
+        mo.observe(document.documentElement, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            characterData: true,
+        });
+
+        // Initial ping
+        const init = () => {
+            const h = Math.max(
+                document.body.scrollHeight,
+                document.documentElement.scrollHeight
+            );
+            lastSent = h;
+            const msg: Beacon = { type: "EMBED_HEIGHT", frameId, height: h };
+            window.parent?.postMessage(msg, "*");
+        };
+        init();
 
         return () => {
             ro.disconnect();
             mo.disconnect();
-            removeEventListener("load", send);
-            removeEventListener("resize", send);
-            if (rafId != null) cancelAnimationFrame(rafId);
-            clearInterval(t);
         };
     }, []);
 
