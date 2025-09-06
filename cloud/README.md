@@ -1,4 +1,4 @@
-# Wireless Sensor Mesh: cloud
+# IoT Wireless Mesh DAQ: cloud
 
 This service provides the FastAPI interface and real-time data viewer using Redis and PostgreSQL.
 

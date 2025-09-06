@@ -14,19 +14,21 @@ export default function EmbedHeightReporter() {
         };
 
         let last = 0;
-        let rafId: number | null = null;
+        const rafId: number | null = null;
 
+        let debounceTimer: number | null = null;
         const send = () => {
-            if (rafId != null) return;
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
+            if (debounceTimer !== null) clearTimeout(debounceTimer);
+            // @ts-expect-error cuz
+            debounceTimer = setTimeout(() => {
+                debounceTimer = null;
                 const h = contentHeight();
-                if (Math.abs(h - last) >= 2) {
-                    last = h;
-                    post(h);
-                }
-            });
+                if (!Number.isFinite(h) || h <= 0 || Math.abs(h - last) < 2) return;
+                last = h;
+                post(h);
+            }, 100);  // Delay a bit to let styles settle
         };
+
 
         // Initial + observers
         send();
