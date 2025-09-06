@@ -1,19 +1,14 @@
-// /pages/_document.tsx
 import { Html, Head, Main, NextScript } from "next/document";
 import Script from "next/script";
 
 export default function Document() {
-    // Safe on both server/client – read once here.
-    const aiOrigin = process.env.NEXT_PUBLIC_AI_UI_ORIGIN || "";
-
+    const aiOrigin = process.env.NEXT_PUBLIC_AI_UI_ORIGIN || "https://mesh-daq.fullstackjedi.dev/ai-demo";
     return (
         <Html lang="en">
             <Head />
             <body>
             <Main />
             <NextScript />
-
-            {/* AI dock bootstrapper (async, lint-friendly) */}
             <Script
                 src={`${aiOrigin.replace(/\/$/, "")}/dock/boot.js`}
                 strategy="afterInteractive"
