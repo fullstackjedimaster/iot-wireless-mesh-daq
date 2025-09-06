@@ -16,14 +16,15 @@ export type PanelTelemetry = {
     status?: string;
 };
 
+type RawPanelData = {
+    voltage?: number;
+    current?: number;
+    status?: string;
+};
+
 interface Props {
     selectedMac: string;
     onPanelClick: (mac: string) => void;
-
-    /**
-     * Optional callback: whenever this component learns new telemetry
-     * for the *currently selected* MAC, report it upward.
-     */
     onSelectionMeta?: (mac: string, telem: PanelTelemetry) => void;
 }
 
@@ -43,29 +44,26 @@ export const PanelMapOverlay: React.FC<Props> = ({
                                                  }) => {
     const [layout, setLayout] = useState<PanelInfo[]>([]);
     const [statuses, setStatuses] = useState<Record<string, string>>({});
-    const [rawByMac, setRawByMac] = useState<Record<string, any>>({}); // store last raw result per MAC
+    const [rawByMac, setRawByMac] = useState<Record<string, RawPanelData | undefined>>({});
 
-    // Hash refs so we only update state when data actually changes
     const layoutHashRef = useRef<string>("");
     const statusHashRef = useRef<string>("");
 
-    // Poll layout every 5s, but only set state if payload changed
+    // Poll layout
     useEffect(() => {
         let isMounted = true;
-
         const fetchLayoutOnce = async () => {
             try {
                 const data = await getLayout();
                 const nextHash = JSON.stringify(data);
                 if (isMounted && nextHash !== layoutHashRef.current) {
                     layoutHashRef.current = nextHash;
-                    setLayout(data as PanelInfo[]);
+                    setLayout((data as PanelInfo[]) ?? []);
                 }
             } catch {
                 /* ignore */
             }
         };
-
         void fetchLayoutOnce();
         const id = setInterval(fetchLayoutOnce, 5000);
         return () => {
@@ -74,7 +72,7 @@ export const PanelMapOverlay: React.FC<Props> = ({
         };
     }, []);
 
-    // Poll statuses for the current layout every 5s (in parallel), update only on change
+    // Poll statuses
     useEffect(() => {
         if (layout.length === 0) return;
         let isMounted = true;
@@ -84,18 +82,30 @@ export const PanelMapOverlay: React.FC<Props> = ({
                 const results = await Promise.all(
                     layout.map(async (panel) => {
                         try {
-                            const raw = await getPanelStatus(panel.mac);
-                            // normalize
-                            const status = String(raw?.status ?? "unknown").toLowerCase();
+                            const rawResp = await getPanelStatus(panel.mac);
+
+                            const voltageNum = Number(rawResp?.voltage);
+                            const currentNum = Number(rawResp?.current);
+
+                            const raw: RawPanelData = {
+                                status:
+                                    rawResp?.status !== undefined
+                                        ? String(rawResp.status).toLowerCase()
+                                        : undefined,
+                                voltage: Number.isFinite(voltageNum) ? voltageNum : undefined,
+                                current: Number.isFinite(currentNum) ? currentNum : undefined,
+                            };
+
+                            const status = raw.status ?? "unknown";
                             return [panel.mac, { status, raw }] as const;
                         } catch {
-                            return [panel.mac, { status: "unknown", raw: null }] as const;
+                            return [panel.mac, { status: "unknown", raw: undefined }] as const;
                         }
                     })
                 );
 
                 const nextStatuses: Record<string, string> = Object.fromEntries(
-                    results.map(([mac, { status }]) => [mac, status])
+                    results.map(([mac, payload]) => [mac, payload.status])
                 );
                 const nextHash = JSON.stringify(nextStatuses);
 
@@ -103,9 +113,8 @@ export const PanelMapOverlay: React.FC<Props> = ({
                     statusHashRef.current = nextHash;
                     setStatuses(nextStatuses);
 
-                    // keep last raw result per MAC too (for voltage/current forwarding)
-                    const nextRaw: Record<string, any> = { ...rawByMac };
-                    for (const [mac, { raw }] of results) nextRaw[mac] = raw;
+                    const nextRaw: Record<string, RawPanelData | undefined> = { ...rawByMac };
+                    for (const [mac, payload] of results) nextRaw[mac] = payload.raw;
                     setRawByMac(nextRaw);
                 }
             } catch {
@@ -122,14 +131,14 @@ export const PanelMapOverlay: React.FC<Props> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [layout]);
 
-    // When the *selected* MAC changes or when status/raw updates, inform parent with latest telemetry
+    // Emit telemetry for selected MAC
     useEffect(() => {
         if (!selectedMac) return;
         const raw = rawByMac[selectedMac];
         const telem: PanelTelemetry = {
             status: statuses[selectedMac] ?? "unknown",
-            voltage: raw?.voltage != null ? String(raw.voltage) : undefined,
-            current: raw?.current != null ? String(raw.current) : undefined,
+            voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
+            current: raw?.current !== undefined ? String(raw.current) : undefined,
         };
         onSelectionMeta?.(selectedMac, telem);
     }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
@@ -140,7 +149,6 @@ export const PanelMapOverlay: React.FC<Props> = ({
     const panelWidth = 45;
     const panelHeight = 10;
 
-    // Compute SVG size safely (handles empty layout)
     const { svgWidth, svgHeight } = useMemo(() => {
         const maxX = layout.length ? Math.max(...layout.map((p) => p.x)) : 1;
         const maxY = layout.length ? Math.max(...layout.map((p) => p.y)) : 1;
@@ -171,12 +179,11 @@ export const PanelMapOverlay: React.FC<Props> = ({
                             key={panel.mac}
                             onClick={() => {
                                 onPanelClick(panel.mac);
-                                // Best effort: if we already have raw for this mac, push immediately
                                 const raw = rawByMac[panel.mac];
                                 const telem: PanelTelemetry = {
                                     status,
-                                    voltage: raw?.voltage != null ? String(raw.voltage) : undefined,
-                                    current: raw?.current != null ? String(raw.current) : undefined,
+                                    voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
+                                    current: raw?.current !== undefined ? String(raw.current) : undefined,
                                 };
                                 onSelectionMeta?.(panel.mac, telem);
                             }}
