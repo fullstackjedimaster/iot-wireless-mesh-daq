@@ -1,3 +1,4 @@
+// /daq-ui/src/pages/index.tsx (or /app/page.tsx if using App Router)
 "use client";
 
 import Head from "next/head";
@@ -12,9 +13,13 @@ import { FaultLegend } from "@/components/FaultLegend";
 
 type LayoutItem = { x: number; y: number; mac: string };
 
+// Generic attribute bag for any host (CRUD, DAQ, etc.)
+type Attrs = Record<string, string | number | boolean | null | undefined>;
+
 export default function Home() {
     const [selectedMac, setSelectedMac] = useState<string>("");
     const [currentTelemetry, setCurrentTelemetry] = useState<PanelTelemetry>({});
+    const [attrs, setAttrs] = useState<Attrs>({}); // derived from telemetry (generic)
 
     // On first load, select the top-left panel by (y, then x)
     useEffect(() => {
@@ -23,7 +28,9 @@ export default function Home() {
             try {
                 const layout: LayoutItem[] = await getLayout();
                 if (!mounted || !Array.isArray(layout) || layout.length === 0) return;
-                const sorted = [...layout].sort((a, b) => (a.y !== b.y ? a.y - b.y : a.x - b.x));
+                const sorted = [...layout].sort((a, b) =>
+                    a.y !== b.y ? a.y - b.y : a.x - b.x
+                );
                 setSelectedMac(sorted[0]?.mac ?? "");
             } catch {
                 /* ignore */
@@ -35,10 +42,25 @@ export default function Home() {
         };
     }, []);
 
-    // Broadcast selection + telemetry so ai-ui (sibling iframe) can sync
+    // Keep a generic attrs object in sync with the current telemetry
+    useEffect(() => {
+        // Map DAQ telemetry → generic attributes bag
+        const next: Attrs = {
+            status: currentTelemetry.status ?? undefined,
+            voltage: currentTelemetry.voltage ?? undefined,
+            current: currentTelemetry.current ?? undefined,
+        };
+        setAttrs(next);
+    }, [currentTelemetry]);
+
+    // Broadcast selection so ai-ui (in a sibling iframe via boot.js) can sync
+    // 1) Legacy path (kept for back-compat): PANEL_SELECTED + telemetry
+    // 2) Generic path (new): TARGET_SELECTED + { id, attrs }
     useEffect(() => {
         if (!selectedMac) return;
+
         try {
+            // --- Legacy (don’t remove; other relays may still rely on this) ---
             window.parent?.postMessage(
                 {
                     type: "PANEL_SELECTED",
@@ -48,10 +70,21 @@ export default function Home() {
                 },
                 "*"
             );
+
+            // --- Generic (preferred going forward) ---
+            window.parent?.postMessage(
+                {
+                    type: "TARGET_SELECTED",
+                    id: selectedMac,          // generic identifier (works for CRUD, DAQ, etc.)
+                    attrs: attrs ?? null,     // generic attributes (optional)
+                    source: "daq-ui",
+                },
+                "*"
+            );
         } catch {
             /* no-op */
         }
-    }, [selectedMac, currentTelemetry]);
+    }, [selectedMac, currentTelemetry, attrs]);
 
     return (
         <>
@@ -68,7 +101,7 @@ export default function Home() {
                             selectedMac={selectedMac}
                             onPanelClick={setSelectedMac}
                             onSelectionMeta={(mac, telem) => {
-                                // keep local telemetry (for dock or future UI) and trigger postMessage via effect
+                                // Keep local telemetry; broadcasting happens via the effect above
                                 if (mac === selectedMac) setCurrentTelemetry(telem);
                             }}
                         />
