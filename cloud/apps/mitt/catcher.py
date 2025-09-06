@@ -12,10 +12,11 @@ from apps.util.daemon import Daemon
 from apps.util.managers.nats_manager import nats_manager  # Centralized NATSManager
 
 # ✅ fallback AI status logic
-from cloud.apps.util.faults import compute_status_from_metrics
+from apps.util.faults import compute_status_from_metrics
+
+logger = make_logger("Catcher")
 
 config = load_config()
-logger = make_logger("Catcher")
 
 DATA_TOPIC = get_topic("publish")
 nats_manager.set_server(config["nats"]["server"])
