@@ -9,7 +9,7 @@ export default function Document() {
             <Main />
             <NextScript />
             <Script
-                src={`${(process.env.NEXT_PUBLIC_AI_UI_ORIGIN || "https://mesh-daq.fullstackjedi.dev/ai-demo").replace(/\/$/, "")}/dock/boot.js`}
+                src={`${(process.env.NEXT_PUBLIC_AI_UI_ORIGIN || "").replace(/\/$/, "")}/dock/boot.js`}
                 strategy="afterInteractive"
                 data-origin={process.env.NEXT_PUBLIC_AI_UI_ORIGIN}
                 data-visible="1"
