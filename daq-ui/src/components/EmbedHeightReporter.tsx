@@ -2,76 +2,71 @@
 
 import { useEffect } from "react";
 
-type Beacon = {
-    type: "EMBED_HEIGHT";
-    frameId?: string;
-    height: number;
-};
-
 export default function EmbedHeightReporter() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const frameId = params.get("frameId") || undefined;
 
-        let scheduled = false;
+        let rafScheduled = false;
         let lastSent = 0;
 
-        // Use ResizeObserver for true layout size
-        const ro = new ResizeObserver(() => {
-            if (scheduled) return;
-            scheduled = true;
+        // Robust height calc that won't "creep"
+        const computeHeight = () => {
+            const html = document.documentElement;
+            const body = document.body;
+
+            // Use layout height; avoid scroll-driven feedback loops
+            const rect = body.getBoundingClientRect();
+            const layoutH = Math.ceil(rect.height);
+
+            // Fallbacks if styles are odd
+            const alt = Math.max(
+                html.clientHeight,
+                html.offsetHeight,
+                body.scrollHeight,
+                body.offsetHeight
+            );
+
+            return Math.max(layoutH, alt);
+        };
+
+        const post = (h: number) => {
+            if (!window.parent) return;
+            // Only send if changed meaningfully (>= 8px)
+            if (Math.abs(h - lastSent) < 8) return;
+            lastSent = h;
+            window.parent.postMessage(
+                { type: "EMBED_HEIGHT", frameId, height: h },
+                "*"
+            );
+        };
+
+        const measureAndPost = () => {
+            if (rafScheduled) return;
+            rafScheduled = true;
             requestAnimationFrame(() => {
-                scheduled = false;
-                const body = document.body;
-                const html = document.documentElement;
-
-                // Use the max of body and doc element scroll heights
-                const h = Math.max(
-                    body.scrollHeight,
-                    html.scrollHeight,
-                    body.offsetHeight,
-                    html.offsetHeight
-                );
-
-                // Avoid spamming the parent with 1–2px jitter
-                if (Math.abs(h - lastSent) >= 4) {
-                    lastSent = h;
-                    const msg: Beacon = { type: "EMBED_HEIGHT", frameId, height: h };
-                    window.parent?.postMessage(msg, "*");
-                }
+                rafScheduled = false;
+                post(computeHeight());
             });
-        });
+        };
 
+        // ResizeObserver: layout changes
+        const ro = new ResizeObserver(() => measureAndPost());
         ro.observe(document.documentElement);
         ro.observe(document.body);
 
-        // MutationObserver fallback — just trigger ResizeObserver manually
-        const mo = new MutationObserver(() => {
-            ro.disconnect();
-            ro.observe(document.documentElement);
-            ro.observe(document.body);
-        });
+        // MutationObserver: DOM edits
+        const mo = new MutationObserver(() => measureAndPost());
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 
-        mo.observe(document.documentElement, {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            characterData: true,
-        });
-
-        // Initial ping
-        const init = () => {
-            const h = Math.max(
-                document.body.scrollHeight,
-                document.documentElement.scrollHeight
-            );
-            lastSent = h;
-            const msg: Beacon = { type: "EMBED_HEIGHT", frameId, height: h };
-            window.parent?.postMessage(msg, "*");
-        };
-        init();
+        // Initial + after fonts/images
+        measureAndPost();
+        window.addEventListener("load", measureAndPost);
+        const id = setInterval(measureAndPost, 1000); // safety ping
 
         return () => {
+            window.removeEventListener("load", measureAndPost);
+            clearInterval(id);
             ro.disconnect();
             mo.disconnect();
         };

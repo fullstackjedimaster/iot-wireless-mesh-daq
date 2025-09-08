@@ -1,4 +1,3 @@
-// /daq-ui/src/components/PanelMapOverlay.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -36,6 +35,20 @@ const statusColorMap: Record<string, string> = {
     open_circuit: "#004aff",
     unknown: "#000000",
 };
+
+// ---- Dock messaging ----
+const DOCK_FRAME_ID = "iframe-1";
+function postToDock(msg: unknown) {
+    const iframe = document.getElementById(DOCK_FRAME_ID) as HTMLIFrameElement | null;
+    if (!iframe || !iframe.contentWindow) return;
+    iframe.contentWindow.postMessage(msg, "*");
+}
+function sendSelectedToDock(mac: string, telem: PanelTelemetry) {
+    // Use the most-capable format the dock understands
+    postToDock({ type: "SET_SELECTED", id: mac, attrs: telem });
+    // Back-compat payload (dock also accepts this)
+    postToDock({ type: "PANEL_SELECTED", mac, telemetry: telem });
+}
 
 export const PanelMapOverlay: React.FC<Props> = ({
                                                      selectedMac,
@@ -131,7 +144,7 @@ export const PanelMapOverlay: React.FC<Props> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [layout]);
 
-    // Emit telemetry for selected MAC
+    // Emit telemetry for selected MAC (host callbacks + dock)
     useEffect(() => {
         if (!selectedMac) return;
         const raw = rawByMac[selectedMac];
@@ -141,6 +154,8 @@ export const PanelMapOverlay: React.FC<Props> = ({
             current: raw?.current !== undefined ? String(raw.current) : undefined,
         };
         onSelectionMeta?.(selectedMac, telem);
+        // Also forward to dock
+        sendSelectedToDock(selectedMac, telem);
     }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
 
     // Layout constants
@@ -186,6 +201,7 @@ export const PanelMapOverlay: React.FC<Props> = ({
                                     current: raw?.current !== undefined ? String(raw.current) : undefined,
                                 };
                                 onSelectionMeta?.(panel.mac, telem);
+                                sendSelectedToDock(panel.mac, telem);
                             }}
                             className="panel cursor-pointer"
                         >

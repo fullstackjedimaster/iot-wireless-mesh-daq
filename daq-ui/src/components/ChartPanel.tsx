@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useEffect, useRef } from "react"
-import { Line } from "react-chartjs-2"
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Line } from "react-chartjs-2";
 import {
     Chart as ChartJS,
     LineElement,
@@ -11,151 +11,144 @@ import {
     Legend,
     Tooltip,
     Filler,
-    TimeScale
-} from "chart.js"
-import { getPanelStatus } from "@/lib/api"
-import "chartjs-adapter-date-fns"
+    TimeScale,
+    ChartDataset,
+    ChartData,
+} from "chart.js";
+import { getPanelStatus } from "@/lib/api";
+import "chartjs-adapter-date-fns";
 
-ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Legend, Tooltip, Filler, TimeScale)
+ChartJS.register(
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    Legend,
+    Tooltip,
+    Filler,
+    TimeScale
+);
 
 interface ChartPanelProps {
-    selectedMac: string
+    selectedMac: string;
 }
 
-const MAX_POINTS = 30
+type XY = { x: number; y: number };
+
+const MAX_POINTS = 30;
 
 export default function ChartPanel({ selectedMac }: ChartPanelProps) {
-    const chartRef = useRef<ChartJS<"line">>(null)
+    const chartRef = useRef<ChartJS<"line">>(null);
 
-    // Reset chart on panel change
+    // Keep data in React state; pass to <Line />
+    const [volts, setVolts] = useState<XY[]>([]);
+    const [amps, setAmps] = useState<XY[]>([]);
+
+    // Reset on MAC change
     useEffect(() => {
-        const chart = chartRef.current
-        if (!chart) return
+        setVolts([]);
+        setAmps([]);
+        const chart = chartRef.current;
+        if (chart) chart.update();
+    }, [selectedMac]);
 
-        if (chart.data.labels) chart.data.labels.length = 0
-        chart.data.datasets.forEach(dataset => {
-            dataset.data = []
-        })
-
-        chart.update()
-    }, [selectedMac])
-
-    // Poll and update chart
+    // Poll and append points
     useEffect(() => {
-        if (!selectedMac) return
+        if (!selectedMac) return;
 
         const interval = setInterval(async () => {
             try {
-                const data = await getPanelStatus(selectedMac)
-                const v = parseFloat(data.voltage ?? "0")
-                const c = parseFloat(data.current ?? "0")
-                const now = Date.now()
+                const data = await getPanelStatus(selectedMac);
 
-                const chart = chartRef.current
-                if (!chart) return
+                const vRaw = data?.voltage;
+                const cRaw = data?.current;
 
-                const labels = chart.data.labels
-                const vDataset = chart.data.datasets[0]
-                const cDataset = chart.data.datasets[1]
+                const v = Number(vRaw);
+                const c = Number(cRaw);
 
-                if (!Array.isArray(labels)) return
-
-                labels.push(now)
-                vDataset.data.push(v)
-                cDataset.data.push(c)
-
-                if (labels.length > MAX_POINTS) {
-                    labels.shift()
-                    vDataset.data.shift()
-                    cDataset.data.shift()
-                }
-
-                chart.update()
-            } catch (error) {
-                console.error("Failed to fetch panel stats:", error)
+                // Only append if they are finite numbers
+                const now = Date.now();
+                setVolts((prev) => {
+                    const next = [...prev, { x: now, y: Number.isFinite(v) ? v : 0 }];
+                    return next.length > MAX_POINTS ? next.slice(-MAX_POINTS) : next;
+                });
+                setAmps((prev) => {
+                    const next = [...prev, { x: now, y: Number.isFinite(c) ? c : 0 }];
+                    return next.length > MAX_POINTS ? next.slice(-MAX_POINTS) : next;
+                });
+            } catch (err) {
+                // Silently ignore; keeps UI calm if a tick fails
+                // console.error("poll error", err);
             }
-        }, 2000)
+        }, 2000);
 
-        return () => clearInterval(interval)
-    }, [selectedMac])
+        return () => clearInterval(interval);
+    }, [selectedMac]);
 
-    const chartData = {
-        labels: [],
-        datasets: [
-            {
-                label: "Voltage (V)",
-                data: [],
-                borderColor: "green",
-                backgroundColor: "rgba(34,197,94,0.2)",
-                fill: true,
-                tension: 0.3
-            },
-            {
-                label: "Current (A)",
-                data: [],
-                borderColor: "blue",
-                backgroundColor: "rgba(59,130,246,0.2)",
-                fill: true,
-                tension: 0.3
-            }
-        ]
-    }
+    const chartData: ChartData<"line"> = useMemo(() => {
+        const vDataset: ChartDataset<"line", XY[]> = {
+            label: "Voltage (V)",
+            data: volts,
+            parsing: false, // because we're providing {x,y}
+            borderColor: "green",
+            backgroundColor: "rgba(34,197,94,0.2)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+        };
+        const cDataset: ChartDataset<"line", XY[]> = {
+            label: "Current (A)",
+            data: amps,
+            parsing: false,
+            borderColor: "blue",
+            backgroundColor: "rgba(59,130,246,0.2)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+        };
+        return { datasets: [vDataset, cDataset] };
+    }, [volts, amps]);
 
     return (
         <div
             className="panel-section"
             style={{
                 width: "100%",
-                maxWidth: "338px", // Matches wrapped card
+                maxWidth: "338px",
                 margin: "0 auto",
                 padding: "0.5rem",
                 boxSizing: "border-box",
-                overflowX: "hidden"
+                overflowX: "hidden",
             }}
         >
-            <div
-                style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "200px",
-                    overflow: "hidden"
-                }}
-            >
+            <div style={{ position: "relative", width: "100%", height: 200, overflow: "hidden" }}>
                 <Line
                     ref={chartRef}
                     data={chartData}
-                    style={{ maxWidth: "100%" }}
                     options={{
                         responsive: true,
                         maintainAspectRatio: false,
-                        animation: {
-                            duration: 300,
-                            easing: "easeOutQuart"
-                        },
+                        animation: { duration: 250, easing: "easeOutQuart" },
+                        parsing: false,
                         scales: {
                             x: {
                                 type: "time",
                                 time: {
                                     unit: "second",
                                     tooltipFormat: "HH:mm:ss",
-                                    displayFormats: {
-                                        second: "HH:mm:ss"
-                                    }
+                                    displayFormats: { second: "HH:mm:ss" },
                                 },
-                                ticks: {
-                                    autoSkip: true,
-                                    maxTicksLimit: 10
-                                }
+                                ticks: { autoSkip: true, maxTicksLimit: 10 },
                             },
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
+                            y: { beginAtZero: true },
+                        },
+                        plugins: {
+                            legend: { display: true },
+                            tooltip: { mode: "nearest", intersect: false },
+                        },
                     }}
                 />
             </div>
         </div>
-    )
-
-
+    );
 }

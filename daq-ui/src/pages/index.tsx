@@ -10,11 +10,14 @@ import GroupBox from "@/components/GroupBox";
 import { useEffect, useState } from "react";
 import { getLayout } from "@/lib/api";
 import { FaultLegend } from "@/components/FaultLegend";
+import Script from "next/script";
 
 type LayoutItem = { x: number; y: number; mac: string };
 
 // Generic attribute bag for any host (CRUD, DAQ, etc.)
 type Attrs = Record<string, string | number | boolean | null | undefined>;
+
+const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
 
 export default function Home() {
     const [selectedMac, setSelectedMac] = useState<string>("");
@@ -117,7 +120,18 @@ export default function Home() {
                     <GroupBox title="Fault Injection">
                         <ControlPanel />
                     </GroupBox>
+                    {aiEnabled && (
+                        <Script
+                            src="https://ai-ui.fullstackjedi.dev/dock/boot.js"
+                            data-origin="https://ai-ui.fullstackjedi.dev"
+                            data-visible="1"
+                            data-height="420"
+                            data-frame-id="iframe-1"
+                            strategy="afterInteractive"
+                        />
+                    )}
                 </div>
+
             </Layout>
         </>
     );
