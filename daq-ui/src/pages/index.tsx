@@ -1,28 +1,38 @@
-// /daq-ui/src/pages/index.tsx (or /app/page.tsx if using App Router)
+// /daq-ui/src/pages/index.tsx  (or /app/page.tsx)
 "use client";
 
 import Head from "next/head";
 import Layout from "@/components/Layout";
-import { PanelMapOverlay, PanelTelemetry } from "@/components/PanelMapOverlay";
+import GroupBox from "@/components/GroupBox";
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
-import GroupBox from "@/components/GroupBox";
-import { useEffect, useState } from "react";
-import { getLayout } from "@/lib/api";
 import { FaultLegend } from "@/components/FaultLegend";
-import Script from "next/script";
+import { PanelMapOverlay, type PanelTelemetry } from "@/components/PanelMapOverlay";
+import { useCallback, useEffect, useState } from "react";
+import { getLayout } from "@/lib/api";
 
+// Layout items returned by getLayout()
 type LayoutItem = { x: number; y: number; mac: string };
 
-// Generic attribute bag for any host (CRUD, DAQ, etc.)
+// Generic attribute bag (used when broadcasting TARGET_SELECTED)
 type Attrs = Record<string, string | number | boolean | null | undefined>;
-
-const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
 
 export default function Home() {
     const [selectedMac, setSelectedMac] = useState<string>("");
     const [currentTelemetry, setCurrentTelemetry] = useState<PanelTelemetry>({});
     const [attrs, setAttrs] = useState<Attrs>({}); // derived from telemetry (generic)
+
+    // Click from the map
+    const handlePanelClick = useCallback((mac: string) => {
+        setSelectedMac(mac);
+    }, []);
+
+    // PanelMapOverlay will call this with telemetry whenever a panel is clicked
+    const handleSelectionMeta = useCallback((mac: string, telem: PanelTelemetry) => {
+        // keep local state up to date; broadcast happens in the effect below
+        setSelectedMac(mac);
+        setCurrentTelemetry(telem);
+    }, []);
 
     // On first load, select the top-left panel by (y, then x)
     useEffect(() => {
@@ -39,7 +49,7 @@ export default function Home() {
                 /* ignore */
             }
         };
-        fetchAndSelectFirstPanel();
+        void fetchAndSelectFirstPanel();
         return () => {
             mounted = false;
         };
@@ -47,7 +57,6 @@ export default function Home() {
 
     // Keep a generic attrs object in sync with the current telemetry
     useEffect(() => {
-        // Map DAQ telemetry → generic attributes bag
         const next: Attrs = {
             status: currentTelemetry.status ?? undefined,
             voltage: currentTelemetry.voltage ?? undefined,
@@ -56,14 +65,13 @@ export default function Home() {
         setAttrs(next);
     }, [currentTelemetry]);
 
-    // Broadcast selection so ai-ui (in a sibling iframe via boot.js) can sync
+    // Broadcast selection so ai-ui (in sibling iframe via portfolio) can sync
     // 1) Legacy path (kept for back-compat): PANEL_SELECTED + telemetry
-    // 2) Generic path (new): TARGET_SELECTED + { id, attrs }
+    // 2) Generic path (preferred): TARGET_SELECTED + { id, attrs }
     useEffect(() => {
         if (!selectedMac) return;
-
         try {
-            // --- Legacy (don’t remove; other relays may still rely on this) ---
+            // --- Legacy ---
             window.parent?.postMessage(
                 {
                     type: "PANEL_SELECTED",
@@ -74,18 +82,18 @@ export default function Home() {
                 "*"
             );
 
-            // --- Generic (preferred going forward) ---
+            // --- Preferred generic ---
             window.parent?.postMessage(
                 {
                     type: "TARGET_SELECTED",
-                    id: selectedMac,          // generic identifier (works for CRUD, DAQ, etc.)
-                    attrs: attrs ?? null,     // generic attributes (optional)
+                    id: selectedMac,      // generic identifier (MAC here)
+                    attrs: attrs ?? null, // generic attributes
                     source: "daq-ui",
                 },
                 "*"
             );
         } catch {
-            /* no-op */
+            /* no-op for cross-origin guards */
         }
     }, [selectedMac, currentTelemetry, attrs]);
 
@@ -102,11 +110,8 @@ export default function Home() {
                     <GroupBox title="Nodes">
                         <PanelMapOverlay
                             selectedMac={selectedMac}
-                            onPanelClick={setSelectedMac}
-                            onSelectionMeta={(mac, telem) => {
-                                // Keep local telemetry; broadcasting happens via the effect above
-                                if (mac === selectedMac) setCurrentTelemetry(telem);
-                            }}
+                            onPanelClick={handlePanelClick}
+                            onSelectionMeta={handleSelectionMeta}
                         />
                         <FaultLegend />
                     </GroupBox>
@@ -120,18 +125,7 @@ export default function Home() {
                     <GroupBox title="Fault Injection">
                         <ControlPanel />
                     </GroupBox>
-                    {aiEnabled && (
-                        <Script
-                            src="https://ai-ui.fullstackjedi.dev/dock/boot.js"
-                            data-origin="https://ai-ui.fullstackjedi.dev"
-                            data-visible="1"
-                            data-height="420"
-                            data-frame-id="iframe-1"
-                            strategy="afterInteractive"
-                        />
-                    )}
                 </div>
-
             </Layout>
         </>
     );
