@@ -2,7 +2,7 @@
 import React from "react";
 import Head from "next/head";
 import EmbedHeightReporter from "@/components/EmbedHeightReporter";
-import "@/styles/globals.css";
+import "@/app/globals.css";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
@@ -13,3 +13,4 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </>
     );
 }
+            
