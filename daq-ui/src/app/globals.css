@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Orbitron";
-  src: url("/public/fonts/Orbitron-Regular.ttf") format("truetype");
+  src: url("/fonts/Orbitron-Regular.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "Orbitron";
-  src: url("/public/fonts/Orbitron-Medium.ttf") format("truetype");
+  src: url("/fonts/Orbitron-Medium.ttf") format("truetype");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -16,7 +16,7 @@
 
   @font-face {
     font-family: "Orbitron";
-    src: url("/public/fonts/Orbitron-SemiBold.ttf") format("truetype");
+    src: url("/fonts/Orbitron-SemiBold.ttf") format("truetype");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
@@ -24,7 +24,7 @@
 
   @font-face {
     font-family: "Orbitron";
-    src: url("/public/fonts/Orbitron-Bold.ttf") format("truetype");
+    src: url("/fonts/Orbitron-Bold.ttf") format("truetype");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -32,7 +32,7 @@
 
   @font-face {
     font-family: "Orbitron";
-    src: url("/public/fonts/Orbitron-ExtraBold.ttf") format("truetype");
+    src: url("/fonts/Orbitron-ExtraBold.ttf") format("truetype");
     font-weight: 800;
     font-style: normal;
     font-display: swap;
@@ -40,7 +40,7 @@
 
   @font-face {
     font-family: "Orbitron";
-    src: url("/public/fonts/Orbitron-Black.ttf") format("truetype");
+    src: url("/fonts/Orbitron-Black.ttf") format("truetype");
     font-weight: 900;
     font-style: normal;
     font-display: swap;
@@ -49,7 +49,7 @@
   /* Optional: Include variable font fallback if needed */
   @font-face {
     font-family: "OrbitronVariable";
-    src: url("/public/fonts/Orbitron-VariableFont_wght.ttf") format("truetype");
+    src: url("/fonts/Orbitron-VariableFont_wght.ttf") format("truetype");
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
@@ -157,6 +157,10 @@ html, body {
 * {
     min-height: 0;
 }
+
+html, body { margin:0; padding:0; overflow-x:hidden; }
+*, *::before, *::after { box-sizing:border-box; }
+
 
 
 

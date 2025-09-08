@@ -6,6 +6,7 @@
         <entryData>
           <resourceRoots>
             <path value="file://$PROJECT_DIR$/daq-ui/public" />
+            <path value="file://$PROJECT_DIR$/daq-ui/src/styles" />
           </resourceRoots>
         </entryData>
       </entry>
