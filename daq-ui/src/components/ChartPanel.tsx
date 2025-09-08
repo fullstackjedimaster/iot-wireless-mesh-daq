@@ -78,7 +78,7 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
                 });
             } catch (err) {
                 // Silently ignore; keeps UI calm if a tick fails
-                // console.error("poll error", err);
+                 console.error("poll error", err);
             }
         }, 2000);
 
