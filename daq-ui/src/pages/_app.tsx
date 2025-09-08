@@ -1,7 +1,7 @@
 // daq-ui/src/pages/_app.tsx
 import type { AppProps } from "next/app";
 import Layout from "@/components/Layout";         // renders <EmbedHeightReporter /> once
-import "@/styles/globals.css";                    // keep if using Pages Router
+import "@/app/globals.css";                    // keep if using Pages Router
 import Script from "next/script";
 import { useEffect, useState } from "react";
 
