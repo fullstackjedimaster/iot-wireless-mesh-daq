@@ -2,6 +2,10 @@
 import { Html, Head, Main, NextScript } from "next/document";
 import Script from "next/script";
 
+const aiEnabled = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
+
+
+
 export default function Document() {
     return (
         <Html lang="en">
@@ -10,7 +14,7 @@ export default function Document() {
             <Main />
             <NextScript />
 
-            {/* Use Next.js Script with a loading strategy */}
+            {aiEnabled && (
             <Script
                 src="https://ai-ui.fullstackjedi.dev/dock/boot.js"
                 strategy="afterInteractive"
@@ -18,6 +22,7 @@ export default function Document() {
                 data-visible="1"
                 data-height="360"
             />
+                )}
             </body>
         </Html>
     );
