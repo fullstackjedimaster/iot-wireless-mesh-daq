@@ -1,4 +1,4 @@
-// demo-app/src/pages/_app.tsx  (e.g., daq-ui)
+// /daq-ui/src/pages/_app.tsx
 import type { AppProps } from "next/app";
 import Script from "next/script";
 import { useEffect, useState } from "react";
@@ -10,7 +10,8 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
     useEffect(() => {
         const p = new URLSearchParams(window.location.search);
-        setInject(p.get("ai") === "1");
+        // Require explicit dock=1 to mount the AI dock
+        setInject(p.get("dock") === "1");
     }, []);
 
     return (
