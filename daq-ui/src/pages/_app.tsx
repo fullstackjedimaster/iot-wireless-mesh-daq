@@ -29,9 +29,27 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     // If dock is turned off after being on, remove the injected iframe wrapper
     useEffect(() => {
         if (dockVisible) return;
+
         const wrap = document.getElementById(WRAPPER_ID);
         if (wrap && wrap.parentElement) {
             wrap.parentElement.removeChild(wrap);
+        }
+
+        // 🔹 Nudge parent to recompute height when dock disappears
+        try {
+            // force ResizeObserver + EmbedHeightReporter to fire
+            window.dispatchEvent(new Event("resize"));
+
+            // also explicitly send a height update to parent
+            const frameId =
+                new URLSearchParams(location.search).get("frameId") || undefined;
+            const height = document.documentElement.scrollHeight;
+            window.parent?.postMessage(
+                { type: "EMBED_HEIGHT", frameId, height },
+                "*"
+            );
+        } catch {
+            // ignore if not embeddable
         }
     }, [dockVisible]);
 
