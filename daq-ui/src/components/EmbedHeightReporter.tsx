@@ -4,28 +4,29 @@ import { useEffect } from "react";
 
 /**
  * Reports the current document height to the parent window for iframe auto-resize.
- * - Snap-rounds to an 8px grid (configurable) to avoid +/-1px oscillation.
- * - Clamps to a sane range to prevent runaway growth.
- * - Reacts to ResizeObserver + MutationObserver + visibility changes + load events.
- * - Sends a periodic keepalive post in case observers miss a change.
+ * - Snap-rounds to an 8px grid to avoid +/-1px oscillation.
+ * - Clamps to sane range and rate-limits posts.
+ * - Uses ResizeObserver + MutationObserver + images/fonts settle.
  *
- * Parent is expected to listen for { type: "EMBED_HEIGHT", frameId, height }.
- * Child (this document) should be opened with ?frameId=<id> so the parent can match.
+ * Parent must listen for { type: "EMBED_HEIGHT", frameId, height }.
+ * Child page should be opened with ?frameId=<id>.
  */
 export default function EmbedHeightReporter() {
     useEffect(() => {
-        // --- Config ---
-        const SNAP = 8;               // snap grid in px
-        const EXTRA = 8;              // tiny cushion to avoid clipping
-        const MIN_H = 120;            // hard lower bound
-        const MAX_H = 3000;           // hard upper bound
-        const KEEPALIVE_MS = 1200;    // periodic re-post
+        // -------- Config ----------
+        const SNAP = 8;                 // snap grid in px
+        const EXTRA = 8;                // tiny cushion
+        const MIN_H = 140;              // hard lower bound
+        const MAX_H = 2800;             // hard upper bound (keeps mobile sane)
+        const MIN_DELTA = 8;            // ignore sub-snap jitter
+        const POST_THROTTLE_MS = 200;   // do not spam parent more often than this
+        const KEEPALIVE_MS = 1500;      // periodic refresh in case observers miss
 
-        // --- Query param for identity ---
+        // -------- frame identity ----
         const params = new URLSearchParams(window.location.search);
         const frameId = params.get("frameId") || undefined;
 
-        // --- Runtime CSS guards to avoid phantom pixels/scrollbars ---
+        // -------- defensive CSS to avoid phantom pixels/scrollbars ----
         const html = document.documentElement;
         const body = document.body;
 
@@ -52,14 +53,13 @@ export default function EmbedHeightReporter() {
         body.style.overflowX = "hidden";
         body.style.boxSizing = "border-box";
 
-        // --- Measurement (robust) ---
+        // -------- measurement -------
         const measure = (): number => {
-            // Prefer element boxes (no scroll feedback), fall back to scroll/offset
+            // Use geometry first (no scroll feedback), fall back to scroll metrics
             const rectH = Math.max(
                 Math.ceil(html.getBoundingClientRect().height),
                 Math.ceil(body.getBoundingClientRect().height)
             );
-
             const fallbackH = Math.max(
                 html.scrollHeight,
                 body.scrollHeight,
@@ -68,86 +68,82 @@ export default function EmbedHeightReporter() {
                 html.clientHeight,
                 body.clientHeight
             );
-
             const raw = Math.max(rectH, fallbackH) + EXTRA;
 
-            // Snap up and clamp
+            // snap UP then clamp
             const snapped = Math.ceil(raw / SNAP) * SNAP;
             return Math.max(MIN_H, Math.min(MAX_H, snapped));
         };
 
-        // --- Post with change guard ---
+        // -------- post w/ guards ----
         let lastSent = 0;
-        let rafId = 0;
-        const safePost = (h: number) => {
+        let lastPostAt = 0;
+
+        const tryPost = (h: number) => {
             if (!window.parent) return;
-            // Ignore tiny changes inside one snap bucket
-            if (Math.abs(h - lastSent) < SNAP) return;
+            const now = Date.now();
+            if (now - lastPostAt < POST_THROTTLE_MS) return;
+
+            if (Math.abs(h - lastSent) < MIN_DELTA) return; // ignore micro-jitter
+            lastPostAt = now;
             lastSent = h;
+
             try {
                 window.parent.postMessage({ type: "EMBED_HEIGHT", frameId, height: h }, "*");
             } catch {
-                // ignore cross-origin or transient errors
+                // ignore cross-origin issues
             }
         };
 
-        const schedulePost = () => {
+        let rafId = 0;
+        const schedule = () => {
             if (rafId) cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(() => {
-                const h = measure();
-                safePost(h);
-            });
+            rafId = requestAnimationFrame(() => tryPost(measure()));
         };
 
-        // --- Observers ---
-        const ro = new ResizeObserver(() => schedulePost());
+        // -------- observers ----------
+        const ro = new ResizeObserver(schedule);
         ro.observe(html);
         ro.observe(body);
 
-        const mo = new MutationObserver(() => schedulePost());
+        const mo = new MutationObserver(schedule);
         mo.observe(body, { childList: true, subtree: true, attributes: true, characterData: true });
 
-        // --- Other triggers ---
-        const onVisibility = () => schedulePost();
-        const onWindowLoad = () => schedulePost();
-        const onImagesLoaded = () => schedulePost();
-
-        document.addEventListener("visibilitychange", onVisibility);
-        window.addEventListener("load", onWindowLoad);
-
-        // Ensure we re-measure after late-loading images/fonts
-        const imgs = Array.from(document.images ?? []);
-        let imgLeft = imgs.length;
-        if (imgLeft > 0) {
-            imgs.forEach((img) => {
-                if (img.complete) {
-                    if (--imgLeft === 0) onImagesLoaded();
-                } else {
-                    const done = () => {
-                        if (--imgLeft === 0) onImagesLoaded();
-                    };
+        // images/fonts settle
+        const images = Array.from(document.images || []);
+        if (images.length) {
+            let left = images.length;
+            const done = () => { if (--left === 0) schedule(); };
+            images.forEach((img) => {
+                if (img.complete) done();
+                else {
                     img.addEventListener("load", done, { once: true });
                     img.addEventListener("error", done, { once: true });
                 }
             });
         }
 
-        // Periodic keepalive
-        const keepalive = window.setInterval(schedulePost, KEEPALIVE_MS);
+        document.addEventListener("visibilitychange", schedule);
+        window.addEventListener("load", schedule);
 
-        // Initial post
-        schedulePost();
+        // keepalive (cheap)
+        const keepalive = window.setInterval(schedule, KEEPALIVE_MS);
 
-        // Cleanup
+        // signal ready + initial measurement
+        try {
+            window.parent?.postMessage({ type: "EMBED_READY", frameId }, "*");
+        } catch {}
+        schedule();
+
+        // -------- cleanup -----------
         return () => {
             if (rafId) cancelAnimationFrame(rafId);
             window.clearInterval(keepalive);
             ro.disconnect();
             mo.disconnect();
-            document.removeEventListener("visibilitychange", onVisibility);
-            window.removeEventListener("load", onWindowLoad);
+            document.removeEventListener("visibilitychange", schedule);
+            window.removeEventListener("load", schedule);
 
-            // restore original inline styles
             html.style.margin = origHtml.margin;
             html.style.padding = origHtml.padding;
             html.style.overflowX = origHtml.overflowX;
