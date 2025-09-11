@@ -147,8 +147,8 @@ html, body {
 }
 
 /* Kill Tailwind's h-screen / min-h-screen locks inside iframe */
-[class*="min-h-screen"],
-[class*="h-screen"] {
+[class*="min-h-0"],
+[class*="h-auto"] {
     height: auto !important;
     min-height: 0 !important;
 }
@@ -168,4 +168,13 @@ html, body { margin:0; padding:0; overflow-x:hidden; }
     overflow-y: visible !important;
 }
 
+/* globals.css */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+#__next, body, html {
+    min-height: 0 !important; /* don’t force screen height */
+}
 

@@ -40,11 +40,11 @@ const MAX_POINTS = 30;
 export default function ChartPanel({ selectedMac }: ChartPanelProps) {
     const chartRef = useRef<ChartJS<"line">>(null);
 
-    // Keep data in React state; pass to <Line />
+    // Live series state
     const [volts, setVolts] = useState<XY[]>([]);
     const [amps, setAmps] = useState<XY[]>([]);
 
-    // Reset on MAC change
+    // Reset when MAC changes
     useEffect(() => {
         setVolts([]);
         setAmps([]);
@@ -52,7 +52,7 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
         if (chart) chart.update();
     }, [selectedMac]);
 
-    // Poll and append points
+    // Poll every 2s and append points
     useEffect(() => {
         if (!selectedMac) return;
 
@@ -60,13 +60,9 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
             try {
                 const data = await getPanelStatus(selectedMac);
 
-                const vRaw = data?.voltage;
-                const cRaw = data?.current;
+                const v = Number(data?.voltage);
+                const c = Number(data?.current);
 
-                const v = Number(vRaw);
-                const c = Number(cRaw);
-
-                // Only append if they are finite numbers
                 const now = Date.now();
                 setVolts((prev) => {
                     const next = [...prev, { x: now, y: Number.isFinite(v) ? v : 0 }];
@@ -77,8 +73,8 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
                     return next.length > MAX_POINTS ? next.slice(-MAX_POINTS) : next;
                 });
             } catch (err) {
-                // Silently ignore; keeps UI calm if a tick fails
-                 console.error("poll error", err);
+                // Keep UI calm if a tick fails
+                console.error("poll error", err);
             }
         }, 2000);
 
@@ -89,7 +85,7 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
         const vDataset: ChartDataset<"line", XY[]> = {
             label: "Voltage (V)",
             data: volts,
-            parsing: false, // because we're providing {x,y}
+            parsing: false, // we provide {x,y}
             borderColor: "green",
             backgroundColor: "rgba(34,197,94,0.2)",
             fill: true,
@@ -121,15 +117,17 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
                 overflowX: "hidden",
             }}
         >
-            <div style={{ position: "relative", width: "100%", height: 200, overflow: "hidden" }}>
+            {/* Fixed-height container prevents iframe feedback loops */}
+            <div style={{ position: "relative", width: "100%", height: 260, overflow: "hidden" }}>
                 <Line
                     ref={chartRef}
                     data={chartData}
                     options={{
                         responsive: true,
-                        maintainAspectRatio: false,
-                        animation: { duration: 250, easing: "easeOutQuart" },
+                        maintainAspectRatio: false, // fill the 260px box
+                        animation: false,           // avoid tiny reflow jitter
                         parsing: false,
+                        layout: { padding: { top: 8, right: 8, bottom: 8, left: 8 } },
                         scales: {
                             x: {
                                 type: "time",
@@ -138,12 +136,27 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
                                     tooltipFormat: "HH:mm:ss",
                                     displayFormats: { second: "HH:mm:ss" },
                                 },
-                                ticks: { autoSkip: true, maxTicksLimit: 10 },
+                                ticks: {
+                                    autoSkip: true,
+                                    maxTicksLimit: 8,
+                                },
+                                grid: { display: true },
                             },
-                            y: { beginAtZero: true },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { maxTicksLimit: 6 },
+                                grid: { display: true },
+                            },
                         },
                         plugins: {
-                            legend: { display: true },
+                            legend: {
+                                display: true,       // ✅ keep legend
+                                position: "bottom",
+                                labels: {
+                                    boxWidth: 18,
+                                    padding: 12,
+                                },
+                            },
                             tooltip: { mode: "nearest", intersect: false },
                         },
                     }}
