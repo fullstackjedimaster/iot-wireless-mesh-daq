@@ -10,6 +10,7 @@ import { FaultLegend } from "@/components/FaultLegend";
 import { PanelMapOverlay, type PanelTelemetry } from "@/components/PanelMapOverlay";
 import { useCallback, useEffect, useState } from "react";
 import { getLayout } from "@/lib/api";
+import { BlinkyThing } from "@/components/BlinkyThing";
 
 // Layout items returned by getLayout()
 type LayoutItem = { x: number; y: number; mac: string };
@@ -125,6 +126,18 @@ export default function Home() {
                     <GroupBox title="Fault Injection">
                         <ControlPanel />
                     </GroupBox>
+                </div>
+                <div className="fixed bottom-3 right-3 z-50 pointer-events-none">
+                    <BlinkyThing
+                        size={36}
+                        dotSize={7}
+                        gap={6}
+                        colors={["#22d3ee", "#f59e0b", "#ef4444"]}
+                        intervalMs={800}
+                        framed={false}
+                        stealth
+                        ariaLabel="Purely decorative blinking lights"
+                    />
                 </div>
             </Layout>
         </>
