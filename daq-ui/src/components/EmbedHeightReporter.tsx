@@ -1,32 +1,43 @@
+// /daq-ui/src/components/EmbedHeightReporter.tsx
 "use client";
 
 import { useEffect } from "react";
 
 /**
  * Reports the current document height to the parent window for iframe auto-resize.
- * - Snap-rounds to an 8px grid to avoid +/-1px oscillation.
- * - Clamps to sane range and rate-limits posts.
- * - Uses ResizeObserver + MutationObserver + images/fonts settle.
+ * Key stability tricks:
+ * - Prefer geometry (getBoundingClientRect) over scroll metrics.
+ * - Discard obviously-wrong "fallback" heights (runaway min-heights, bg art, etc).
+ * - Snap to an 8px grid + small cushion to kill +/-1px thrash.
+ * - Device-aware hard cap to avoid "endless" mobile scroll.
+ * - Gentle throttling and periodic keepalive.
  *
- * Parent must listen for { type: "EMBED_HEIGHT", frameId, height }.
- * Child page should be opened with ?frameId=<id>.
+ * Parent must listen for: { type: "EMBED_HEIGHT", frameId, height }.
+ * Child page should be opened with: ?frameId=<id>.
  */
 export default function EmbedHeightReporter() {
     useEffect(() => {
-        // -------- Config ----------
-        const SNAP = 8;                 // snap grid in px
-        const EXTRA = 8;                // tiny cushion
-        const MIN_H = 140;              // hard lower bound
-        const MAX_H = 2800;             // hard upper bound (keeps mobile sane)
-        const MIN_DELTA = 8;            // ignore sub-snap jitter
-        const POST_THROTTLE_MS = 200;   // do not spam parent more often than this
-        const KEEPALIVE_MS = 1500;      // periodic refresh in case observers miss
+        // ---------- Tunables ----------
+        const SNAP = 8;               // snap grid in px
+        const EXTRA = 8;              // tiny cushion
+        const MIN_H = 140;            // hard lower bound
+        const MOBILE_MAX_H = 1800;    // mobile hard cap (prevents endless scroll feeling)
+        const DESKTOP_MAX_H = 2400;   // desktop hard cap
+        const MIN_DELTA = 8;          // ignore sub-snap jitter
+        const POST_THROTTLE_MS = 160; // avoid spam
+        const KEEPALIVE_MS = 1500;    // periodic refresh
 
-        // -------- frame identity ----
+        const isMobile =
+            typeof navigator !== "undefined" &&
+            /Android|iPhone|iPad|iPod|Mobile|Pixel/i.test(navigator.userAgent);
+
+        const MAX_H = isMobile ? MOBILE_MAX_H : DESKTOP_MAX_H;
+
+        // ---------- frame identity ----------
         const params = new URLSearchParams(window.location.search);
         const frameId = params.get("frameId") || undefined;
 
-        // -------- defensive CSS to avoid phantom pixels/scrollbars ----
+        // ---------- defensive CSS (horizontal only) ----------
         const html = document.documentElement;
         const body = document.body;
 
@@ -35,73 +46,100 @@ export default function EmbedHeightReporter() {
             padding: html.style.padding,
             overflowX: html.style.overflowX,
             boxSizing: html.style.boxSizing,
+            maxWidth: html.style.maxWidth,
         };
         const origBody = {
             margin: body.style.margin,
             padding: body.style.padding,
             overflowX: body.style.overflowX,
             boxSizing: body.style.boxSizing,
+            maxWidth: body.style.maxWidth,
         };
 
         html.style.margin = "0";
         html.style.padding = "0";
         html.style.overflowX = "hidden";
         html.style.boxSizing = "border-box";
+        html.style.maxWidth = "100%";
 
         body.style.margin = "0";
         body.style.padding = "0";
         body.style.overflowX = "hidden";
         body.style.boxSizing = "border-box";
+        body.style.maxWidth = "100%";
 
-        // -------- measurement -------
+        // ---------- measurement ----------
+        /**
+         * Prefer geometry from the *scrolling element* or body/html.
+         * Only use scroll-based metrics if geometry is clearly wrong (e.g., < MIN_H),
+         * and even then, discard fallbacks that look like runaways.
+         */
         const measure = (): number => {
-            // Use geometry first (no scroll feedback), fall back to scroll metrics
-            const rectH = Math.max(
+            const se = document.scrollingElement || document.documentElement;
+
+            const geomH = Math.max(
+                Math.ceil(se.getBoundingClientRect().height),
                 Math.ceil(html.getBoundingClientRect().height),
                 Math.ceil(body.getBoundingClientRect().height)
             );
-            const fallbackH = Math.max(
-                html.scrollHeight,
-                body.scrollHeight,
-                html.offsetHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                body.clientHeight
-            );
-            const raw = Math.max(rectH, fallbackH) + EXTRA;
 
-            // snap UP then clamp
-            const snapped = Math.ceil(raw / SNAP) * SNAP;
+            // If geometry gives us a plausible value, take it.
+            let raw = geomH;
+
+            if (!Number.isFinite(raw) || raw < MIN_H) {
+                // Geometry failed → consider scroll metrics (last resort)
+                const fallback = Math.max(
+                    se ? se.scrollHeight : 0,
+                    html.scrollHeight,
+                    body.scrollHeight,
+                    html.offsetHeight,
+                    body.offsetHeight,
+                    html.clientHeight,
+                    body.clientHeight
+                );
+
+                // Anomaly guard: if fallback is wildly larger than geometry, prefer geometry.
+                // (Runaway min-heights, backgrounds, offscreen pseudo-elements, etc.)
+                const safeFallback =
+                    Number.isFinite(fallback) && fallback > 0 && fallback < 3_200
+                        ? fallback
+                        : geomH;
+
+                raw = Math.max(geomH, safeFallback);
+            }
+
+            // Small cushion + snap to grid, then clamp.
+            const snapped = Math.ceil((raw + EXTRA) / SNAP) * SNAP;
             return Math.max(MIN_H, Math.min(MAX_H, snapped));
         };
 
-        // -------- post w/ guards ----
+        // ---------- post w/ guards ----------
         let lastSent = 0;
         let lastPostAt = 0;
+        let rafId = 0;
 
         const tryPost = (h: number) => {
             if (!window.parent) return;
             const now = Date.now();
             if (now - lastPostAt < POST_THROTTLE_MS) return;
+            if (Math.abs(h - lastSent) < MIN_DELTA) return;
 
-            if (Math.abs(h - lastSent) < MIN_DELTA) return; // ignore micro-jitter
             lastPostAt = now;
             lastSent = h;
 
             try {
                 window.parent.postMessage({ type: "EMBED_HEIGHT", frameId, height: h }, "*");
             } catch {
-                // ignore cross-origin issues
+                // cross-origin: intentionally ignored
             }
         };
 
-        let rafId = 0;
         const schedule = () => {
             if (rafId) cancelAnimationFrame(rafId);
             rafId = requestAnimationFrame(() => tryPost(measure()));
         };
 
-        // -------- observers ----------
+        // ---------- observers ----------
         const ro = new ResizeObserver(schedule);
         ro.observe(html);
         ro.observe(body);
@@ -109,11 +147,14 @@ export default function EmbedHeightReporter() {
         const mo = new MutationObserver(schedule);
         mo.observe(body, { childList: true, subtree: true, attributes: true, characterData: true });
 
-        // images/fonts settle
+        // images & fonts
         const images = Array.from(document.images || []);
         if (images.length) {
             let left = images.length;
-            const done = () => { if (--left === 0) schedule(); };
+            const done = () => {
+                left -= 1;
+                if (left <= 0) schedule();
+            };
             images.forEach((img) => {
                 if (img.complete) done();
                 else {
@@ -129,13 +170,13 @@ export default function EmbedHeightReporter() {
         // keepalive (cheap)
         const keepalive = window.setInterval(schedule, KEEPALIVE_MS);
 
-        // signal ready + initial measurement
+        // initial ready ping + measure
         try {
             window.parent?.postMessage({ type: "EMBED_READY", frameId }, "*");
         } catch {}
         schedule();
 
-        // -------- cleanup -----------
+        // ---------- cleanup ----------
         return () => {
             if (rafId) cancelAnimationFrame(rafId);
             window.clearInterval(keepalive);
@@ -148,11 +189,13 @@ export default function EmbedHeightReporter() {
             html.style.padding = origHtml.padding;
             html.style.overflowX = origHtml.overflowX;
             html.style.boxSizing = origHtml.boxSizing;
+            html.style.maxWidth = origHtml.maxWidth;
 
             body.style.margin = origBody.margin;
             body.style.padding = origBody.padding;
             body.style.overflowX = origBody.overflowX;
             body.style.boxSizing = origBody.boxSizing;
+            body.style.maxWidth = origBody.maxWidth;
         };
     }, []);
 
