@@ -11,7 +11,7 @@ const WRAPPER_ID = "dock-wrapper-" + DOCK_FRAME_ID;
 export default function MyApp({ Component, pageProps }: AppProps) {
     const [dockVisible, setDockVisible] = useState(false);
 
-    // Receive parent visibility commands
+    // 1) Receive parent visibility commands (already good)
     useEffect(() => {
         const onMsg = (ev: MessageEvent) => {
             const d = ev?.data;
@@ -22,14 +22,24 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         return () => window.removeEventListener("message", onMsg);
     }, []);
 
-    // Imperative injector for boot.js (so it runs every time we show the dock)
+    // 2) NEW: Tell the portfolio which projectKey this iframe represents when opened from testbed
+    //    (Portfolio expects projectKey, and for DAQ-UI that is "mesh".)
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const host = params.get("host");
+            if (host === "testbed" && window.parent) {
+                window.parent.postMessage({ type: "AI_SET_USECASE", usecase: "mesh" }, "*");
+            }
+        } catch {}
+    }, []);
+
+    // 3) Imperative injector for boot.js (unchanged)
     useEffect(() => {
         if (!dockVisible) {
-            // remove wrapper if present
             const wrap = document.getElementById(WRAPPER_ID);
             if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
 
-            // nudge parent to re-measure; prevents lingering skinny scrollbars
             try {
                 window.dispatchEvent(new Event("resize"));
                 const frameId =
@@ -40,8 +50,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             return;
         }
 
-        // If visible: inject a fresh boot.js (cache-busted) and let it build the iframe.
-        // If the wrapper already exists (e.g., fast toggle), do nothing.
         if (document.getElementById(WRAPPER_ID)) return;
 
         const s = document.createElement("script");
@@ -54,7 +62,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         (document.body || document.documentElement).appendChild(s);
 
         return () => {
-            // no-op on cleanup; wrapper is removed in the 'false' branch
+            // cleanup handled in the !dockVisible branch
         };
     }, [dockVisible]);
 
