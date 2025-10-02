@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { getProfile } from "../../../../ai-ui/src/lib/api"
-import { FaultProfile } from "../../../../ai-ui/src/lib/api"
+import { getProfile } from "@/lib/api"
+import { FaultProfile } from "@/lib/api"
 
 export function useFaultStatus(pollInterval = 3000) {
     const [profile, setProfile] = useState<Record<string, FaultProfile>>({})
