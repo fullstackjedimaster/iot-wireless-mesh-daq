@@ -84,7 +84,7 @@ class AsyncEmulator:
         s.setblocking(False)
 
         try:
-            s.bind(('', ad_respond_port))
+            s.bind(('<broadcast>', ad_respond_port))
         except Exception as e:
             print(f"[EMULATOR] Failed to bind UDP: {e}")
             s.close()

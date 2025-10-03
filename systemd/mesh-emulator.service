@@ -1,7 +1,7 @@
 [Unit]
 Description=Mesh Panel Emulator
-After=network.target mesh-daq.service
-# Removed Wants= and Requires= → no cascade stops
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -12,6 +12,7 @@ ExecStart=/opt/projects/iot-wireless-mesh-daq/mesh/.venv/bin/python emulator.py
 Environment="PYTHONUNBUFFERED=1"
 Restart=always
 RestartSec=5
+
 
 [Install]
 WantedBy=multi-user.target

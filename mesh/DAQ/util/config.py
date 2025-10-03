@@ -2,7 +2,7 @@ import os
 import yaml
 import redis
 
-DEFAULT_SITE_CONFIG = "/opt/projects/mesh/DAQ/util/config.yaml"
+DEFAULT_SITE_CONFIG = "/opt/projects/iot-wireless-mesh-daq/mesh/DAQ/util/config.yaml"
 
 _config = None
 
