@@ -8,6 +8,7 @@ logger = logging.getLogger("run_pitcher")
 async def main():
     pitcher = Pitcher()
     try:
+        # start pitcher (whatever async setup you’ve got)
         await pitcher.start()
         logger.info("Pitcher started and running.")
         # Sleep forever until cancelled
@@ -17,8 +18,12 @@ async def main():
     except Exception:
         logger.exception("Fatal error in run_pitcher")
     finally:
-        await pitcher.stop()
-        logger.info("Pitcher stopped.")
+        try:
+            pitcher.stop()  # sync stop, signals loop to exit
+        except Exception:
+            logger.exception("Error during pitcher.stop()")
+        else:
+            logger.info("Pitcher stopped.")
 
 if __name__ == "__main__":
     try:
