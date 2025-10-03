@@ -2,7 +2,7 @@
 import datetime
 import re
 
-from DAQ.util.utctime import datetime_to_epoch
+from .utctime import datetime_to_epoch
 from numpy.compat import unicode
 
 re_is_hex_word = re.compile(r'^([0-9a-fA-F]*$)')
