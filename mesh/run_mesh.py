@@ -28,12 +28,12 @@ def main():
 
     # === Launch DAQ core ===
     print("[run_mesh-daq] Launching rundaq.py...")
-    rundaq_proc = subprocess.Popen([sys.executable, "rundaq.py"])
+    rundaq_proc = subprocess.Popen([sys.executable, "/opt/projects/iot-wireless-mesh-daq/mesh/rundaq.py"])
     child_procs.append(rundaq_proc)
 
     # === Launch Emulator ===
     print("[run_mesh-daq] Launching emulator.py...")
-    emulator_proc = subprocess.Popen([sys.executable, "emulator.py"])
+    emulator_proc = subprocess.Popen([sys.executable, "/opt/projects/iot-wireless-mesh-daq/mesh/emulator.py"])
     child_procs.append(emulator_proc)
 
     print("[run_mesh-daq] mesh is running.")
