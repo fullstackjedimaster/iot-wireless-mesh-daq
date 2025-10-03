@@ -1,12 +1,28 @@
+# /mesh/DAQ/lib/process.py
+"""
+DAQProcess
+----------
+
+Top-level process manager for the DAQ system. Wires together the gateway,
+collector, and async handler chain (BSON → Compression → Pitcher).
+"""
+
+import asyncio
 import os
 import random
 import shutil
-import asyncio
+import time
 from datetime import datetime, time as dtime, timedelta, timezone, UTC
 from bson import BSON
+
 from DAQ.commands.protocol import Message, DataIndication
 from DAQ.commands.strategy import CMD_FUNCS, MeshCommands
-from DAQ.util.handlers.common import BSONHandler, CompressionHandler, IHandler, HandlerManager
+from DAQ.util.handlers.common import (
+    BSONHandler,
+    CompressionHandler,
+    HandlerManager,
+    IHandler,
+)
 from DAQ.services.core.data.pitcher import Pitcher
 from DAQ.services.core.collector.collector import DeviceCollector
 from DAQ.util.config import load_config
@@ -15,10 +31,12 @@ from DAQ.util.logger import make_logger
 from DAQ.util.process.base import ProcessBase
 from DAQ.gateway.manager import GatewayManager
 
+
 cfg = load_config()
 logger = make_logger("DAQProcess")
 
 CMD_HANDLERS = {}
+
 
 def handles(cmd_class):
     def decorator(fn):
@@ -26,7 +44,9 @@ def handles(cmd_class):
         return fn
     return decorator
 
+
 def cleanup_temp_files():
+    """Clean up stray multiprocessing temp files (legacy)."""
     for path in ["/tmp", "/dev/shm"]:
         for f in os.listdir(path):
             full = os.path.join(path, f)
@@ -38,9 +58,11 @@ def cleanup_temp_files():
             except Exception:
                 pass
 
+
 def sunrise_today():
     today = datetime.now(UTC).date()
     return datetime.combine(today, dtime(6, 0), tzinfo=UTC)
+
 
 class DAQProcess(ProcessBase, MeshCommands):
     MAX_REQUEST_ID = 65535
@@ -54,32 +76,46 @@ class DAQProcess(ProcessBase, MeshCommands):
         self.requests = {}
         self.last_device_data = {}
 
-        self.recv_queue = asyncio.Queue()
-
-        self.gateway_manager = GatewayManager(cfg['gateway']['comm_host'], cfg['gateway']['comm_port'], self.recv_queue)
+        # Gateway
+        self.recv_queue: asyncio.Queue = asyncio.Queue()
+        self.gateway_manager = GatewayManager(
+            cfg['gateway']['comm_host'],
+            cfg['gateway']['comm_port'],
+            self.recv_queue,
+        )
 
         # Handler chain: BSON → Compression → Pitcher
         self.pitcher = Pitcher(IHandler.GENERIC)
         self.compression = CompressionHandler(IHandler.COMPILER)
         self.bson_handler = BSONHandler(IHandler.COMPILER)
 
-        self.data_handler = self.bson_handler(self.compression(self.pitcher))
-        self.handler_manager = HandlerManager()
-        self.handler_manager.add_handler(self.data_handler)
+        # Wire queues: bson → compression → pitcher
+        self.bson_handler.processed_queue = self.compression.data_queue
+        self.compression.processed_queue = self.pitcher.data_queue
 
+        self.handler_manager = HandlerManager()
+        self.handler_manager.add_handler(self.bson_handler)
+        self.handler_manager.add_handler(self.compression)
+        self.handler_manager.add_handler(self.pitcher)
+
+        # Collector (devices → raw payloads)
         self.collector = DeviceCollector()
         self.collector_manager = HandlerManager()
         self.collector_manager.add_handler(self.collector)
 
+        # Config
         self.throttle_delay = cfg.get("daq", {}).get("throttle_delay", 0.01)
         self.backpressure_threshold = cfg.get("daq", {}).get("backpressure_qsize", 10)
 
+        # Configure compression
         try:
-            self.compression.set('batch_on', cfg.get("daq", {}).get("compression", {}).get("batch_on", 4))
-            self.compression.set('batch_at', cfg.get("daq", {}).get("compression", {}).get("batch_at", 0.5))
+            comp_cfg = cfg.get("daq", {}).get("compression", {})
+            self.compression.set('batch_on', comp_cfg.get("batch_on", 4))
+            self.compression.set('batch_at', comp_cfg.get("batch_at", 0.5))
         except Exception as e:
-            self.logger.exception("Failed to configure handlers")
+            self.logger.exception("Failed to configure compression handler")
 
+        # Configure collector devices
         try:
             devices_cfg = cfg['devices']['all']
             if isinstance(devices_cfg, (list, dict)):
@@ -100,22 +136,26 @@ class DAQProcess(ProcessBase, MeshCommands):
         self._request_id = (self._request_id + 1) % self.MAX_REQUEST_ID
         return self._request_id
 
+    # ---------------------
+    # Lifecycle
+    # ---------------------
+
     async def start(self):
         self.logger.info("DAQProcess starting gateway and handlers")
         await self.gateway_manager.start()
-        self.data_handler.start(subhandlers=True)
-        self.collector.start(subhandlers=True)
+        await self.handler_manager.start()
+        await self.collector_manager.start()
 
     async def stop(self):
         self.logger.info("DAQProcess stopping...")
         try:
-            self.data_handler.stop(subhandlers=True)
+            await self.handler_manager.stop()
         except Exception:
-            self.logger.exception("data_handler stop failed")
+            self.logger.exception("handler_manager stop failed")
         try:
-            self.collector.stop(subhandlers=True)
+            await self.collector_manager.stop()
         except Exception:
-            self.logger.exception("collector stop failed")
+            self.logger.exception("collector_manager stop failed")
         try:
             await self.gateway_manager.stop()
         except Exception:
@@ -134,9 +174,13 @@ class DAQProcess(ProcessBase, MeshCommands):
         finally:
             await self.stop()
 
+    # ---------------------
+    # Gateway Processing
+    # ---------------------
+
     async def process_gateway_indication(self, payload):
         if isinstance(payload, dict):
-            self.data_handler.data_queue.put(payload)
+            await self.bson_handler.data_queue.put(payload)
             return
 
         try:
@@ -149,7 +193,10 @@ class DAQProcess(ProcessBase, MeshCommands):
             try:
                 msg = Message.from_raw(msg_type, length, raw, received_on)
             except Exception:
-                self.logger.critical("Unable to parse MESH_INDICATION: [%s,%s,%s]" % (msg_type, length, _h(raw)))
+                self.logger.critical(
+                    "Unable to parse MESH_INDICATION: [%s,%s,%s]"
+                    % (msg_type, length, _h(raw))
+                )
                 return
             for command in msg.commands:
                 self.command_response(command, gwid)
@@ -188,11 +235,19 @@ class DAQProcess(ProcessBase, MeshCommands):
                             self.logger.error(f"[{handler_name}] ERROR: {e}", exc_info=True)
         return handle_pass
 
+    # ---------------------
+    # Utilities
+    # ---------------------
+
     def from_seconds_since_sunrise(self, seconds):
         return self.sunrise + timedelta(seconds=seconds)
 
     def to_seconds_since_sunrise(self, dt):
         return min(int((dt - self.sunrise).total_seconds()), 0xFFFE)
+
+    # ---------------------
+    # Command Handlers
+    # ---------------------
 
     @handles(DataIndication)
     def handle_data_report(self, cmd, response):
@@ -201,7 +256,6 @@ class DAQProcess(ProcessBase, MeshCommands):
 
         for data in response['data']:
             freezetime = self.from_seconds_since_sunrise(data['timestamp'])
-
             payload = dict(
                 type=response['type'],
                 macaddr=response['macaddr'],
@@ -214,9 +268,10 @@ class DAQProcess(ProcessBase, MeshCommands):
                 Ii=data['Ii'],
                 Io=data['Io'],
                 Pi=data['Pi'],
-                Po=data['Po']
+                Po=data['Po'],
             )
-            self.data_handler.data_queue.put(payload)
+            # Push through pipeline
+            asyncio.create_task(self.bson_handler.data_queue.put(payload))
             self.last_device_data[payload['type']] = payload
 
         return True
