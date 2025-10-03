@@ -3,9 +3,9 @@ import queue
 import signal
 
 from nats.aio.client import Client as NATS
-from ....util.handlers.common import IHandler
-from ....util.logger import make_logger
-from ....util.config import get_topic, load_config
+from DAQ.util.handlers.common import IHandler
+from DAQ.util.logger import make_logger
+from DAQ.util.config import get_topic, load_config
 
 cfg = load_config()
 logger = make_logger("Pitcher")
