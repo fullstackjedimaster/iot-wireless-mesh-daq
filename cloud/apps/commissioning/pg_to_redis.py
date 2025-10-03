@@ -34,10 +34,11 @@ def main():
     try:
         with pg_conn.cursor() as cur:
             cur.execute("""
-                SELECT json
-                FROM site_graph
-                JOIN site ON site_graph.site_id = site.id
-                WHERE site.name = %s
+                    SELECT sg.json
+                    FROM ss.site_graph sg
+                    JOIN ss.site_array sa ON sg.sitearray_id = sa.id
+                    JOIN ss.site s ON s.id = sa.site_id
+                    WHERE s.sitename = %s
             """, (site_name,))
             result = cur.fetchone()
 
