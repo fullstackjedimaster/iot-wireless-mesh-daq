@@ -28,7 +28,7 @@ def main():
 
     # === Launch DAQ core ===
     print("[run_mesh-daq] Launching rundaq.py...")
-    rundaq_proc = subprocess.Popen([sys.executable, "DAQ/rundaq.py"])
+    rundaq_proc = subprocess.Popen([sys.executable, "rundaq.py"])
     child_procs.append(rundaq_proc)
 
     # === Launch Emulator ===
