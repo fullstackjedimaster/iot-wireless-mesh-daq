@@ -33,7 +33,7 @@ def main():
 
     # === Launch Emulator ===
     print("[run_mesh-daq] Launching emulator.py...")
-    emulator_proc = subprocess.Popen([sys.executable, "DAQ/emulator.py"])
+    emulator_proc = subprocess.Popen([sys.executable, "emulator.py"])
     child_procs.append(emulator_proc)
 
     print("[run_mesh-daq] mesh is running.")
