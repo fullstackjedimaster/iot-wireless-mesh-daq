@@ -1,9 +1,9 @@
 import asyncio
 from bson import BSON
-from DAQ.util.handlers import IHandler
+from DAQ.util.handlers.common import IHandler
 from DAQ.util.logger import make_logger
 from DAQ.util.config import get_topic
-from DAQ.services.core.broker.nats_manager import nats_manager
+from DAQ.util.brokers.broker import LocalNATSPubSub
 
 class NATSCommands(IHandler):
     def __init__(self):
@@ -13,7 +13,7 @@ class NATSCommands(IHandler):
         self.response_topic = get_topic("response")
 
     async def worker(self, data_queue, processed_queue):
-        await nats_manager.connect()
+        await LocalNATSPubSub.connect()
 
         async def handle_command(msg):
             try:
@@ -23,7 +23,7 @@ class NATSCommands(IHandler):
             except Exception as e:
                 self.logger.error(f"[NATSCommands] Decode error: {e}")
 
-        await nats_manager.nats.subscribe(self.command_topic, cb=handle_command)
+        await LocalNATSPubSub.subscribe(self.command_topic, cb=handle_command)
         self.logger.info(f"[NATSCommands] Subscribed to: {self.command_topic}")
 
         while self._check_living():
@@ -32,10 +32,10 @@ class NATSCommands(IHandler):
             if not data_queue.empty():
                 try:
                     payload = data_queue.get()
-                    await nats_manager.nats.publish(self.response_topic, BSON.encode(payload))
+                    await LocalNATSPubSub.publish(self.response_topic, BSON.encode(payload))
                     self.logger.info(f"[NATSCommands] Published response to: {self.response_topic}")
                 except Exception as e:
                     self.logger.warning(f"[NATSCommands] Publish failed: {e}")
 
         self.logger.info("[NATSCommands] Exiting...")
-        await nats_manager.disconnect()
+        await LocalNATSPubSub.close()
