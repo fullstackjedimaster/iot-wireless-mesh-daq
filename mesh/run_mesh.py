@@ -5,7 +5,7 @@ import time
 import signal
 import sys
 
-# Global to store child PIDs
+# Track child processes for clean shutdown
 child_procs = []
 
 def shutdown(signum, frame):
@@ -22,18 +22,18 @@ def shutdown(signum, frame):
     sys.exit(0)
 
 def main():
-    base = os.path.dirname(os.path.abspath(__file__))
-
     # Trap TERM and INT for clean shutdown
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
 
+    # === Launch DAQ core ===
     print("[run_mesh-daq] Launching rundaq.py...")
-    rundaq_proc = subprocess.Popen([sys.executable, os.path.join(base, "rundaq.py")])
+    rundaq_proc = subprocess.Popen([sys.executable, "DAQ/rundaq.py"])
     child_procs.append(rundaq_proc)
 
+    # === Launch Emulator ===
     print("[run_mesh-daq] Launching emulator.py...")
-    emulator_proc =subprocess.Popen([sys.executable, os.path.join(base, "emulator.py")])
+    emulator_proc = subprocess.Popen([sys.executable, "DAQ/emulator.py"])
     child_procs.append(emulator_proc)
 
     print("[run_mesh-daq] mesh is running.")
