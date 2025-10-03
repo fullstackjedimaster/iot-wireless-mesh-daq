@@ -1,7 +1,7 @@
 import json
 import psycopg2
 import redis
-from cloud.apps.util.config import load_config
+from ..util.config import load_config
 
 def get_postgres_conn():
     config = load_config()
@@ -20,7 +20,7 @@ def get_redis_conn():
     return redis.StrictRedis(
         host=rd_conf["host"],
         port=rd_conf["port"],
-        db=rd_conf.get("db", 0),
+        db=rd_conf.get("db", 3),
         decode_responses=True
     )
 
