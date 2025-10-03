@@ -13,6 +13,7 @@ logger = make_logger("Pitcher")
 external_server = cfg["nats"]["external_publish_server"]
 external_topic = get_topic("external_mesh")
 
+
 class Pitcher(IHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -22,9 +23,13 @@ class Pitcher(IHandler):
         self.connected = False
         self.subject = external_topic
         self.throttle_delay = cfg.get("daq", {}).get("throttle_delay", 0.01)
+
         self._loop = None
         self._task = None
         self._stop_event = asyncio.Event()
+
+        self._data_queue = None
+        self._processed_queue = None
 
     async def connect(self):
         if not self.connected:
@@ -42,12 +47,12 @@ class Pitcher(IHandler):
         await self.ext_nats.publish(self.subject, payload)
         self.logger.info(f"[Pitcher] Published {len(payload)} bytes to: {self.subject}")
 
-    async def mainloop(self, data_queue, processed_queue):
+    async def mainloop(self):
         await self.connect()
         try:
             while not self._stop_event.is_set():
                 try:
-                    data = data_queue.get(timeout=1)
+                    data = self._data_queue.get(timeout=1)
                     await self.publish(data)
                     await asyncio.sleep(self.throttle_delay)
                 except queue.Empty:
@@ -57,23 +62,54 @@ class Pitcher(IHandler):
         finally:
             await self.disconnect()
 
-    def stop(self):
-        if self._loop and self._loop.is_running():
-            self._loop.call_soon_threadsafe(self._stop_event.set)
+    async def start(self, data_queue=None, processed_queue=None):
+        if data_queue is None:
+            import queue
+            data_queue = queue.Queue()
+        if processed_queue is None:
+            processed_queue = queue.Queue()
 
-    def worker(self, data_queue, processed_queue):
-        self._loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
+        self._data_queue = data_queue
+        self._processed_queue = processed_queue
+        self._loop = asyncio.get_running_loop()
 
-        def handle_signal(signum, frame):
-            self.logger.warning(f"[Pitcher] Received signal {signum}. Stopping...")
-            self._loop.call_soon_threadsafe(self._stop_event.set)
+        self._install_signal_handlers()
+        self._task = self._loop.create_task(self.mainloop())
 
-        signal.signal(signal.SIGINT, handle_signal)
-        signal.signal(signal.SIGTERM, handle_signal)
+    async def stop(self):
+        if not self._stop_event.is_set():
+            self._stop_event.set()
+        if self._task:
+            await self._task
+        self.logger.info("[Pitcher] Stopped gracefully")
 
+    def _install_signal_handlers(self):
+        loop = asyncio.get_running_loop()
+
+        def _handle_signal(sig):
+            self.logger.warning(f"[Pitcher] Received {sig.name}. Stopping...")
+            self._stop_event.set()
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, lambda s=sig: _handle_signal(s))
+            except NotImplementedError:
+                # Fallback for Windows
+                signal.signal(sig, lambda *_: _handle_signal(sig))
+
+    # ---- Legacy/Test Entry ----
+    def worker(self, data_queue=None, processed_queue=None):
+        """
+        Synchronous/blocking wrapper for compatibility.
+        Runs start() and stop() inside its own event loop.
+        """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            self._loop.run_until_complete(self.mainloop(data_queue, processed_queue))
+            loop.run_until_complete(self.start(data_queue, processed_queue))
+            loop.run_until_complete(self._task)  # block until finished
         finally:
-            self._loop.close()
-            self.logger.info("[Pitcher] Event loop closed")
+            if not loop.is_closed():
+                loop.run_until_complete(self.stop())
+                loop.close()
+            self.logger.info("[Pitcher] Worker event loop closed")
