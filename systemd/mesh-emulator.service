@@ -2,6 +2,8 @@
 Description=Mesh Panel Emulator
 After=network.target mesh-daq.service
 Requires=mesh-daq.service
+StartLimitBurst=10
+StartLimitIntervalSec=30
 
 [Service]
 Type=simple
@@ -10,8 +12,23 @@ Group=meshdaqdevs
 WorkingDirectory=/opt/projects/iot-wireless-mesh-daq/mesh
 ExecStart=/opt/projects/iot-wireless-mesh-daq/mesh/.venv/bin/python emulator.py
 Environment="PYTHONUNBUFFERED=1"
-Restart=on-failure
-RestartSec=5
+
+# Restart policy
+Restart=always
+RestartSec=3
+
+
+
+# Security hardening (optional, matches your DAQ style)
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+CapabilityBoundingSet=
+ReadWritePaths=/opt/projects/iot-wireless-mesh-daq/mesh
+
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=mesh.target
