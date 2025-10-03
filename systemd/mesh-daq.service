@@ -1,4 +1,3 @@
-# /etc/systemd/system/mesh-daq.service
 [Unit]
 Description=Mesh DAQ Core (rundaq)
 After=network.target nats-server.internal.service

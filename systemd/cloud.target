@@ -1,6 +1,6 @@
 [Unit]
 Description=Cloud DAQ Aggregate Target
-Requires=cloud-catcher.service cloud-api.service nats-server.external.service
+Requires=cloud-catcher.service cloud-api.service
 After=network.target nats-server.external.service
 
 [Install]

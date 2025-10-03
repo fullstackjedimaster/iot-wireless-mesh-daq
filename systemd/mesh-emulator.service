@@ -1,7 +1,6 @@
-# /etc/systemd/system/mesh-emulator.service
 [Unit]
 Description=Mesh Panel Emulator
-After=mesh-daq.service
+After=network.target mesh-daq.service
 Requires=mesh-daq.service
 
 [Service]

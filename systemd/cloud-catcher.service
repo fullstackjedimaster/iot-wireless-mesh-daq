@@ -4,21 +4,26 @@ After=network.target nats-server.external.service
 Requires=nats-server.external.service
 
 [Service]
+Type=simple
 User=meshdaq
 Group=meshdaqdevs
 WorkingDirectory=/opt/projects/iot-wireless-mesh-daq/cloud
-ExecStart=/opt/projects/iot-wireless-mesh-daq/cloud/.venv/bin/python apps/mitt/catcher.py
+ExecStart=/opt/projects/iot-wireless-mesh-daq/cloud/.venv/bin/python run_catcher.py
+Environment="PYTHONUNBUFFERED=1"
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=10
 KillSignal=SIGINT
 KillMode=mixed
+
+# Security hardening
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=read-only
 PrivateTmp=true
 CapabilityBoundingSet=
 ReadWritePaths=/opt/projects/iot-wireless-mesh-daq/cloud
+
 StandardOutput=journal
 StandardError=journal
 
