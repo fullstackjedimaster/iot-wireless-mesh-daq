@@ -9,11 +9,11 @@ import time
 import uuid
 from multiprocessing import util
 from multiprocessing.managers import SyncManager
-from util.hex import _h
-from util.logger import make_logger
-from util.utctime import utcepochnow
-from util.config import load_config, get_topic
-from util.brokers.broker import local_nats_broker
+from DAQ.util.hex import _h
+from DAQ.util.logger import make_logger
+from DAQ.util.utctime import utcepochnow
+from DAQ.util.config import load_config, get_topic
+from DAQ.util.brokers.broker import local_nats_broker
 
 # ---------------------
 # Signal-Ignoring Manager
