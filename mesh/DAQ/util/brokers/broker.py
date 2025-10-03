@@ -1,7 +1,7 @@
 import asyncio
 from nats.aio.client import Client as NATS
-from util.logger import make_logger
-from util.config import load_config
+from DAQ.util.logger import make_logger
+from DAQ.util.config import load_config
 
 logger = make_logger("LocalNATSBroker")
 
