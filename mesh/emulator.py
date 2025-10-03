@@ -91,7 +91,7 @@ class AsyncEmulator:
             return None
 
         marco = b"MARCO"
-        target = ('<broadcast>', ad_listen_port)
+        target = ('', ad_listen_port)
 
         try:
             print(f"[EMULATOR] Broadcasting MARCO → {target}")
