@@ -3,7 +3,7 @@ import os
 import json
 import psycopg2
 import asyncio
-from util.redis.access_utils import get_redis_client, restore_to_redis_from_json
+from ..util.redis.access_utils import get_redis_client, re
 
 SITE_NAME = "TEST"
 GRAPH_FILENAME = "site_graph_TEST.json"
