@@ -1,17 +1,16 @@
+# mesh-pitcher.service
 [Unit]
 Description=Mesh DAQ Pitcher
 After=mesh-daq.service nats-server.external.service
 Requires=mesh-daq.service nats-server.external.service
 
 [Service]
-Type=simple
 User=meshdaq
 Group=meshdaqdevs
 WorkingDirectory=/opt/projects/iot-wireless-mesh-daq/mesh/DAQ/services/core/data
 ExecStart=/opt/projects/iot-wireless-mesh-daq/mesh/.venv/bin/python DAQ/services/core/data/pitcher.py
-Environment="PYTHONUNBUFFERED=1"
 Restart=on-failure
 RestartSec=3
 
 [Install]
-WantedBy=mesh.target
+WantedBy=multi-user.target

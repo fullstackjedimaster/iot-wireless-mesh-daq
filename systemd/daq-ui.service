@@ -1,7 +1,8 @@
+# daq-ui.service
 [Unit]
-Description=DAQ-UI (Next.js)
-Wants=network-online.target
+Description=DAQ UI (Next.js)
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -11,27 +12,9 @@ WorkingDirectory=/opt/projects/iot-wireless-mesh-daq/daq-ui
 EnvironmentFile=-/etc/default/daq-ui
 Environment=PATH=/opt/projects/iot-wireless-mesh-daq/daq-ui/node_modules/.bin:/usr/bin:/bin
 UMask=0002
-
-# Optional: build on restart
-ExecStartPre=/usr/bin/npm run build
-
-ExecStart=/usr/bin/npm run start -- -p ${PORT}
+ExecStart=/usr/bin/env node /opt/projects/iot-wireless-mesh-daq/daq-ui/node_modules/.bin/next start -p ${PORT}
 Restart=on-failure
 RestartSec=3
-KillSignal=SIGINT
-KillMode=mixed
-TimeoutStopSec=10
-
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=full
-ProtectHome=true
-PrivateTmp=true
-CapabilityBoundingSet=
-ReadWritePaths=/opt/projects/iot-wireless-mesh-daq/daq-ui
-
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

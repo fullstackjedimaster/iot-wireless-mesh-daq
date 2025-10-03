@@ -1,7 +1,8 @@
+# nats-server.external.service
 [Unit]
 Description=NATS Server (External Pub/Sub on port 5222)
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -11,20 +12,12 @@ ExecStart=/usr/sbin/nats-server -p 5222
 Restart=on-failure
 RestartSec=2
 
-# Security hardening (optional)
+# Hardening
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
 CapabilityBoundingSet=
-ProtectKernelModules=true
-ProtectControlGroups=true
-LockPersonality=true
-
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-
-
