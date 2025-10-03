@@ -233,6 +233,32 @@ def clean_json(data):
 # Redis graph loaders
 # ---------------------------------------------------------------------------
 
+def dict_from_nodes( nodes, client=None, include_devtype=False ):
+    """
+    Recursively collect nodes into one dictionary.
+    """
+    result = {}
+    dict_stack = []
+    dict_stack.append( result )
+    for node in nodes:
+        if node == "{":
+            dict_stack.append( {} )
+        elif node == "}":
+            if len(dict_stack[-1]) < 1:
+                del dict_stack[-1]
+
+            if len(dict_stack) > 1:
+                d = dict_stack[-1]
+                if "inputs" not in dict_stack[-2]:
+                    dict_stack[-2]["inputs"] = [d.copy()]
+                else:
+                    dict_stack[-2]["inputs"].append( d.copy() )
+                dict_stack[-1].clear()
+        else:
+            d = dict_stack[-1]
+            d.update(get_props(node, client=client))
+    return result
+
 async def load_node_from_dict(data: Dict[str, Any], client: Redis, parent: Optional[str] = None) -> None:
     """Recursively load a node and its inputs into Redis (async)."""
     node_id = data["id"]
