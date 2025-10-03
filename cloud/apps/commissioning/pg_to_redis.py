@@ -45,9 +45,10 @@ def main():
             if not result:
                 raise Exception(f"No site_graph found for site '{site_name}'")
 
-            graph_json = result[0]
+            graph_json = json.loads(result[0])
 
-            # Validate required structure
+
+        # Validate required structure
             nodes = graph_json.get("nodes", [])
             if not nodes or not all("macaddr" in n and "x" in n and "y" in n for n in nodes):
                 raise Exception("site_graph JSON is missing required 'nodes' structure with macaddr, x, y")
