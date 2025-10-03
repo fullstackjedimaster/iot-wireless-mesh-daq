@@ -1,14 +1,14 @@
 import json
 from datetime import date
-from util.config import  (get_postgres_conn, load_config)
+from util.config import get_postgres_conn, load_config
 
 pg = get_postgres_conn()
 cur = pg.cursor()
 
 # Clear old data
 cur.execute("DELETE FROM ss.site_graph")
-cur.execute("DELETE FROM ss.monitors")
 cur.execute("DELETE FROM ss.panels")
+cur.execute("DELETE FROM ss.monitors")
 cur.execute("DELETE FROM ss.strings")
 cur.execute("DELETE FROM ss.inverters")
 cur.execute("DELETE FROM ss.gateways")
@@ -20,60 +20,74 @@ cur.execute("INSERT INTO ss.site (sitename) VALUES (%s) RETURNING id", ('TEST',)
 site_id = cur.fetchone()[0]
 
 # Create site array
-cur.execute("INSERT INTO ss.site_array (site_id, label, timezone, commission_date) VALUES (%s, %s, %s, %s) RETURNING id",
-            (site_id, 'Site Array TEST', 'America/Chicago', date.today()))
-sitearray_id = cur.fetchone()[0]
+cur.execute(
+    "INSERT INTO ss.site_array (site_id, label, timezone, commission_date) "
+    "VALUES (%s, %s, %s, %s) RETURNING id",
+    (site_id, 'Site Array TEST', 'America/Chicago', date.today())
+)
+site_array_id = cur.fetchone()[0]
 
 # Create gateway
-cur.execute("INSERT INTO ss.gateways (label, mac_address, ip_address) VALUES (%s,  %s, %s) RETURNING id",
-            ('Gateway 1', 'aa:bb:cc:dd:ee:ff', '192.168.1.1'))
+cur.execute(
+    "INSERT INTO ss.gateways (site_array_id, mac_address, ip_address, name) "
+    "VALUES (%s, %s, %s, %s) RETURNING id",
+    (site_array_id, 'aa:bb:cc:dd:ee:ff', '192.168.1.1', 'GW-1')
+)
 gateway_id = cur.fetchone()[0]
 
 # Create inverter
-cur.execute("INSERT INTO ss.inverters (serial_number, label, gateway_id) VALUES (%s, %s, %s) RETURNING id",
-            ('INV-7281-9321', 'Inverter 1', gateway_id))
+cur.execute(
+    "INSERT INTO ss.inverters (gateway_id, name) VALUES (%s, %s) RETURNING id",
+    (gateway_id, 'INV-1')
+)
 inverter_id = cur.fetchone()[0]
 
 # Create string
-cur.execute("INSERT INTO ss.strings (label, inverter_id) VALUES (%s, %s) RETURNING id", ('String 1', inverter_id))
-string_id = cur.fetchone()[0]
-
-
-# Create 4 panels
-panels = [
-    ('PNL-1-SN', 'PNL-1', string_id, 0, 50, 50),
-    ('PNL-2-SN', 'PNL-2', string_id, 1, 150, 50),
-    ('PNL-3-SN', 'PNL-3', string_id, 2, 50, 120),
-    ('PNL-4-SN', 'PNL-4', string_id, 3, 150, 120)
-]
-cur.executemany(
-    "INSERT INTO ss.panels (serial_number, label, string_id, string_position, x, y) VALUES (%s, %s, %s, %s, %s, %s)",
-    [(sn, label, string_id, pos, x, y) for sn, label, string_id, pos, x, y in panels]
+cur.execute(
+    "INSERT INTO ss.strings (inverter_id, name) VALUES (%s, %s) RETURNING id",
+    (inverter_id, "S-1")
 )
-cur.execute("SELECT id FROM ss.panels WHERE string_id = %s ORDER BY string_position", (string_id,))
-panel_ids = [row[0] for row in cur.fetchall()]
+string_id = cur.fetchone()[0]
 
 # Add monitors
 monitors = [
-    ('fa:29:eb:6d:87:01', 'Monitor 1', 'M-000001', panel_ids[0]),
-    ('fa:29:eb:6d:87:02', 'Monitor 2','M-000002', panel_ids[1]),
-    ('fa:29:eb:6d:87:03', 'Monitor 3','M-000003', panel_ids[2]),
-    ('fa:29:eb:6d:87:04', 'Monitor 4','M-000004', panel_ids[3])
+    (string_id, "fa:29:eb:6d:87:01", "M-000001", 1),
+    (string_id, "fa:29:eb:6d:87:02", "M-000002", 2),
+    (string_id, "fa:29:eb:6d:87:03", "M-000003", 3),
+    (string_id, "fa:29:eb:6d:87:04", "M-000004", 4),
 ]
 cur.executemany(
-    "INSERT INTO ss.monitors (mac_address, label, node_id, panel_id) VALUES (%s, %s, %s, %s)",
+    "INSERT INTO ss.monitors (string_id, mac_address, node_id, string_position) VALUES (%s, %s, %s, %s)",
     monitors
+)
+
+# Get monitor IDs
+cur.execute(
+    "SELECT id FROM ss.monitors WHERE string_id = %s ORDER BY string_position",
+    (string_id,)
+)
+monitor_ids = [row[0] for row in cur.fetchall()]
+
+# Add panels
+panels = []
+x, y = 50, 50
+for i, monitor_id in enumerate(monitor_ids, start=1):
+    label = f"PNL-{i:06d}"
+    panels.append((monitor_id, label, x, y))
+    x += 50
+    y += 50
+
+cur.executemany(
+    "INSERT INTO ss.panels (monitor_id, label, x, y) VALUES (%s, %s, %s, %s)",
+    panels
 )
 
 # Prepare panel + monitor combined input nodes
 panel_nodes = []
-for i, (mac, label, node_id, panel_id) in enumerate(monitors):
-    pnl = panels[i]
-    panel_label = pnl[1]
-    x = pnl[4]
-    y = pnl[5]
+for i, (string_id, mac, node_id, string_position) in enumerate(monitors):
+    monitor_id, panel_label, x, y = panels[i]
     panel_nodes.append({
-        "id": f"P-{panel_id:06d}",
+        "id": f"P-{monitor_id:06d}",
         "devtype": "P",
         "label": panel_label,
         "x": x,
@@ -87,10 +101,10 @@ for i, (mac, label, node_id, panel_id) in enumerate(monitors):
 
 site_graph = {
     "sitearray": {
-        "id": f"SA-{sitearray_id:06d}",
+        "id": f"SA-{site_array_id:06d}",
         "devtype": "SA",
         "label": "Site Array TEST",
-        "timezone": "America/Chicago",    
+        "timezone": "America/Chicago",
         "inputs": [{
             "id": f"I-{inverter_id:06d}",
             "devtype": "I",
@@ -106,7 +120,10 @@ site_graph = {
     }
 }
 
-cur.execute("INSERT INTO ss.site_graph (sitearray_id, json) VALUES (%s, %s)", (sitearray_id, json.dumps(site_graph)))
+cur.execute(
+    "INSERT INTO ss.site_graph (sitearray_id, json) VALUES (%s, %s)",
+    (site_array_id, json.dumps(site_graph))
+)
 
 pg.commit()
 cur.close()
