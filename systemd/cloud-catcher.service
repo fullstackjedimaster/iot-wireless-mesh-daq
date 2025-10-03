@@ -1,7 +1,6 @@
-# cloud-catcher.service
 [Unit]
 Description=Cloud DAQ Catcher
-After=nats-server.external.service
+After=network.target nats-server.external.service
 Requires=nats-server.external.service
 
 [Service]

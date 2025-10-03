@@ -1,8 +1,8 @@
-# cloud-api.service
 [Unit]
 Description=Cloud DAQ FastAPI
 After=cloud-catcher.service
-Requires=cloud-catcher.service
+Wants=cloud-catcher.service
+
 
 [Service]
 User=meshdaq

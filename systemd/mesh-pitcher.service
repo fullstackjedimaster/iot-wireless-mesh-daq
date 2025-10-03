@@ -1,8 +1,9 @@
-# mesh-pitcher.service
 [Unit]
 Description=Mesh DAQ Pitcher
 After=mesh-daq.service nats-server.external.service
-Requires=mesh-daq.service nats-server.external.service
+Wants=mesh-daq.service nats-server.external.service
+Requires=nats-server.external.service
+
 
 [Service]
 User=meshdaq

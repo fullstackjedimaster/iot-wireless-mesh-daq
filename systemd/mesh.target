@@ -1,7 +1,0 @@
-[Unit]
-Description=Mesh DAQ Aggregate Target
-Requires=mesh-daq.service mesh-emulator.service mesh-pitcher.service
-After=network.target nats-server.internal.service nats-server.external.service
-
-[Install]
-WantedBy=multi-user.target

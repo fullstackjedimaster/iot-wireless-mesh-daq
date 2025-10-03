@@ -1,8 +1,8 @@
-# mesh-emulator.service
 [Unit]
 Description=Mesh Panel Emulator
-After=mesh-daq.service
-Requires=mesh-daq.service
+After=network.target mesh-daq.service
+Wants=mesh-daq.service
+
 
 [Service]
 Type=simple

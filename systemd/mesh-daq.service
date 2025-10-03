@@ -1,9 +1,8 @@
-# mesh-daq.service
 [Unit]
-Description=Mesh DAQ Core (rundaq.py)
-After=network-online.target nats-server.internal.service
+Description=Mesh DAQ Core (rundaq)
+After=network.target nats-server.internal.service
 Requires=nats-server.internal.service
-Wants=network-online.target
+
 
 [Service]
 Type=simple
