@@ -1,6 +1,6 @@
 import json
 from datetime import date
-from util.config import get_postgres_conn, load_config
+from ..util.config import get_postgres_conn, load_config
 
 pg = get_postgres_conn()
 cur = pg.cursor()
@@ -29,7 +29,7 @@ site_array_id = cur.fetchone()[0]
 
 # Create gateway
 cur.execute(
-    "INSERT INTO ss.gateways (site_array_id, mac_address, ip_address, name) "
+    "INSERT INTO ss.gateways (site_array_id, mac_address, ip_address, label) "
     "VALUES (%s, %s, %s, %s) RETURNING id",
     (site_array_id, 'aa:bb:cc:dd:ee:ff', '192.168.1.1', 'GW-1')
 )
@@ -37,14 +37,14 @@ gateway_id = cur.fetchone()[0]
 
 # Create inverter
 cur.execute(
-    "INSERT INTO ss.inverters (gateway_id, name) VALUES (%s, %s) RETURNING id",
+    "INSERT INTO ss.inverters (gateway_id, label) VALUES (%s, %s) RETURNING id",
     (gateway_id, 'INV-1')
 )
 inverter_id = cur.fetchone()[0]
 
 # Create string
 cur.execute(
-    "INSERT INTO ss.strings (inverter_id, name) VALUES (%s, %s) RETURNING id",
+    "INSERT INTO ss.strings (inverter_id, label) VALUES (%s, %s) RETURNING id",
     (inverter_id, "S-1")
 )
 string_id = cur.fetchone()[0]
@@ -85,11 +85,11 @@ cur.executemany(
 # Prepare panel + monitor combined input nodes
 panel_nodes = []
 for i, (string_id, mac, node_id, string_position) in enumerate(monitors):
-    monitor_id, panel_label, x, y = panels[i]
+    monitor_id, label, x, y = panels[i]
     panel_nodes.append({
         "id": f"P-{monitor_id:06d}",
         "devtype": "P",
-        "label": panel_label,
+        "label": label,
         "x": x,
         "y": y,
         "inputs": [{

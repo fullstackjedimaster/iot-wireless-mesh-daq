@@ -38,7 +38,7 @@ def insert_sitegraph(graph):
     site_graph_json = json.dumps(graph)
 
     conn = psycopg2.connect(
-        dbname="ss", user="ss_user", password="LeartPee1138?", host="localhost", port=5432
+        dbname="ss", user="ss", password="Y@$$p4644313?", host="localhost", port=5432
     )
     conn.autocommit = True
     cur = conn.cursor()

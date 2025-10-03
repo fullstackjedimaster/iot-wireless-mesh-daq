@@ -7,13 +7,12 @@ database:
     port: 6379
     db: 3
 
-postgres:
+  postgres:
     user: "ss"
     password: "Y@$$p4644313?"
     host: "localhost"
     port: 5432
     dbname: "ss"
-
 
 
 nats:
