@@ -98,7 +98,7 @@ async def start_gateway_servers(recv_queue: asyncio.Queue):
     loop = asyncio.get_running_loop()
     transport, _ = await loop.create_datagram_endpoint(
         lambda: AutodiscoveryProtocol(),
-        local_addr=(cfg["gateway"].get("ad_host", "0.0.0.0"), ad_listen_port)
+        local_addr=(cfg["gateway"].get("ad_host", "127.0.0.1"), ad_listen_port)
     )
 
     logger.info(f"[UDP] Autodiscovery listening on {comm_host}:{ad_listen_port} → responds on {ad_respond_port}")

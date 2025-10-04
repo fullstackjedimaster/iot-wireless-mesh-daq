@@ -84,19 +84,19 @@ class AsyncEmulator:
         s.setblocking(False)
 
         try:
-            s.bind(('', ad_respond_port))
+            s.bind(('0.0.0.0', ad_respond_port))
         except Exception as e:
             print(f"[EMULATOR] Failed to bind UDP: {e}")
             s.close()
             return None
 
         marco = b"MARCO"
-        target = ('<broadcast>', ad_listen_port)
+        target = ('0.0.0.0', ad_listen_port)
 
         try:
             print(f"[EMULATOR] Broadcasting MARCO → {target}")
             await loop.sock_sendto(s, marco, target)
-            data, addr = await asyncio.wait_for(loop.sock_recvfrom(s, 1024), timeout=2.0)
+            data, addr = await asyncio.wait_for(loop.sock_recvfrom(s, 1024), timeout=5.0)
             if data.strip() == b"POLO":
                 print(f"[EMULATOR] Received POLO from {addr}")
                 s.close()
