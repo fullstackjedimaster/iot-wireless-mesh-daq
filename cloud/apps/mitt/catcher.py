@@ -5,14 +5,14 @@ import signal
 from bson import BSON, InvalidBSON
 from datetime import datetime
 import httpx  # ✅ added for microservice call
-from apps.util.config import load_config, get_redis_conn, get_postgres_conn, get_topic
-from apps.util.logger import make_logger
-from apps.util.redis.access import GraphManager
-from apps.util.daemon import Daemon
-from apps.util.managers.nats_manager import nats_manager  # Centralized NATSManager
+from cloud.apps.util.config import load_config, get_redis_conn, get_postgres_conn, get_topic
+from cloud.apps.util.logger import make_logger
+from cloud.apps.util.redis.access import GraphManager
+from cloud.apps.util.daemon import Daemon
+from cloud.apps.util.managers.nats_manager import nats_manager  # Centralized NATSManager
 
 # ✅ fallback AI status logic
-from apps.util.faults import compute_status_from_metrics
+from cloud.apps.util.faults import compute_status_from_metrics
 
 logger = make_logger("Catcher")
 
