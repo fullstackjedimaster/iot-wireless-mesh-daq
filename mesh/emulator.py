@@ -77,7 +77,8 @@ class AsyncEmulator:
         self.writer = None
 
     async def find_siteserver(self):
-        """Broadcast MARCO until we get POLO back."""
+        """Broadcast MARCO until we get POLO back.
+        Automatically switches to localhost if the responder is on the same host."""
         loop = asyncio.get_running_loop()
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -91,19 +92,36 @@ class AsyncEmulator:
             return None
 
         marco = b"MARCO"
-        target = ("255.255.255.255", ad_listen_port)  # ✅ proper IPv4 broadcast
+        target = ("255.255.255.255", ad_listen_port)
 
         try:
             print(f"[EMULATOR] Broadcasting MARCO → {target}")
-            # Send broadcast
             await loop.sock_sendto(s, marco, target)
-
-            # Wait for POLO reply
             data, addr = await asyncio.wait_for(loop.sock_recvfrom(s, 1024), timeout=5.0)
+
             if data.strip() == b"POLO":
+                responder_ip = addr[0]
                 print(f"[EMULATOR] Received POLO from {addr}")
+
+                # --- Detect if this IP belongs to a local interface ---
+                local_ips = set()
+                try:
+                    host_name = socket.gethostname()
+                    local_ips.add(socket.gethostbyname(host_name))
+                    for info in socket.getaddrinfo(host_name, None):
+                        local_ips.add(info[4][0])
+                    # Always include localhost variants
+                    local_ips.update({"127.0.0.1", "0.0.0.0"})
+                except Exception as e:
+                    print(f"[EMULATOR] Could not enumerate local IPs: {e}")
+
+                if responder_ip in local_ips or responder_ip.startswith("127."):
+                    print(f"[EMULATOR] Detected local gateway ({responder_ip}) → forcing 127.0.0.1 for TCP")
+                    responder_ip = "127.0.0.1"
+
                 s.close()
-                return addr[0]
+                return responder_ip
+
         except asyncio.TimeoutError:
             print("[EMULATOR] No POLO received (timeout)")
         except Exception as e:

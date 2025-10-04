@@ -10,28 +10,35 @@ network:
 emulator:
   panel_delay: 1.0
   cycle_delay: 4.0
-
+  # If the emulator runs on the same host as the gateway, autodiscovery will auto-correct
+  # to 127.0.0.1. No need to change anything here for local demos.
 
 daq:
   throttle_delay: 0.01
   backpressure_qsize: 10
   compression:
-    batch_on: 4      # Only 4 records before flush
-    batch_at: 0.5    # Or flush after 0.5 sec
+    batch_on: 4      # Flush after 4 records
+    batch_at: 0.5    # Or after 0.5 seconds (whichever first)
 
 gateway:
-  comm_host: "127.0.0.1"           # TCP bind address for gateway connections
+  # === Core TCP listener ===
+  comm_host: "0.0.0.0"           # Listen on all interfaces for LAN or droplet discovery
   comm_port: 59990               # TCP port for gateway socket
-  ad_host: "0.0.0.0"             # UDP bind address for MARCO/POLO
-  ad_listen_port: 59991         # UDP port to listen for MARCO
-  ad_respond_port: 59992      # Port to respond with POLO
-  mac_reg_delay: 2              # Delay after sending MAC reg request
-  packet_delay: 0.2             # Delay between gateway message sends
-  packet_batch: 10              # Max batch size for bus.handle() loop
+
+  # === UDP autodiscovery (MARCO → POLO) ===
+  ad_host: "0.0.0.0"             # Bind to all interfaces for broadcast
+  ad_listen_port: 59991          # Port to listen for MARCO packets
+  ad_respond_port: 59992         # Port to respond with POLO
+  reply_embed_ip: true           # (Future-ready) allow gateway to include its IP in POLO
+
+  # === Transmission timing ===
+  mac_reg_delay: 2               # Delay after sending MAC registration
+  packet_delay: 0.2              # Delay between outbound gateway packets
+  packet_batch: 10               # Max batch size before flush
 
 nats:
-  server: "nats://127.0.0.1:4222"
-  external_publish_server: "nats://127.0.0.1:5222"
+  server: "nats://127.0.0.1:4222"               # Internal NATS broker
+  external_publish_server: "nats://127.0.0.1:5222"  # External (for cloud relay)
   external_mesh_topic: "mesh.data"
   publish_topic: "mesh.data"
   command_topic: "site.daq.commands"
@@ -40,13 +47,13 @@ nats:
   internal_mesh_topic: "site.local.mesh"
 
 logging:
-  level: "INFO"     # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"                                 # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
   log_file: "/var/log/mesh/DAQ.log"
 
 devices:
-  all: []
-  convert_irradiance: false
-  report_interval: 5
+  all: []                                       # Explicit device list (if pre-registered)
+  convert_irradiance: false                     # Whether to convert irradiance readings
+  report_interval: 5                            # Default reporting period (s)
 
 ephem:
   lat: 37.7749

@@ -13,6 +13,7 @@ Config-driven from config.yaml:
 """
 
 import asyncio
+import socket
 from DAQ.util.logger import make_logger
 from DAQ.util.config import load_config
 from DAQ.util.utctime import utcepochnow
@@ -75,14 +76,31 @@ class AutodiscoveryProtocol(asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data, addr):
-        logger.debug(f"MARCO {addr} → POLO?")
+        logger.debug(f"[UDP] Received {data!r} from {addr}")
         if data.strip() == b"MARCO":
             try:
-                self.transport.sendto(b"POLO", (addr[0], ad_respond_port))
-                logger.debug(f"POLO sent to {addr[0]}:{ad_respond_port}")
-            except Exception:
-                logger.exception("Failed to send POLO response")
+                # --- Determine best local reply address ---
+                local_ip = self._get_local_ip_for(addr[0])
+                logger.debug(f"[UDP] MARCO from {addr[0]} → replying with POLO ({local_ip})")
 
+                # Send POLO with source inferred from bound socket
+                self.transport.sendto(b"POLO", (addr[0], ad_respond_port))
+                logger.info(f"[UDP] POLO sent to {addr[0]}:{ad_respond_port} (local={local_ip})")
+
+            except Exception:
+                logger.exception("[UDP] Failed to handle MARCO")
+
+    def _get_local_ip_for(self, remote_ip: str) -> str:
+        """Determine which local interface IP should respond to the given remote host."""
+        try:
+            # Create a temporary socket to see what local IP would be used to reach remote_ip
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as temp_sock:
+                temp_sock.connect((remote_ip, 9))  # port 9 = discard
+                local_ip = temp_sock.getsockname()[0]
+            return local_ip
+        except Exception:
+            # Fall back to localhost if detection fails
+            return "127.0.0.1"
 
 # Server launcher
 async def start_gateway_servers(recv_queue: asyncio.Queue):
