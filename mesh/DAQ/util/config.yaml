@@ -22,7 +22,7 @@ daq:
 gateway:
   comm_host: "127.0.0.1"           # TCP bind address for gateway connections
   comm_port: 59990               # TCP port for gateway socket
-  ad_host: "`127.0.0.1"             # UDP bind address for MARCO/POLO
+  ad_host: "0.0.0.0"             # UDP bind address for MARCO/POLO
   ad_listen_port: 59991         # UDP port to listen for MARCO
   ad_respond_port: 59992      # Port to respond with POLO
   mac_reg_delay: 2              # Delay after sending MAC reg request
