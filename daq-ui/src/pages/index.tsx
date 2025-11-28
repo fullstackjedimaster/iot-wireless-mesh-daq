@@ -11,6 +11,7 @@ import { PanelMapOverlay, type PanelTelemetry } from "@/components/PanelMapOverl
 import { useCallback, useEffect, useState } from "react";
 import { getLayout } from "@/lib/api";
 import { BlinkyThing } from "@/components/BlinkyThing";
+import DockReadyReporter from "@/components/DockReadyReporter";
 
 // Layout items returned by getLayout()
 type LayoutItem = { x: number; y: number; mac: string };
@@ -103,7 +104,7 @@ export default function Home() {
             <Head>
                 <title>Wireless Mesh DAQ Dashboard</title>
             </Head>
-
+            <DockReadyReporter />
             <Layout>
                 <div className="w-full">
                     <h1 className="header">Wireless Mesh DAQ Dashboard</h1>

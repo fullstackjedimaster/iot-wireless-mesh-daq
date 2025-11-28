@@ -19,10 +19,12 @@ interface PanelStatusResponse {
 
 export type FaultProfile = Record<string, number>
 
+const API_BASE =  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+
 
 export async function getLayout(): Promise<Panel[]> {
 
-    const res = await fetch(`/api/layout`)
+    const res = await fetch(`${API_BASE}/api/layout`)
 
     if (!res.ok) {
         console.error("Failed to fetch layout:", res.status)
@@ -41,7 +43,7 @@ export async function getLayout(): Promise<Panel[]> {
 
 export async function getPanelStatus(mac: string): Promise<PanelStatusResponse> {
 
-    const res = await fetch(`/api/status/${encodeURIComponent(mac)}`)
+    const res = await fetch(`${API_BASE}/api/status/${encodeURIComponent(mac)}`)
     if (!res.ok) {
         console.error(`Failed to fetch status for ${mac}:`, res.status)
         throw new Error("Panel status fetch failed")
@@ -53,7 +55,7 @@ export async function getPanelStatus(mac: string): Promise<PanelStatusResponse> 
 
 export async function injectFault(mac: string, fault: string): Promise<void> {
 
-    const res = await fetch(`/api/inject_fault`, {
+    const res = await fetch(`${API_BASE}/api/inject_fault`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mac, fault })
@@ -66,7 +68,7 @@ export async function injectFault(mac: string, fault: string): Promise<void> {
 
 export async function clearAllFaults(): Promise<void> {
 
-    const res = await fetch(`/api/clear_all_faults`, {
+    const res = await fetch(`${API_BASE}/api/clear_all_faults`, {
         method: "POST"
     })
 
@@ -77,7 +79,7 @@ export async function clearAllFaults(): Promise<void> {
 
 
 export async function getProfile(): Promise<Record<string, FaultProfile>> {
-    const res = await fetch("/api/faults/profile")
+    const res = await fetch("${API_BASE}/api/faults/profile")
     return res.json()
 }
 
