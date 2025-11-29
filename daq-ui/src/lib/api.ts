@@ -19,7 +19,7 @@ interface PanelStatusResponse {
 
 export type FaultProfile = Record<string, number>
 
-const API_BASE =  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const API_BASE =  process.env.NEXT_PUBLIC_API_BASE || "https://mesh-daq.fullstackjedi.dev:8000";
 
 
 export async function getLayout(): Promise<Panel[]> {
