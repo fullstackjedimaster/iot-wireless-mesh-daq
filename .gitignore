@@ -12,3 +12,8 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local virtualenvs
+.venv/
+cloud/.venv/
+mesh/.venv/
