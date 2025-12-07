@@ -5,14 +5,14 @@ import signal
 from bson import BSON, InvalidBSON
 from datetime import datetime
 import httpx  # ✅ added for microservice call
-from apps.util.config import load_config, get_redis_conn, get_postgres_conn, get_topic
-from apps.util.logger import make_logger
-from apps.util.redis.access import GraphManager
-from apps.util.daemon import Daemon
-from apps.util.managers.nats_manager import nats_manager  # Centralized NATSManager
+from ..util.config import load_config, get_redis_conn, get_postgres_conn, get_topic
+from ..util.logger import make_logger
+from ..util.redis.access import GraphManager
+from ..util.daemon import Daemon
+from ..util.managers.nats_manager import nats_manager  # Centralized NATSManager
 
 # ✅ fallback AI status logic
-from apps.util.faults import compute_status_from_metrics
+from ..util.faults import compute_status_from_metrics
 
 logger = make_logger("Catcher")
 
@@ -30,7 +30,7 @@ def handle_signal(sig):
 
 # Try to import get_ai_status dynamically if available
 try:
-    from apps.util.faults_ai import get_ai_status
+    from ..util.faults_ai import get_ai_status
     AI_STATUS_ENABLED = True
 except ImportError:
     AI_STATUS_ENABLED = False

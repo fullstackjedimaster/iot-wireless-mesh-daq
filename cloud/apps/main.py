@@ -21,15 +21,17 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
+    
+app.add_middleware(RefererMiddleware)
 
-# app.add_middleware(RefererMiddleware)
-#
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://fullstackjedi.dev", "https://www.fullstackjedi.dev"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(main_router, prefix="/api")
 
