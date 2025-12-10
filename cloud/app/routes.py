@@ -1,4 +1,4 @@
-# cloud/apps/routes.py
+# cloud/app/routes.py
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 from .util.config import get_redis_conn, get_postgres_conn, load_config
@@ -7,7 +7,7 @@ from .util.faults import set_fault
 from pydantic import BaseModel
 from .commissioning.commission_sitegraph import load_site_graph
 from urllib import parse
-from apps.util.faults import reset_fault, get_fault, compute_status_from_metrics, normalize_fault_token
+from app.util.faults import reset_fault, get_fault, compute_status_from_metrics, normalize_fault_token
 
 
 class FaultRequest(BaseModel):

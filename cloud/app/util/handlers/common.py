@@ -9,11 +9,11 @@ import time
 import uuid
 from multiprocessing import util
 from multiprocessing.managers import SyncManager
-from apps.util.hex import _h
-from apps.util.logger import make_logger
-from apps.util.utctime import utcepochnow
-from apps.util.config import get_topic
-from apps.util.brokers.broker import local_nats_broker
+from app.util.hex import _h
+from app.util.logger import make_logger
+from app.util.utctime import utcepochnow
+from app.util.config import get_topic
+from app.util.brokers.broker import local_nats_broker
 
 # ---------------------
 # Signal-Ignoring Manager

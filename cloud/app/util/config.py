@@ -4,7 +4,7 @@ import redis
 import psycopg2
 from psycopg2.extras import DictCursor
 
-DEFAULT_APP_CONFIG = "/opt/projects/iot-wireless-mesh-daq/cloud/apps/util/config.yaml"
+DEFAULT_APP_CONFIG = "/opt/projects/iot-wireless-mesh-daq/cloud/app/util/config.yaml"
 
 _config = None
 
@@ -69,7 +69,7 @@ def get_postgres_conn():
 def get_templates_dir():
     """Returns the Jinja2 templates directory (for cloud)."""
     config = load_config()
-    return config.get("paths", {}).get("templates_dir", "apps/templates")
+    return config.get("paths", {}).get("templates_dir", "app/templates")
 
 
 def get_local_path(global_path, local_path, fname=None):

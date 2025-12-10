@@ -1,5 +1,5 @@
-from apps.database import SessionLocal
-from apps.models import Site, SiteArray, String, Inverter, Panel, Monitor
+from app.database import SessionLocal
+from app.models import Site, SiteArray, String, Inverter, Panel, Monitor
 
 
 class SiteManager:

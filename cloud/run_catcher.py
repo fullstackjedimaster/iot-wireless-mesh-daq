@@ -6,9 +6,9 @@ from bootstrap_path import add_project_root
 # ✅ Ensure all imports resolve from cloud root
 add_project_root()
 
-from apps.mitt.catcher import Catcher
-from apps.util.logger import make_logger
-from apps.util.managers.nats_manager import nats_manager
+from app.mitt.catcher import Catcher
+from app.util.logger import make_logger
+from app.util.managers.nats_manager import nats_manager
 
 logger = make_logger("run_catcher")
 

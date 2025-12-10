@@ -41,7 +41,7 @@ def main():
     print("[run_cloud] Launching FastAPI app (uvicorn)...")
     uvicorn_proc = subprocess.Popen([
         uvicorn_bin,
-        "apps.main:app",
+        "app.main:app",
         "--host", "0.0.0.0",
         "--port", "8000"
     ], cwd=project_root)

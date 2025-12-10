@@ -1,4 +1,4 @@
-# /cloud/apps/commissioning/commission_and_bootstrap.py
+# /cloud/app/commissioning/commission_and_bootstrap.py
 import os
 import json
 import psycopg2

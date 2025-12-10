@@ -1,4 +1,4 @@
-# apps/util/status.py
+# app/util/status.py
 
 def compute_status(voltage, current):
     if voltage is None or current is None:

@@ -7,7 +7,7 @@ from typing import Optional
 from typing import Dict, Any, Optional
 from .exceptions import GraphNotLoadedException
 from .exceptions import MultipleGraphsLoadedException
-from apps.util.redis.exceptions import RedisException
+from app.util.redis.exceptions import RedisException
 import json
 from typing import Dict, Any, Optional
 import redis.asyncio as redis
