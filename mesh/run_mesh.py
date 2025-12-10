@@ -1,8 +1,13 @@
-# /opt/projects/iot-wireless-mesh-daq/mesh//run_mesh.py
+# /opt/projects/iot-wireless-mesh-daq/mesh/run_mesh.py
 #!/usr/bin/env python3
-import subprocess, os, time, signal, sys
+import subprocess
+import os
+import time
+import signal
+import sys
 
 children = []
+
 
 def shutdown(signum, frame):
     print(f"[run_mesh] signal {signum}; shutting down children...", flush=True)
@@ -17,6 +22,7 @@ def shutdown(signum, frame):
                 print(f"[run_mesh] killed pid {p.pid}", flush=True)
     sys.exit(0)
 
+
 def spawn(py, script, cwd):
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
@@ -28,9 +34,14 @@ def spawn(py, script, cwd):
         stderr=sys.stderr,
     )
 
+
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
-    py = os.path.abspath(os.path.join(base, "..", ".venv", "bin", "python"))
+
+    # *** IMPORTANT CHANGE ***
+    # Use the same interpreter that launched run_mesh.py
+    py = sys.executable
+    print(f"[run_mesh] using interpreter: {py}", flush=True)
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
@@ -47,6 +58,7 @@ def main():
             time.sleep(3600)
     except KeyboardInterrupt:
         shutdown(signal.SIGINT, None)
+
 
 if __name__ == "__main__":
     main()
