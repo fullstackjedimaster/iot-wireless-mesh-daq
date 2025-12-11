@@ -1,7 +1,6 @@
 # Python
 *.pyc
 __pycache__/
-.venv/
 .env
 
 # Node
@@ -17,3 +16,6 @@ Thumbs.db
 .venv/
 cloud/.venv/
 mesh/.venv/
+
+daq-ui/node_modules/
+
