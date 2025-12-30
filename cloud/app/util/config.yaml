@@ -21,7 +21,7 @@ nats:
 
 logging:
   level: "INFO"     # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  log_file: "/var/log/cloud.log"
+  log_file: ""
 
 ephem:
   lat: 37.7749

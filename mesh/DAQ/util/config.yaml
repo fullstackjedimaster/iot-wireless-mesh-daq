@@ -48,7 +48,7 @@ nats:
 
 logging:
   level: "INFO"                                 # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  log_file: "/var/log/mesh/DAQ.log"
+  log_file: ""
 
 devices:
   all: []                                       # Explicit device list (if pre-registered)
