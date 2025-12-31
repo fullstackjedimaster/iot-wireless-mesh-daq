@@ -1,10 +1,11 @@
 # cloud/app/main.py
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from .routes import router as main_router
-# We’ll keep this import for future token-based protection, but we’re not
-# wiring it as a global dependency yet so the dashboard can work:
+
+# Keep for future/per-route protection (do NOT wire globally here)
 from app.security.embed_token import require_embed_token
 
 
@@ -34,7 +35,10 @@ class RefererMiddleware(BaseHTTPMiddleware):
         # Anything else is rejected
         raise HTTPException(status_code=403, detail="Access forbidden: invalid referer.")
 
+
+# Token dependency factory (use this in routes.py for POST routes)
 require_meshdaq = require_embed_token("mesh-daq")
+
 
 app = FastAPI(
     title="Wireless Mesh DAQ API",
@@ -42,7 +46,10 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    dependencies=[Depends(require_meshdaq)],
+    # IMPORTANT:
+    # Do NOT set global dependencies here unless you want *every* route
+    # (including GET /api/layout, GET /api/status/{mac}, docs, etc.) to require
+    # the embed token header.
 )
 
 # Enforce referer checks
@@ -63,6 +70,11 @@ app.add_middleware(
 
 # Main API
 app.include_router(main_router, prefix="/api")
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True}
 
 
 @app.get("/")
