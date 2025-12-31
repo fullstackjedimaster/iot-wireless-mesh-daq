@@ -1,22 +1,33 @@
 # cloud/app/routes.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
+from pydantic import BaseModel
+from urllib import parse
+
 from .util.config import get_redis_conn, load_config
 from .util.logger import make_logger
-from .util.faults import set_fault
-from pydantic import BaseModel
+from .util.faults import (
+    set_fault,
+    reset_fault,
+    get_fault,
+    compute_status_from_metrics,
+    normalize_fault_token,
+)
 from .commissioning.commission_sitegraph import load_site_graph
-from urllib import parse
-from .util.faults import reset_fault, get_fault, compute_status_from_metrics, normalize_fault_token
+
+# Token dependency factory (defined in app.main)
+from app.main import require_meshdaq
 
 
 class FaultRequest(BaseModel):
     mac: str
     fault: str
 
+
 router = APIRouter()
 config = load_config()
 logger = make_logger("Route")
+
 
 def normalize_mac(raw):
     try:
@@ -27,25 +38,13 @@ def normalize_mac(raw):
         return "invalid"
 
 
-
 @router.get("/layout", response_class=JSONResponse)
 async def get_panel_layout():
     try:
-        # pg = get_postgres_conn()
-        # with pg.cursor() as cur:
-        #     cur.execute("""
-        #         SELECT sg.json
-        #         FROM ss.site_graph sg
-        #         JOIN ss.site_array sa ON sg.sitearray_id = sa.id
-        #         JOIN ss.site s ON s.id = sa.site_id
-        #         WHERE s.sitename = %s
-        #     """, ('TEST',))
-        #     result = cur.fetchone()
-        #     if not result:
-        #         raise HTTPException(status_code=404, detail="Site graph not found")
         graph_json = load_site_graph()
 
         layout = []
+
         def walk(node):
             if not isinstance(node, dict):
                 return
@@ -79,7 +78,8 @@ def get_panel_status(mac: str):
         "temperature": data.get("temperature"),
     }
 
-@router.post("/inject_fault")
+
+@router.post("/inject_fault", dependencies=[Depends(require_meshdaq)])
 def api_inject_fault(payload: dict):
     mac = (payload.get("mac") or "").lower()
     raw_fault = payload.get("fault") or "normal"
@@ -89,7 +89,8 @@ def api_inject_fault(payload: dict):
     set_fault(mac, low)
     return {"ok": True, "mac": mac, "fault": low}
 
-@router.post("/clear_all_faults")
+
+@router.post("/clear_all_faults", dependencies=[Depends(require_meshdaq)])
 def api_clear_all_faults():
     # basic approach: scan and delete fault_injection:* keys
     r = get_redis_conn(db=3)
@@ -97,6 +98,7 @@ def api_clear_all_faults():
     for k in keys:
         r.delete(k)
     return {"ok": True, "deleted": len(keys)}
+
 
 # (optional) profile endpoint for useFaultStatus()
 @router.get("/faults/profile")
