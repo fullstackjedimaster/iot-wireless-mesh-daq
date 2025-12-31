@@ -5,8 +5,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes import router as main_router
 
-# Keep for future/per-route protection (do NOT wire globally here)
-from app.security.embed_token import require_embed_token
+# Keep for per-route protection (do NOT wire globally here)
+from app.security.embed_token import require_embed_token  # noqa: F401
 
 
 # Domains we trust as callers / embedders
@@ -19,8 +19,6 @@ ALLOWED_REFERERS = [
 
 class RefererMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # For same-origin XHR from the mesh-daq UI, referer will normally be
-        # https://mesh-daq.fullstackjedi.dev/...
         referer = request.headers.get("referer")
 
         # Allow if no Referer (curl, privacy modes, some proxies)
@@ -32,24 +30,17 @@ class RefererMiddleware(BaseHTTPMiddleware):
             if referer.startswith(prefix):
                 return await call_next(request)
 
-        # Anything else is rejected
         raise HTTPException(status_code=403, detail="Access forbidden: invalid referer.")
 
 
-# Token dependency factory (use this in routes.py for POST routes)
-require_meshdaq = require_embed_token("mesh-daq")
-
-
+# IMPORTANT: No global dependencies here.
+# Token protection is applied per-route in routes.py (POST routes only).
 app = FastAPI(
     title="Wireless Mesh DAQ API",
     description="FastAPI backend for daq-ui dashboard",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    # IMPORTANT:
-    # Do NOT set global dependencies here unless you want *every* route
-    # (including GET /api/layout, GET /api/status/{mac}, docs, etc.) to require
-    # the embed token header.
 )
 
 # Enforce referer checks
