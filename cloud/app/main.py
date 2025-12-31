@@ -6,7 +6,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
-from app.security.embed_token import require_embed_token  # noqa: F401
+# (Routes import require_embed_token and apply to POST routes only.)
+# from app.security.embed_token import require_embed_token
 
 
 # Domains we trust as callers / embedders
@@ -25,7 +26,6 @@ class RefererMiddleware(BaseHTTPMiddleware):
         if not referer:
             return await call_next(request)
 
-        # Allow any request whose Referer starts with one of our trusted prefixes
         for prefix in ALLOWED_REFERERS:
             if referer.startswith(prefix):
                 return await call_next(request)
@@ -33,20 +33,20 @@ class RefererMiddleware(BaseHTTPMiddleware):
         raise HTTPException(status_code=403, detail="Access forbidden: invalid referer.")
 
 
-# IMPORTANT: No global dependencies here.
-# Token protection is applied per-route in routes.py (POST routes only).
 app = FastAPI(
     title="Wireless Mesh DAQ API",
     description="FastAPI backend for daq-ui dashboard",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    # IMPORTANT: No global dependencies.
+    # Token enforcement is applied ONLY on specific POST routes in routes.py.
 )
 
 # Enforce referer checks
 app.add_middleware(RefererMiddleware)
 
-# CORS is mostly for cross-origin XHR; we mirror the same allowed domains
+# CORS is mostly for cross-origin XHR; mirror the same allowed domains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

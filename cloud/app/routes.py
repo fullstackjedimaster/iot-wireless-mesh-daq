@@ -80,9 +80,12 @@ def get_panel_status(mac: str):
 def api_inject_fault(payload: dict):
     mac = (payload.get("mac") or "").lower()
     raw_fault = payload.get("fault") or "normal"
+
     low, _ = normalize_fault_token(raw_fault)
+
     if not mac:
         raise HTTPException(status_code=400, detail="mac required")
+
     set_fault(mac, low)
     return {"ok": True, "mac": mac, "fault": low}
 
@@ -98,7 +101,8 @@ def api_clear_all_faults():
 
 @router.get("/faults/profile")
 def api_faults_profile():
-    r = get_redis_conn()
+    # IMPORTANT: use same DB as the rest of the app
+    r = get_redis_conn(db=3)
     profile: dict[str, int] = {}
     for key in r.scan_iter("sitearray:monitor:*"):
         status = (r.hget(key, "status") or "normal")
