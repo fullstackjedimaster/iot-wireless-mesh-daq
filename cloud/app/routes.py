@@ -98,7 +98,7 @@ def api_clear_all_faults():
 
 @router.get("/faults/profile")
 def api_faults_profile():
-    r = get_redis_conn(db=3)
+    r = get_redis_conn()
     profile: dict[str, int] = {}
     for key in r.scan_iter("sitearray:monitor:*"):
         status = (r.hget(key, "status") or "normal")

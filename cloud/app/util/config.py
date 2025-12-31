@@ -65,11 +65,36 @@ def _apply_env_overrides(config: dict) -> dict:
         config["nats"]["external_publish_server"] = external_nats
 
     # Redis
+    # Priority order:
+    #   1) REDIS_URL (full URL, includes db)
+    #   2) REDIS_HOST / REDIS_PORT / REDIS_DB (compose-friendly)
+    #   3) YAML (fallback)
     redis_url = os.getenv("REDIS_URL", "").strip()
+    redis_host = os.getenv("REDIS_HOST", "").strip()
+    redis_port = os.getenv("REDIS_PORT", "").strip()
+    redis_db = os.getenv("REDIS_DB", "").strip()
+
     if redis_url:
         config.setdefault("database", {}).setdefault("redis", {})
         r = _parse_redis_url(redis_url)
         config["database"]["redis"].update(r)
+    elif redis_host or redis_port or redis_db:
+        config.setdefault("database", {}).setdefault("redis", {})
+        # If REDIS_HOST is not provided but other redis vars are, assume docker service name
+        host = redis_host or "redis"
+        port = int(redis_port or 6379)
+        try:
+            db = int(redis_db) if redis_db else 3
+        except ValueError:
+            db = 3
+
+        config["database"]["redis"].update(
+            {
+                "host": host,
+                "port": port,
+                "db": db,
+            }
+        )
 
     # Postgres
     db_url = os.getenv("DATABASE_URL", "").strip()
@@ -135,10 +160,13 @@ def get_redis_conn(db=3):
     if not redis_conf:
         raise RuntimeError("Redis config not found.")
 
+    # If caller supplies db explicitly (including 0), respect it.
+    # Otherwise use config db, and default to 3 if missing.
     use_db = db if db is not None else redis_conf.get("db", 3)
+
     return redis.StrictRedis(
-        host=redis_conf["host"],
-        port=int(redis_conf["port"]),
+        host=redis_conf.get("host", "redis"),
+        port=int(redis_conf.get("port", 6379)),
         db=int(use_db),
         decode_responses=True,
     )
