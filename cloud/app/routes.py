@@ -7,7 +7,7 @@ from .util.faults import set_fault
 from pydantic import BaseModel
 from .commissioning.commission_sitegraph import load_site_graph
 from urllib import parse
-from app.util.faults import reset_fault, get_fault, compute_status_from_metrics, normalize_fault_token
+from .util.faults import reset_fault, get_fault, compute_status_from_metrics, normalize_fault_token
 
 
 class FaultRequest(BaseModel):
