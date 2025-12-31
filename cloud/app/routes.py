@@ -1,7 +1,7 @@
 # cloud/app/routes.py
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
-from .util.config import get_redis_conn, get_postgres_conn, load_config
+from .util.config import get_redis_conn, load_config
 from .util.logger import make_logger
 from .util.faults import set_fault
 from pydantic import BaseModel
