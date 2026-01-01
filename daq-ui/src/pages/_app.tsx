@@ -1,48 +1,38 @@
-// pages/_app.tsx
 import type { AppProps } from "next/app";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import "@/app/globals.css";
 
-import {
-    initEmbedTokenFromBrowser,
-    setEmbedToken,
-} from "@/lib/embedTokenStore";
-
 const DOCK_ORIGIN = "https://ai-ui.fullstackjedi.dev";
 const DOCK_FRAME_ID = "daq-dock";
 const WRAPPER_ID = "dock-wrapper-" + DOCK_FRAME_ID;
 
+type DockMessage =
+    | { type: "SET_DOCK_VISIBLE"; visible?: boolean }
+    | { type: "refreshDock" }
+    | { type: "AI_SET_USECASE"; usecase?: string }
+    | { type: "embedReady" }
+    | { type: "EMBED_HEIGHT"; frameId?: string; height?: number };
+
+function isObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
 export default function MyApp({ Component, pageProps }: AppProps) {
     const [dockVisible, setDockVisible] = useState(false);
 
-    // 0️⃣ Initialize embed token from URL (?t=...), window.__EMBED_TOKEN__, or localStorage
-    useEffect(() => {
-        initEmbedTokenFromBrowser();
-    }, []);
-
     // 1️⃣ Listen for visibility toggle messages from parent (portfolio/testbed)
     useEffect(() => {
-        const onMsg = (ev: MessageEvent) => {
+        const onMsg = (ev: MessageEvent<unknown>) => {
             const d = ev?.data;
-            if (!d || typeof d !== "object") return;
+            if (!isObject(d)) return;
 
-            if (d.type === "SET_DOCK_VISIBLE") {
-                setDockVisible(!!d.visible);
-                return;
-            }
-
-            if (d.type === "refreshDock") {
+            const type = d["type"];
+            if (type === "SET_DOCK_VISIBLE") {
+                const visible = d["visible"];
+                setDockVisible(Boolean(visible));
+            } else if (type === "refreshDock") {
                 setDockVisible(true);
-                return;
-            }
-
-            // Optional: allow parent to push token via postMessage
-            // Example: window.frames[...].postMessage({type:"SET_EMBED_TOKEN", token:"..."}, "*")
-            if (d.type === "SET_EMBED_TOKEN") {
-                const token = typeof (d as any).token === "string" ? (d as any).token : "";
-                if (token.trim()) setEmbedToken(token.trim());
-                return;
             }
         };
 
@@ -56,11 +46,16 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             const params = new URLSearchParams(window.location.search);
             const host = params.get("host");
             if (host === "testbed" && window.parent) {
-                window.parent.postMessage({ type: "AI_SET_USECASE", usecase: "mesh" }, "*");
+                window.parent.postMessage(
+                    { type: "AI_SET_USECASE", usecase: "mesh" } satisfies DockMessage,
+                    "*"
+                );
                 // Immediately request a dock refresh handshake
-                window.parent.postMessage({ type: "embedReady" }, "*");
+                window.parent.postMessage({ type: "embedReady" } satisfies DockMessage, "*");
             }
-        } catch {}
+        } catch {
+            // ignore
+        }
     }, []);
 
     // 3️⃣ Safe injector for dock boot.js with retry to fix missing-dock-on-first-load
@@ -75,8 +70,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                     const frameId =
                         new URLSearchParams(location.search).get("frameId") || undefined;
                     const height = document.documentElement.scrollHeight;
-                    window.parent?.postMessage({ type: "EMBED_HEIGHT", frameId, height }, "*");
-                } catch {}
+                    window.parent?.postMessage(
+                        { type: "EMBED_HEIGHT", frameId, height } satisfies DockMessage,
+                        "*"
+                    );
+                } catch {
+                    // ignore
+                }
                 return;
             }
 
@@ -92,7 +92,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             (document.body || document.documentElement).appendChild(s);
         };
 
-        // Attempt immediate injection and retry once after short delay
         injectDock();
         const retryTimer = setTimeout(() => {
             if (!document.getElementById(WRAPPER_ID) && dockVisible) {
