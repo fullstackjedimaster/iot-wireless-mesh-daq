@@ -1,0 +1,15 @@
+# runtime volumes
+data/
+.env
+.env.*
+*.log
+
+# editor junk
+.DS_Store
+.idea/
+.vscode/
+
+# node/python noise
+node_modules/
+__pycache__/
+*.pyc
