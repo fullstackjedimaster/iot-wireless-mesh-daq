@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# deploy/scripts/init-env.sh
 # Creates deploy/env/*.env from *.env.example (idempotent).
-# Generates strong secrets for POSTGRES_PASSWORD + EMBED_SECRET.
-# Also auto-derives DATABASE_URL and REDIS_URL in cloud.env + mesh.env.
+# Generates secrets ONLY if placeholder/missing, never rotates unless FORCE=1.
+#
+# Usage:
+#   cd /opt/stacks/iot-wireless-mesh-daq/deploy
+#   bash ./scripts/init-env.sh
+#
+# Overwrite existing .env files (DANGEROUS: will rewrite values):
+#   FORCE=1 bash ./scripts/init-env.sh
+#
+# Sync cloud POSTGRES_PASSWORD from postgres.env without regenerating:
+#   SYNC=1 bash ./scripts/init-env.sh
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
 
-log() { echo -e "\033[1;32m[+] $*\033[0m"; }
+log()  { echo -e "\033[1;32m[+] $*\033[0m"; }
 warn() { echo -e "\033[1;33m[!] $*\033[0m"; }
-err() { echo -e "\033[1;31m[✗] $*\033[0m" >&2; exit 1; }
+err()  { echo -e "\033[1;31m[✗] $*\033[0m" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || err "Missing required command: $1"; }
 
@@ -48,9 +58,15 @@ replace_key() {
   sed -i -E "s|^(${key}=).*$|\1${value}|g" "$file"
 }
 
-get_kv() {
-  local file="$1" key="$2"
-  awk -F= -v k="$key" '$1==k {print $2}' "$file" | tail -n 1 | tr -d '\r'
+get_val() {
+  local file="$1"
+  local key="$2"
+  awk -F= -v k="$key" '$1==k{print substr($0, index($0,"=")+1)}' "$file" | head -n1 | tr -d '\r'
+}
+
+is_placeholder_or_empty() {
+  local v="$1"
+  [[ -z "${v// }" || "$v" == "CHANGE_ME" ]]
 }
 
 main() {
@@ -74,11 +90,11 @@ main() {
 
   local pg_file="${ENV_DIR}/postgres.env"
   local cloud_file="${ENV_DIR}/cloud.env"
-  local mesh_file="${ENV_DIR}/mesh.env"
 
-  # --- Postgres password ---
-  if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$pg_file"; then
-    local pg_pass
+  # Generate POSTGRES_PASSWORD if missing/placeholder (only)
+  local pg_pass
+  pg_pass="$(get_val "$pg_file" "POSTGRES_PASSWORD")"
+  if is_placeholder_or_empty "$pg_pass"; then
     pg_pass="$(gen_secret)"
     replace_key "$pg_file" "POSTGRES_PASSWORD" "$pg_pass"
     log "Generated POSTGRES_PASSWORD in $(basename "$pg_file")"
@@ -86,17 +102,19 @@ main() {
     log "POSTGRES_PASSWORD already set in $(basename "$pg_file")"
   fi
 
-  # Copy pg creds into cloud.env if placeholders
-  if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$cloud_file"; then
-    local pg_pass_current
-    pg_pass_current="$(get_kv "$pg_file" "POSTGRES_PASSWORD")"
-    replace_key "$cloud_file" "POSTGRES_PASSWORD" "$pg_pass_current"
-    log "Copied POSTGRES_PASSWORD into $(basename "$cloud_file")"
+  # Sync cloud POSTGRES_PASSWORD from postgres.env:
+  # - if cloud placeholder/missing OR SYNC=1
+  local cloud_pass
+  cloud_pass="$(get_val "$cloud_file" "POSTGRES_PASSWORD")"
+  if [[ "${SYNC:-0}" == "1" || "$(is_placeholder_or_empty "$cloud_pass"; echo $?)" == "0" ]]; then
+    replace_key "$cloud_file" "POSTGRES_PASSWORD" "$pg_pass"
+    log "Synced POSTGRES_PASSWORD into $(basename "$cloud_file")"
   fi
 
-  # --- Embed secret ---
-  if grep -q '^EMBED_SECRET=CHANGE_ME' "$cloud_file"; then
-    local embed
+  # Generate EMBED_SECRET if missing/placeholder (only)
+  local embed
+  embed="$(get_val "$cloud_file" "EMBED_SECRET")"
+  if is_placeholder_or_empty "$embed"; then
     embed="$(gen_secret)"
     replace_key "$cloud_file" "EMBED_SECRET" "$embed"
     log "Generated EMBED_SECRET in $(basename "$cloud_file")"
@@ -104,48 +122,13 @@ main() {
     log "EMBED_SECRET already set in $(basename "$cloud_file")"
   fi
 
-  # --- Derive DATABASE_URL + REDIS_URL in cloud.env + mesh.env ---
-  local db host port user pass redis_db redis_host redis_port dbname
-  host="$(get_kv "$cloud_file" "POSTGRES_HOST")"; [[ -n "$host" ]] || host="postgres"
-  port="$(get_kv "$cloud_file" "POSTGRES_PORT")"; [[ -n "$port" ]] || port="5432"
-  dbname="$(get_kv "$cloud_file" "POSTGRES_DB")"; [[ -n "$dbname" ]] || dbname="ss"
-  user="$(get_kv "$cloud_file" "POSTGRES_USER")"; [[ -n "$user" ]] || user="ss"
-  pass="$(get_kv "$cloud_file" "POSTGRES_PASSWORD")"; [[ -n "$pass" ]] || pass="$(get_kv "$pg_file" "POSTGRES_PASSWORD")"
-
-  redis_host="$(get_kv "$cloud_file" "REDIS_HOST")"; [[ -n "$redis_host" ]] || redis_host="redis"
-  redis_port="$(get_kv "$cloud_file" "REDIS_PORT")"; [[ -n "$redis_port" ]] || redis_port="6379"
-  redis_db="$(get_kv "$cloud_file" "REDIS_DB")"; [[ -n "$redis_db" ]] || redis_db="3"
-
-  local db_url redis_url
-  db_url="postgresql://${user}:${pass}@${host}:${port}/${dbname}"
-  redis_url="redis://${redis_host}:${redis_port}/${redis_db}"
-
-  # Always set these so they never drift
-  if grep -q '^DATABASE_URL=' "$cloud_file"; then
-    replace_key "$cloud_file" "DATABASE_URL" "$db_url"
-  else
-    echo "DATABASE_URL=${db_url}" >> "$cloud_file"
-  fi
-
-  if grep -q '^REDIS_URL=' "$cloud_file"; then
-    replace_key "$cloud_file" "REDIS_URL" "$redis_url"
-  else
-    echo "REDIS_URL=${redis_url}" >> "$cloud_file"
-  fi
-
-  # mesh env: set REDIS_URL if present, else append
-  if grep -q '^REDIS_URL=' "$mesh_file"; then
-    replace_key "$mesh_file" "REDIS_URL" "$redis_url"
-  else
-    echo "REDIS_URL=${redis_url}" >> "$mesh_file"
-  fi
-
   warn "Env files ready:"
   echo "  ${ENV_DIR}/postgres.env"
   echo "  ${ENV_DIR}/cloud.env"
-  echo "  ${ENV_DIR}/mesh.env"
   echo
-  log "Done."
+  log "Next:"
+  echo "  docker compose config >/dev/null && echo 'YAML OK'"
+  echo "  docker compose up -d --build"
 }
 
 main "$@"
