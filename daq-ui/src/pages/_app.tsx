@@ -1,7 +1,13 @@
+// pages/_app.tsx
 import type { AppProps } from "next/app";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import "@/app/globals.css";
+
+import {
+    initEmbedTokenFromBrowser,
+    setEmbedToken,
+} from "@/lib/embedTokenStore";
 
 const DOCK_ORIGIN = "https://ai-ui.fullstackjedi.dev";
 const DOCK_FRAME_ID = "daq-dock";
@@ -10,18 +16,36 @@ const WRAPPER_ID = "dock-wrapper-" + DOCK_FRAME_ID;
 export default function MyApp({ Component, pageProps }: AppProps) {
     const [dockVisible, setDockVisible] = useState(false);
 
+    // 0️⃣ Initialize embed token from URL (?t=...), window.__EMBED_TOKEN__, or localStorage
+    useEffect(() => {
+        initEmbedTokenFromBrowser();
+    }, []);
+
     // 1️⃣ Listen for visibility toggle messages from parent (portfolio/testbed)
     useEffect(() => {
         const onMsg = (ev: MessageEvent) => {
             const d = ev?.data;
             if (!d || typeof d !== "object") return;
+
             if (d.type === "SET_DOCK_VISIBLE") {
                 setDockVisible(!!d.visible);
-            } else if (d.type === "refreshDock") {
-                // optional manual refresh from parent
+                return;
+            }
+
+            if (d.type === "refreshDock") {
                 setDockVisible(true);
+                return;
+            }
+
+            // Optional: allow parent to push token via postMessage
+            // Example: window.frames[...].postMessage({type:"SET_EMBED_TOKEN", token:"..."}, "*")
+            if (d.type === "SET_EMBED_TOKEN") {
+                const token = typeof (d as any).token === "string" ? (d as any).token : "";
+                if (token.trim()) setEmbedToken(token.trim());
+                return;
             }
         };
+
         window.addEventListener("message", onMsg);
         return () => window.removeEventListener("message", onMsg);
     }, []);
@@ -32,10 +56,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             const params = new URLSearchParams(window.location.search);
             const host = params.get("host");
             if (host === "testbed" && window.parent) {
-                window.parent.postMessage(
-                    { type: "AI_SET_USECASE", usecase: "mesh" },
-                    "*"
-                );
+                window.parent.postMessage({ type: "AI_SET_USECASE", usecase: "mesh" }, "*");
                 // Immediately request a dock refresh handshake
                 window.parent.postMessage({ type: "embedReady" }, "*");
             }
@@ -54,10 +75,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                     const frameId =
                         new URLSearchParams(location.search).get("frameId") || undefined;
                     const height = document.documentElement.scrollHeight;
-                    window.parent?.postMessage(
-                        { type: "EMBED_HEIGHT", frameId, height },
-                        "*"
-                    );
+                    window.parent?.postMessage({ type: "EMBED_HEIGHT", frameId, height }, "*");
                 } catch {}
                 return;
             }

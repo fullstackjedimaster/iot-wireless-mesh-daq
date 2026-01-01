@@ -19,3 +19,11 @@ mesh/.venv/
 
 daq-ui/node_modules/
 
+# ---- deploy runtime secrets (never commit) ----
+deploy/env/*.env
+deploy/env/*.env.*
+deploy/.env
+deploy/.env.*
+
+# but DO commit examples
+!deploy/env/*.env.example
