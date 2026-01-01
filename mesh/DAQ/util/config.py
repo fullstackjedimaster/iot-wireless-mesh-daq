@@ -1,6 +1,5 @@
 import os
 import yaml
-import redis
 from urllib.parse import urlparse
 
 _config = None
@@ -12,22 +11,7 @@ def _default_config_path() -> str:
     return os.path.join(here, "config.yaml")
 
 
-def _parse_redis_url(url: str) -> dict:
-    u = urlparse(url)
-    if u.scheme not in ("redis", "rediss"):
-        raise ValueError(f"Unsupported REDIS_URL scheme: {u.scheme}")
-    db = 0
-    if u.path and u.path != "/":
-        try:
-            db = int(u.path.lstrip("/"))
-        except ValueError:
-            db = 0
-    return {
-        "host": u.hostname or "localhost",
-        "port": int(u.port or 6379),
-        "db": db,
-        # decode_responses handled by redis client creation
-    }
+
 
 
 def _parse_postgres_url(url: str) -> dict:
@@ -64,12 +48,7 @@ def _apply_env_overrides(config: dict) -> dict:
         config.setdefault("nats", {})
         config["nats"]["external_publish_server"] = external_nats
 
-    # Redis
-    redis_url = os.getenv("REDIS_URL", "").strip()
-    if redis_url:
-        config.setdefault("database", {}).setdefault("redis", {})
-        r = _parse_redis_url(redis_url)
-        config["database"]["redis"].update(r)
+
 
     # Postgres
     db_url = os.getenv("DATABASE_URL", "").strip()
@@ -127,21 +106,6 @@ def local_config():
             return yaml.safe_load(f) or {}
     return {}
 
-
-def get_redis_conn(db=3):
-    """Returns a Redis connection if Redis is configured."""
-    config = load_config()
-    redis_conf = config.get("database", {}).get("redis")
-    if not redis_conf:
-        raise RuntimeError("Redis config not found.")
-
-    use_db = db if db is not None else redis_conf.get("db", 3)
-    return redis.StrictRedis(
-        host=redis_conf["host"],
-        port=int(redis_conf["port"]),
-        db=int(use_db),
-        decode_responses=True,
-    )
 
 
 def read_pkginfo():
