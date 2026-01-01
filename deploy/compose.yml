@@ -90,6 +90,17 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
 
+  cloud-catcher:
+    image: iot-wireless-mesh-daq/cloud:local
+    restart: unless-stopped
+    depends_on:
+      - nats
+      - redis
+    env_file:
+      - ../deploy/env/cloud.env
+    command: ["python", "-u", "run_catcher.py"]
+
+
   mesh:
     build:
       context: ..
