@@ -12,7 +12,7 @@ WORKDIR /app
 COPY repo/cloud/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY repo/cloud /app/app
+COPY repo/cloud/app /app/app
 
 # scripts get copied into the image so cloud-bootstrap can run them
 COPY deploy/scripts /deploy/scripts
