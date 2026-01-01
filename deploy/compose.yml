@@ -118,6 +118,19 @@ services:
     command: ["python", "rundaq.py"]
     restart: unless-stopped
 
+  mesh-emulator:
+    image: iot-wireless-mesh-daq/mesh:local
+    container_name: meshdaq-mesh-emulator-1
+    env_file:
+      - ./env/mesh.env
+    depends_on:
+      nats:
+        condition: service_started
+    command: ["python", "-u", "emulator.py"]
+    restart: unless-stopped
+
+
+
   bootstrap-health:
     image: python:3.13-alpine
     depends_on:
