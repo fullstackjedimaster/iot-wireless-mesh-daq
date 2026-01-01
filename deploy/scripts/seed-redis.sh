@@ -9,17 +9,18 @@ REDIS_KEY="sitegraph:${SITE_NAME}"
 
 echo "[seed-redis] Checking if Redis already has ${REDIS_KEY}..."
 
-python3 - <<PY
-import os, sys, redis
+EXISTS="$(python3 - <<PY
+import os, redis
 r = redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
 key = "${REDIS_KEY}"
-exists = r.exists(key)
-print(f"[seed-redis] EXISTS={exists}")
-sys.exit(0 if exists else 1)
+exists = int(r.exists(key))
+print(exists)
 PY
+)"
 
-# If exists => skip
-if [[ $? -eq 0 ]]; then
+echo "[seed-redis] EXISTS=${EXISTS}"
+
+if [[ "${EXISTS}" == "1" ]]; then
   echo "[seed-redis] ${REDIS_KEY} already exists. Skipping (only runs on fresh Redis)."
   exit 0
 fi
