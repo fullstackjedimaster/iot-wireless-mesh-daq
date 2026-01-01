@@ -6,12 +6,10 @@ services:
       - ./env/nats.env
     volumes:
       - ../data/nats:/data
-    # internal-only: do NOT publish ports to host
+    # ✅ internal-only
     expose:
       - "4222"
       - "8222"
-    networks:
-      - internal_net
 
   redis:
     image: redis:7
@@ -20,6 +18,7 @@ services:
       - ./env/redis.env
     volumes:
       - ../data/redis:/data
+    # ✅ internal-only
     expose:
       - "6379"
     healthcheck:
@@ -27,8 +26,6 @@ services:
       interval: 3s
       timeout: 2s
       retries: 40
-    networks:
-      - internal_net
 
   postgres:
     image: postgres:16
@@ -36,6 +33,7 @@ services:
       - ./env/postgres.env
     volumes:
       - ../data/postgres:/var/lib/postgresql/data
+    # ✅ internal-only
     expose:
       - "5432"
     healthcheck:
@@ -43,8 +41,6 @@ services:
       interval: 3s
       timeout: 2s
       retries: 40
-    networks:
-      - internal_net
 
   cloud-image:
     build:
@@ -55,8 +51,6 @@ services:
       - ./env/cloud.env
     command: ["bash", "-lc", "echo cloud-image built"]
     restart: "no"
-    networks:
-      - internal_net
 
   cloud-bootstrap:
     image: iot-wireless-mesh-daq/cloud:local
@@ -69,10 +63,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["bash", "-lc", "/deploy/scripts/bootstrap.sh"]
+    command:
+      - bash
+      - -lc
+      - |
+        /deploy/scripts/bootstrap.sh
     restart: "no"
-    networks:
-      - internal_net
 
   cloud-api:
     image: iot-wireless-mesh-daq/cloud:local
@@ -87,13 +83,17 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    # reachable ONLY from droplet itself (nginx/portfolio) via loopback
+    # ✅ host-local only (nginx can proxy)
     ports:
       - "127.0.0.1:8000:8000"
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
     restart: unless-stopped
-    networks:
-      - internal_net
 
   mesh:
     build:
@@ -111,15 +111,13 @@ services:
         condition: service_started
     command: ["python", "rundaq.py"]
     restart: unless-stopped
-    networks:
-      - internal_net
 
   bootstrap-health:
     image: python:3.13-alpine
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
-    # reachable ONLY from droplet itself (nginx/portfolio) via loopback
+    # ✅ host-local only
     ports:
       - "127.0.0.1:8001:8001"
     command:
@@ -128,6 +126,7 @@ services:
       - |
         python - <<'PY'
         from http.server import BaseHTTPRequestHandler, HTTPServer
+
         class H(BaseHTTPRequestHandler):
             def do_GET(self):
                 if self.path in ('/health/bootstrap', '/health', '/'):
@@ -139,11 +138,10 @@ services:
                     self.end_headers()
             def log_message(self, *a):
                 pass
+
         HTTPServer(('0.0.0.0', 8001), H).serve_forever()
         PY
     restart: unless-stopped
-    networks:
-      - internal_net
 
   daq-ui:
     build:
@@ -152,7 +150,7 @@ services:
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
       - ./env/daq-ui.env
-    # reachable ONLY from droplet itself (nginx/portfolio) via loopback
+    # ✅ host-local only (nginx can proxy)
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
@@ -161,10 +159,3 @@ services:
       bootstrap-health:
         condition: service_started
     restart: unless-stopped
-    networks:
-      - internal_net
-
-networks:
-  internal_net:
-    driver: bridge
-    internal: true
