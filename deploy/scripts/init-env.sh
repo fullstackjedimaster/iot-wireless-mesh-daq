@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# deploy/scripts/init-env.sh
 # Creates deploy/env/*.env from *.env.example (idempotent).
 # Generates strong secrets for POSTGRES_PASSWORD + EMBED_SECRET.
-#
-# Usage:
-#   cd /opt/stacks/iot-wireless-mesh-daq/deploy
-#   bash ./scripts/init-env.sh
-#
-# Overwrite existing .env files:
-#   FORCE=1 bash ./scripts/init-env.sh
+# Also auto-derives DATABASE_URL and REDIS_URL in cloud.env + mesh.env.
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
 
@@ -25,7 +18,6 @@ need sed
 need awk
 
 gen_secret() {
-  # Prefer openssl if present; fallback to python
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 48 | tr -d '\n'
   else
@@ -53,8 +45,12 @@ replace_key() {
   local file="$1"
   local key="$2"
   local value="$3"
-  # Replace lines like KEY=... (even if commented? we only replace active lines)
   sed -i -E "s|^(${key}=).*$|\1${value}|g" "$file"
+}
+
+get_kv() {
+  local file="$1" key="$2"
+  awk -F= -v k="$key" '$1==k {print $2}' "$file" | tail -n 1 | tr -d '\r'
 }
 
 main() {
@@ -76,11 +72,11 @@ main() {
     copy_example "$example" "$target"
   done
 
-  # Generate secrets (only if placeholders present OR FORCE=1 overwrote)
   local pg_file="${ENV_DIR}/postgres.env"
   local cloud_file="${ENV_DIR}/cloud.env"
+  local mesh_file="${ENV_DIR}/mesh.env"
 
-  # Postgres password
+  # --- Postgres password ---
   if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$pg_file"; then
     local pg_pass
     pg_pass="$(gen_secret)"
@@ -90,16 +86,15 @@ main() {
     log "POSTGRES_PASSWORD already set in $(basename "$pg_file")"
   fi
 
-  # Cloud should match postgres password unless you want separate creds
+  # Copy pg creds into cloud.env if placeholders
   if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$cloud_file"; then
-    # pull the pg password we just set
     local pg_pass_current
-    pg_pass_current="$(awk -F= '/^POSTGRES_PASSWORD=/{print $2}' "$pg_file" | tr -d '\r')"
+    pg_pass_current="$(get_kv "$pg_file" "POSTGRES_PASSWORD")"
     replace_key "$cloud_file" "POSTGRES_PASSWORD" "$pg_pass_current"
     log "Copied POSTGRES_PASSWORD into $(basename "$cloud_file")"
   fi
 
-  # Embed secret
+  # --- Embed secret ---
   if grep -q '^EMBED_SECRET=CHANGE_ME' "$cloud_file"; then
     local embed
     embed="$(gen_secret)"
@@ -109,16 +104,48 @@ main() {
     log "EMBED_SECRET already set in $(basename "$cloud_file")"
   fi
 
-  warn "Review env files now:"
+  # --- Derive DATABASE_URL + REDIS_URL in cloud.env + mesh.env ---
+  local db host port user pass redis_db redis_host redis_port dbname
+  host="$(get_kv "$cloud_file" "POSTGRES_HOST")"; [[ -n "$host" ]] || host="postgres"
+  port="$(get_kv "$cloud_file" "POSTGRES_PORT")"; [[ -n "$port" ]] || port="5432"
+  dbname="$(get_kv "$cloud_file" "POSTGRES_DB")"; [[ -n "$dbname" ]] || dbname="ss"
+  user="$(get_kv "$cloud_file" "POSTGRES_USER")"; [[ -n "$user" ]] || user="ss"
+  pass="$(get_kv "$cloud_file" "POSTGRES_PASSWORD")"; [[ -n "$pass" ]] || pass="$(get_kv "$pg_file" "POSTGRES_PASSWORD")"
+
+  redis_host="$(get_kv "$cloud_file" "REDIS_HOST")"; [[ -n "$redis_host" ]] || redis_host="redis"
+  redis_port="$(get_kv "$cloud_file" "REDIS_PORT")"; [[ -n "$redis_port" ]] || redis_port="6379"
+  redis_db="$(get_kv "$cloud_file" "REDIS_DB")"; [[ -n "$redis_db" ]] || redis_db="3"
+
+  local db_url redis_url
+  db_url="postgresql://${user}:${pass}@${host}:${port}/${dbname}"
+  redis_url="redis://${redis_host}:${redis_port}/${redis_db}"
+
+  # Always set these so they never drift
+  if grep -q '^DATABASE_URL=' "$cloud_file"; then
+    replace_key "$cloud_file" "DATABASE_URL" "$db_url"
+  else
+    echo "DATABASE_URL=${db_url}" >> "$cloud_file"
+  fi
+
+  if grep -q '^REDIS_URL=' "$cloud_file"; then
+    replace_key "$cloud_file" "REDIS_URL" "$redis_url"
+  else
+    echo "REDIS_URL=${redis_url}" >> "$cloud_file"
+  fi
+
+  # mesh env: set REDIS_URL if present, else append
+  if grep -q '^REDIS_URL=' "$mesh_file"; then
+    replace_key "$mesh_file" "REDIS_URL" "$redis_url"
+  else
+    echo "REDIS_URL=${redis_url}" >> "$mesh_file"
+  fi
+
+  warn "Env files ready:"
   echo "  ${ENV_DIR}/postgres.env"
   echo "  ${ENV_DIR}/cloud.env"
+  echo "  ${ENV_DIR}/mesh.env"
   echo
-  log "Done. Next:"
-  echo "  cd $(dirname "$ENV_DIR")"
-  echo "  docker compose config >/dev/null && echo 'YAML OK'"
-  echo "  docker compose down"
-  echo "  docker compose build --no-cache cloud-image mesh daq-ui"
-  echo "  docker compose up -d"
+  log "Done."
 }
 
 main "$@"

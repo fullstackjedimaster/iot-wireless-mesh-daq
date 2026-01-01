@@ -1,3 +1,5 @@
+name: meshdaq
+
 services:
   nats:
     image: nats:2.10
@@ -6,10 +8,11 @@ services:
       - ./env/nats.env
     volumes:
       - ../data/nats:/data
-    # ✅ internal-only
+    # internal-only
     expose:
       - "4222"
       - "8222"
+    restart: unless-stopped
 
   redis:
     image: redis:7
@@ -18,7 +21,7 @@ services:
       - ./env/redis.env
     volumes:
       - ../data/redis:/data
-    # ✅ internal-only
+    # internal-only
     expose:
       - "6379"
     healthcheck:
@@ -26,6 +29,7 @@ services:
       interval: 3s
       timeout: 2s
       retries: 40
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
@@ -33,14 +37,15 @@ services:
       - ./env/postgres.env
     volumes:
       - ../data/postgres:/var/lib/postgresql/data
-    # ✅ internal-only
+    # internal-only
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ss -d ss -h localhost -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1 -p 5432"]
       interval: 3s
       timeout: 2s
       retries: 40
+    restart: unless-stopped
 
   cloud-image:
     build:
@@ -63,11 +68,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command:
-      - bash
-      - -lc
-      - |
-        /deploy/scripts/bootstrap.sh
+    command: ["bash", "-lc", "/deploy/scripts/bootstrap.sh"]
     restart: "no"
 
   cloud-api:
@@ -83,16 +84,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    # ✅ host-local only (nginx can proxy)
+    # host-reachable only via loopback (nginx can proxy locally)
     ports:
       - "127.0.0.1:8000:8000"
-    command:
-      - uvicorn
-      - app.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
 
   mesh:
@@ -117,7 +112,6 @@ services:
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
-    # ✅ host-local only
     ports:
       - "127.0.0.1:8001:8001"
     command:
@@ -130,14 +124,11 @@ services:
         class H(BaseHTTPRequestHandler):
             def do_GET(self):
                 if self.path in ('/health/bootstrap', '/health', '/'):
-                    self.send_response(200)
-                    self.end_headers()
+                    self.send_response(200); self.end_headers()
                     self.wfile.write(b'OK\n')
                 else:
-                    self.send_response(404)
-                    self.end_headers()
-            def log_message(self, *a):
-                pass
+                    self.send_response(404); self.end_headers()
+            def log_message(self, *a): pass
 
         HTTPServer(('0.0.0.0', 8001), H).serve_forever()
         PY
@@ -150,7 +141,6 @@ services:
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
       - ./env/daq-ui.env
-    # ✅ host-local only (nginx can proxy)
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

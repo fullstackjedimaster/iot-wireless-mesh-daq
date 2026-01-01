@@ -6,7 +6,7 @@ cd "$HERE"
 
 bash ./scripts/init-env.sh
 
-docker compose down
-docker compose build --no-cache cloud-image mesh daq-ui
-docker compose up -d
-docker compose ps
+docker compose -f compose.yml down
+docker compose -f compose.yml build --no-cache cloud-image mesh daq-ui
+docker compose -f compose.yml up -d
+docker compose -f compose.yml ps
