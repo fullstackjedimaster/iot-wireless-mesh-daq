@@ -6,9 +6,15 @@ services:
       - ./env/nats.env
     volumes:
       - ../data/nats:/data
+    # OPTION A (current): expose to host (useful for debugging)
     ports:
-      - "4222:4222"
-      - "8222:8222"
+      - "4222"
+      - "8222"
+    # OPTION B (recommended if you truly never need host access):
+    # comment out ports: above and leave only:
+    # expose:
+    #   - "4222"
+    #   - "8222"
 
   redis:
     image: redis:7
@@ -17,8 +23,9 @@ services:
       - ./env/redis.env
     volumes:
       - ../data/redis:/data
-    ports:
-      - "6379:6379"
+    # ✅ internal-only: do NOT publish to host
+    expose:
+      - "6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 3s
@@ -31,9 +38,11 @@ services:
       - ./env/postgres.env
     volumes:
       - ../data/postgres:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # ✅ internal-only: do NOT publish to host
+    expose:
+      - "5432"
     healthcheck:
+      # run inside container; localhost is correct here
       test: ["CMD-SHELL", "pg_isready -U ss -d ss -h localhost -p 5432"]
       interval: 3s
       timeout: 2s
@@ -80,8 +89,9 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    # Published because you need to reach it from the host / nginx
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     command:
       - uvicorn
       - app.main:app
@@ -114,7 +124,7 @@ services:
       cloud-bootstrap:
         condition: service_completed_successfully
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     command:
       - sh
       - -lc
@@ -131,7 +141,6 @@ services:
                 else:
                     self.send_response(404)
                     self.end_headers()
-
             def log_message(self, *a):
                 pass
 
@@ -147,10 +156,11 @@ services:
     env_file:
       - ./env/daq-ui.env
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       cloud-api:
         condition: service_started
       bootstrap-health:
         condition: service_started
     restart: unless-stopped
+
