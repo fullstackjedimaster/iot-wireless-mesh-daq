@@ -40,18 +40,16 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
     // Only attach embed token for POST/PUT/PATCH/DELETE
     if (isMutationMethod(method)) {
         const token = getEmbedToken();
-        if (!token) {
-            throw new Error("Embed token not ready yet (missing). Reload the page or wait 1s.");
-        }
-        headers.set("X-Embed-Token", token);
+        if (token) headers.set("X-Embed-Token", token);
     }
+
 
     const res = await fetch(url, {
         ...init,
         method,
         headers,
         // If you don't need cookies, you can drop this.
-        credentials: init.credentials ?? "include",
+        credentials: init.credentials ?? "omit",
     });
 
     return res;
