@@ -1,6 +1,6 @@
 import os
-import yaml
-from redis.access_utils import get_redis_client
+from yaml import safe_load
+import redis
 from urllib.parse import urlparse
 
 _config = None
@@ -89,7 +89,7 @@ def load_config():
 
     path = os.getenv("SITE_CONFIG", "").strip() or _default_config_path()
     with open(path, "r") as f:
-        _config = yaml.safe_load(f) or {}
+        _config = safe_load(f) or {}
 
     _config = _apply_env_overrides(_config)
     return _config
@@ -124,7 +124,7 @@ def local_config():
     path = os.getenv("SITE_CONFIG", "").strip() or _default_config_path()
     if os.path.exists(path):
         with open(path, "r") as f:
-            return yaml.safe_load(f) or {}
+            return safe_load(f) or {}
     return {}
 
 
@@ -136,16 +136,12 @@ def get_redis_conn(db=3):
         raise RuntimeError("Redis config not found.")
 
     use_db = db if db is not None else redis_conf.get("db", 3)
-    # return get_redis_client(use_db)
-    #     host=redis_conf["host"],
-    #     port=int(redis_conf["port"]),
-    #     db=int(use_db),
-    #     decode_responses=True,
-    # )
-
-    return get_redis_client(use_db)
-
-
+    return redis.StrictRedis(
+        host=redis_conf["host"],
+        port=int(redis_conf["port"]),
+        db=int(use_db),
+        decode_responses=True,
+    )
 
 
 def read_pkginfo():
