@@ -5,7 +5,7 @@ import signal
 from bson import BSON, InvalidBSON
 import httpx  # ✅ added for microservice call
 from ..util.config import load_config, get_redis_conn, get_topic
-from ..util.logger import make_logger
+from ..util.logger import make_logger, setup_logging
 from ..util.redis.access import GraphManager
 from ..util.daemon import Daemon
 from ..util.managers.nats_manager import nats_manager  # Centralized NATSManager
@@ -13,6 +13,8 @@ from ..util.managers.nats_manager import nats_manager  # Centralized NATSManager
 # ✅ fallback AI status logic
 from ..util.faults import compute_status_from_metrics
 
+
+setup_logging()
 logger = make_logger("Catcher")
 
 config = load_config()
