@@ -1,16 +1,8 @@
 // daq-ui/src/lib/embedTokenStore.ts
-// Central place to retrieve/store the embed token used for protected POST routes.
-//
-// Priority order:
-// 1) Explicitly stored token (localStorage) - useful when token is provided via postMessage/embed handshake
-// 2) NEXT_PUBLIC_EMBED_TOKEN - useful for docker/local demos where you want a fixed token
-//
-// NOTE: NEXT_PUBLIC_* vars are bundled into the client build at build time.
-
 const LS_KEY = "meshdaq_embed_token";
 
 export function getEmbedToken(): string {
-    // 1) localStorage (runtime)
+    // 1) localStorage
     if (typeof window !== "undefined") {
         try {
             const v = window.localStorage.getItem(LS_KEY);
@@ -20,7 +12,7 @@ export function getEmbedToken(): string {
         }
     }
 
-    // 2) build-time env fallback
+    // 2) env fallback (bundled at build time)
     const envToken = process.env.NEXT_PUBLIC_EMBED_TOKEN;
     if (envToken && envToken.trim()) return envToken.trim();
 
