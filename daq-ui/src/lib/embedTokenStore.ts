@@ -1,60 +1,50 @@
 // daq-ui/src/lib/embedTokenStore.ts
+// Central place to retrieve/store the embed token used for protected POST routes.
+//
+// Priority order:
+// 1) Explicitly stored token (localStorage) - useful when token is provided via postMessage/embed handshake
+// 2) NEXT_PUBLIC_EMBED_TOKEN - useful for docker/local demos where you want a fixed token
+//
+// NOTE: NEXT_PUBLIC_* vars are bundled into the client build at build time.
 
-declare global {
-    interface Window {
-        __EMBED_TOKEN__?: string;
+const LS_KEY = "meshdaq_embed_token";
+
+export function getEmbedToken(): string {
+    // 1) localStorage (runtime)
+    if (typeof window !== "undefined") {
+        try {
+            const v = window.localStorage.getItem(LS_KEY);
+            if (v && v.trim()) return v.trim();
+        } catch {
+            // ignore
+        }
     }
+
+    // 2) build-time env fallback
+    const envToken = process.env.NEXT_PUBLIC_EMBED_TOKEN;
+    if (envToken && envToken.trim()) return envToken.trim();
+
+    return "";
 }
 
-const STORAGE_KEY = "meshdaq_embed_token";
-
-export function initEmbedTokenFromBrowser(): void {
+export function setEmbedToken(token: string): void {
     if (typeof window === "undefined") return;
-
     try {
-        const url = new URL(window.location.href);
-
-        // Support both param names:
-        const t = (url.searchParams.get("t") || "").trim();
-        const et = (url.searchParams.get("embed_token") || "").trim();
-        const tokenFromQuery = t || et;
-
-        if (tokenFromQuery) {
-            localStorage.setItem(STORAGE_KEY, tokenFromQuery);
-
-            // Clean URL
-            url.searchParams.delete("t");
-            url.searchParams.delete("embed_token");
-            window.history.replaceState({}, "", url.toString());
+        if (!token || !token.trim()) {
+            window.localStorage.removeItem(LS_KEY);
             return;
         }
-
-        const w = (window.__EMBED_TOKEN__ || "").trim();
-        if (w) {
-            localStorage.setItem(STORAGE_KEY, w);
-        }
+        window.localStorage.setItem(LS_KEY, token.trim());
     } catch {
         // ignore
     }
 }
 
-export function setEmbedToken(token: string): void {
-    if (typeof window === "undefined") return;
-    const t = (token || "").trim();
-    if (!t) return;
-    localStorage.setItem(STORAGE_KEY, t);
-}
-
-export function getEmbedToken(): string | null {
-    if (typeof window === "undefined") return null;
-
-    initEmbedTokenFromBrowser();
-
-    const token = localStorage.getItem(STORAGE_KEY);
-    return token && token.trim() ? token.trim() : null;
-}
-
 export function clearEmbedToken(): void {
     if (typeof window === "undefined") return;
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+        window.localStorage.removeItem(LS_KEY);
+    } catch {
+        // ignore
+    }
 }
