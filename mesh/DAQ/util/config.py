@@ -1,6 +1,6 @@
 import os
 import yaml
-import redis
+from redis.access_utils import get_redis_client
 from urllib.parse import urlparse
 
 _config = None
@@ -136,12 +136,16 @@ def get_redis_conn(db=3):
         raise RuntimeError("Redis config not found.")
 
     use_db = db if db is not None else redis_conf.get("db", 3)
-    return redis.StrictRedis(
-        host=redis_conf["host"],
-        port=int(redis_conf["port"]),
-        db=int(use_db),
-        decode_responses=True,
-    )
+    # return get_redis_client(use_db)
+    #     host=redis_conf["host"],
+    #     port=int(redis_conf["port"]),
+    #     db=int(use_db),
+    #     decode_responses=True,
+    # )
+
+    return get_redis_client(use_db)
+
+
 
 
 def read_pkginfo():
