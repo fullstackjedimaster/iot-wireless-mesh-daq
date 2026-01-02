@@ -1,4 +1,4 @@
-# cloud/app/routes.py
+# cloud/apps/routes.py
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from .util.faults import (
     normalize_fault_token,
 )
 
-from app.security.embed_token import require_embed_token
+from apps.security.embed_token import require_embed_token
 
 
 class FaultRequest(BaseModel):
@@ -101,7 +101,7 @@ def api_clear_all_faults():
 
 @router.get("/faults/profile")
 def api_faults_profile():
-    # IMPORTANT: use same DB as the rest of the app
+    # IMPORTANT: use same DB as the rest of the apps
     r = get_redis_conn(db=3)
     profile: dict[str, int] = {}
     for key in r.scan_iter("sitearray:monitor:*"):

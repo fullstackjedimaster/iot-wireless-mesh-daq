@@ -1,4 +1,4 @@
-// /daq-ui/src/pages/index.tsx  (or /app/page.tsx)
+// /daq-ui/src/pages/index.tsx  (or /apps/page.tsx)
 "use client";
 
 import Head from "next/head";

@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Keep mesh app in /mesh inside the container
+# Keep mesh apps in /mesh inside the container
 WORKDIR /mesh
 
 # Copy requirements first (better cache behavior)
@@ -19,10 +19,10 @@ RUN python -m pip install --upgrade pip setuptools wheel \
  && python -c "import redis; print('redis', redis.__version__, redis.__file__)" \
  && python -c "import sys; print('python', sys.version)"
 
-# Copy the mesh app code
+# Copy the mesh apps code
 COPY repo/mesh /mesh
 
-# Ensure imports resolve from the app root
+# Ensure imports resolve from the apps root
 ENV PYTHONPATH=/mesh
 
 CMD ["python", "rundaq.py"]

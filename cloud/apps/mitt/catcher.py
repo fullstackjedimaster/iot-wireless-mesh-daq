@@ -3,9 +3,8 @@ import asyncio
 import bz2
 import signal
 from bson import BSON, InvalidBSON
-from datetime import datetime
 import httpx  # ✅ added for microservice call
-from ..util.config import load_config, get_redis_conn, get_postgres_conn, get_topic
+from ..util.config import load_config, get_redis_conn, get_topic
 from ..util.logger import make_logger
 from ..util.redis.access import GraphManager
 from ..util.daemon import Daemon

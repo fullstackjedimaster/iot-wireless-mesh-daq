@@ -1,4 +1,4 @@
-# app/security/embed_token.py
+# apps/security/embed_token.py
 import os
 import hmac
 import json

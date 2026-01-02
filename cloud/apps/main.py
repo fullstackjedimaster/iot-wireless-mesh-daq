@@ -1,4 +1,4 @@
-# cloud/app/main.py
+# cloud/apps/main.py
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -7,7 +7,7 @@ from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
 # (Routes import require_embed_token and apply to POST routes only.)
-# from app.security.embed_token import require_embed_token
+# from apps.security.embed_token import require_embed_token
 
 
 # Domains we trust as callers / embedders

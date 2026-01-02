@@ -38,10 +38,10 @@ def main():
     catcher_proc = subprocess.Popen([python_bin, catcher_path])
     child_procs.append(catcher_proc)
 
-    print("[run_cloud] Launching FastAPI app (uvicorn)...")
+    print("[run_cloud] Launching FastAPI apps (uvicorn)...")
     uvicorn_proc = subprocess.Popen([
         uvicorn_bin,
-        "app.main:app",
+        "apps.main:apps",
         "--host", "0.0.0.0",
         "--port", "8000"
     ], cwd=project_root)

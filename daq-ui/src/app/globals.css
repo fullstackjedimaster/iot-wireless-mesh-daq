@@ -178,7 +178,7 @@ html, body {
     min-height: 0 !important; /* don’t force screen height */
 }
 
-/* /daq-ui/src/app/globals.css (safe clamps for iframe embedding) */
+/* /daq-ui/src/apps/globals.css (safe clamps for iframe embedding) */
 html, body, #__next { min-height: 0 !important; height: auto !important; }
 main.main-section { min-height: auto !important; }
 img, canvas, svg, video { max-width: 100%; height: auto; display: block; }

@@ -1,4 +1,4 @@
-# /cloud/app/bootstrap_sitearray_redis.py
+# /cloud/apps/bootstrap_sitearray_redis.py
 
 import asyncio
 import redis.asyncio as redis
