@@ -2,7 +2,6 @@
 "use client";
 
 import Head from "next/head";
-import Layout from "@/components/Layout";
 import GroupBox from "@/components/GroupBox";
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
@@ -105,42 +104,42 @@ export default function Home() {
                 <title>Wireless Mesh DAQ Dashboard</title>
             </Head>
             <DockReadyReporter />
-            <Layout>
-                <div className="w-full">
-                    <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
 
-                    <GroupBox title="Nodes">
-                        <PanelMapOverlay
-                            selectedMac={selectedMac}
-                            onPanelClick={handlePanelClick}
-                            onSelectionMeta={handleSelectionMeta}
-                        />
-                        <FaultLegend />
-                    </GroupBox>
+            <div className="w-full">
+                <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
 
-                    <br />
-                    <GroupBox title={`DAQ:  ${selectedMac || "—"}`}>
-                        <ChartPanel selectedMac={selectedMac} />
-                    </GroupBox>
-
-                    <br />
-                    <GroupBox title="Fault Injection">
-                        <ControlPanel />
-                    </GroupBox>
-                </div>
-                <div className="fixed bottom-3 right-3 z-50 pointer-events-none">
-                    <BlinkyThing
-                        size={36}
-                        dotSize={7}
-                        gap={6}
-                        colors={["#22d3ee", "#f59e0b", "#ef4444"]}
-                        intervalMs={800}
-                        framed={false}
-                        stealth
-                        ariaLabel="Purely decorative blinking lights"
+                <GroupBox title="Nodes">
+                    <PanelMapOverlay
+                        selectedMac={selectedMac}
+                        onPanelClick={handlePanelClick}
+                        onSelectionMeta={handleSelectionMeta}
                     />
-                </div>
-            </Layout>
+                    <FaultLegend />
+                </GroupBox>
+
+                <br />
+                <GroupBox title={`DAQ:  ${selectedMac || "—"}`}>
+                    <ChartPanel selectedMac={selectedMac} />
+                </GroupBox>
+
+                <br />
+                <GroupBox title="Fault Injection">
+                    <ControlPanel />
+                </GroupBox>
+            </div>
+            <div className="fixed bottom-3 right-3 z-50 pointer-events-none">
+                <BlinkyThing
+                    size={36}
+                    dotSize={7}
+                    gap={6}
+                    colors={["#22d3ee", "#f59e0b", "#ef4444"]}
+                    intervalMs={800}
+                    framed={false}
+                    stealth
+                    ariaLabel="Purely decorative blinking lights"
+                />
+            </div>
+
         </>
     );
 }

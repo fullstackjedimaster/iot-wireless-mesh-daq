@@ -40,9 +40,10 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
     // Only attach embed token for POST/PUT/PATCH/DELETE
     if (isMutationMethod(method)) {
         const token = getEmbedToken();
-        if (token) {
-            headers.set("X-Embed-Token", token);
+        if (!token) {
+            throw new Error("Embed token not ready yet (missing). Reload the page or wait 1s.");
         }
+        headers.set("X-Embed-Token", token);
     }
 
     const res = await fetch(url, {
