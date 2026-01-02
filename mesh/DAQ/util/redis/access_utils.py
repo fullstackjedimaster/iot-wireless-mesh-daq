@@ -69,7 +69,7 @@ async def get_redis_client(db=0):
     """
     Create an async Redis client connected to the specified database.
     """
-    return Redis(host="localhost", port=6379, db=db)
+    return Redis(host="redis", port=6379, db=db)
 
 async def has_sitearray_id(client: Redis):
     keys = await client.keys(pattern="SA-*")
