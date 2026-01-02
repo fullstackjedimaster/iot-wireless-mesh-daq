@@ -10,7 +10,7 @@ const STORAGE_KEY = "meshdaq_embed_token";
 
 /**
  * Initialize token once on client:
- * - If URL has ?t=..., store it and (optionally) clean URL.
+ * - If URL has ?t=... or ?embed_token=..., store it and (optionally) clean URL.
  * - Else if window.__EMBED_TOKEN__ exists, store it.
  * Safe to call multiple times.
  */
@@ -19,12 +19,20 @@ export function initEmbedTokenFromBrowser(): void {
 
     try {
         const url = new URL(window.location.href);
-        const t = url.searchParams.get("t");
-        if (t && t.trim()) {
-            localStorage.setItem(STORAGE_KEY, t.trim());
+
+        // Support both param names:
+        // - legacy: ?t=
+        // - explicit: ?embed_token=
+        const t = (url.searchParams.get("t") || "").trim();
+        const et = (url.searchParams.get("embed_token") || "").trim();
+        const tokenFromQuery = t || et;
+
+        if (tokenFromQuery) {
+            localStorage.setItem(STORAGE_KEY, tokenFromQuery);
 
             // Optional: remove token from URL for cleanliness
             url.searchParams.delete("t");
+            url.searchParams.delete("embed_token");
             window.history.replaceState({}, "", url.toString());
             return;
         }
@@ -40,13 +48,15 @@ export function initEmbedTokenFromBrowser(): void {
 
 export function setEmbedToken(token: string): void {
     if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEY, token);
+    const t = (token || "").trim();
+    if (!t) return;
+    localStorage.setItem(STORAGE_KEY, t);
 }
 
 export function getEmbedToken(): string | null {
     if (typeof window === "undefined") return null;
 
-    // (Re)initialize opportunistically
+    // Opportunistically initialize from URL/global.
     initEmbedTokenFromBrowser();
 
     const token = localStorage.getItem(STORAGE_KEY);

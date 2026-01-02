@@ -132,3 +132,17 @@ services:
       HTTPServer(('0.0.0.0', 8001), H).serve_forever()
       PY"
     restart: unless-stopped
+
+  mesh-emulator:
+    image: iot-wireless-mesh-daq/mesh:local
+    container_name: meshdaq-mesh-emulator-1
+    restart: unless-stopped
+    depends_on:
+      - nats
+    env_file:
+      - ./env/shared.env
+      - ./env/mesh.env
+
+      # copy whatever mesh service already uses
+      # (usually NATS urls / topics / site, etc.)
+    command: ["python", "-u", "emulator.py"]
