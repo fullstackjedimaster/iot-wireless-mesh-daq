@@ -1,18 +1,18 @@
 FROM python:3.13-slim
 
-WORKDIR /app
+WORKDIR /cloud
 
 # Install deps
-COPY repo/cloud/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY repo/cloud/requirements.txt /cloudrequirements.txt
+RUN pip install --no-cache-dir -r /cloud/requirements.txt
 
 # App code
-COPY repo/cloud /app/app
+COPY repo/cloud /cloud
 
 # Deploy scripts live OUTSIDE the repo, so copy from deploy/
 COPY deploy/scripts /deploy/scripts
 RUN chmod +x /deploy/scripts/*.sh
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/cloud
 
 # default command overridden by compose for cloud-api / cloud-bootstrap
