@@ -122,20 +122,24 @@ CREATE TABLE IF NOT EXISTS ss.device_data (
 -- DML (seed)
 -- -------------------------
 
+-- Create site
 INSERT INTO ss.site (sitename)
 VALUES ('${SITE_NAME}');
 
+-- Create site array
 INSERT INTO ss.site_array (site_id, label, timezone, commission_date)
 SELECT s.id, '${SITEARRAY_LABEL}', '${TZ_NAME}', CURRENT_DATE
 FROM ss.site s
 WHERE s.sitename='${SITE_NAME}';
 
+-- Equipment rows (optional but consistent)
 INSERT INTO ss.equipment (manufacturer, model)
 VALUES
   ('SolarSynapse', 'GW-Emu'),
   ('SolarSynapse', 'INV-Emu'),
   ('SolarSynapse', 'PNL-Emu');
 
+-- Create gateway
 INSERT INTO ss.gateways (label, mac_address, ip_address, equipment_id)
 SELECT
   'GW-1',
@@ -143,6 +147,7 @@ SELECT
   '192.168.1.1',
   (SELECT id FROM ss.equipment WHERE model='GW-Emu' LIMIT 1);
 
+-- Create inverter
 INSERT INTO ss.inverters (serial_number, label, gateway_id, equipment_id)
 SELECT
   'INV-7281-9321',
@@ -150,11 +155,13 @@ SELECT
   (SELECT id FROM ss.gateways WHERE label='GW-1' LIMIT 1),
   (SELECT id FROM ss.equipment WHERE model='INV-Emu' LIMIT 1);
 
+-- Create string
 INSERT INTO ss.strings (label, inverter_id)
 SELECT
   'S-1',
   (SELECT id FROM ss.inverters WHERE label='INV-1' LIMIT 1);
 
+-- Create 4 panels (x/y just an easy diagonal)
 INSERT INTO ss.panels (serial_number, label, string_id, string_position, x, y, equipment_id)
 SELECT
   'PNL-SN-' || LPAD(gs::text, 6, '0'),
@@ -166,6 +173,7 @@ SELECT
   (SELECT id FROM ss.equipment WHERE model='PNL-Emu' LIMIT 1)
 FROM generate_series(1,4) gs;
 
+-- Create monitors (one per panel)
 INSERT INTO ss.monitors (mac_address, label, node_id, panel_id)
 SELECT
   'fa:29:eb:6d:87:' || LPAD(p.string_position::text, 2, '0'),
@@ -175,6 +183,7 @@ SELECT
 FROM ss.panels p
 ORDER BY p.string_position;
 
+-- Create site_graph JSON (SA → I → S → P nodes, each with SPM input (macaddr))
 INSERT INTO ss.site_graph (sitearray_id, json)
 SELECT
   sa.id,

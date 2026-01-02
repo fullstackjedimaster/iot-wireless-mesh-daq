@@ -8,19 +8,7 @@ SITE_NAME="${SITE_NAME:-TEST}"
 REDIS_KEY="sitegraph:${SITE_NAME}"
 
 echo "[seed-redis] Checking if Redis already has ${REDIS_KEY}..."
-
-EXISTS="$(python3 - <<PY
-import os, redis
-r = redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
-key = "${REDIS_KEY}"
-exists = int(r.exists(key))
-print(exists)
-PY
-)"
-
-echo "[seed-redis] EXISTS=${EXISTS}"
-
-if [[ "${EXISTS}" == "1" ]]; then
+if redis-cli -u "$REDIS_URL" EXISTS "$REDIS_KEY" | grep -q '^1$'; then
   echo "[seed-redis] ${REDIS_KEY} already exists. Skipping (only runs on fresh Redis)."
   exit 0
 fi

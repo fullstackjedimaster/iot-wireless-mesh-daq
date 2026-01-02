@@ -40,9 +40,11 @@ def main() -> int:
 
             raw = row[0]
             graph = json.loads(raw)
+
     finally:
         pg.close()
 
+    # Minimal sanity check: must have sitearray + inputs
     if not isinstance(graph, dict) or "sitearray" not in graph:
         raise RuntimeError("site_graph JSON missing 'sitearray' root object")
 
