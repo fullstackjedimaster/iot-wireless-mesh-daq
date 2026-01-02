@@ -21,18 +21,29 @@ interface PanelStatusResponse {
 export type FaultProfile = Record<string, number>;
 
 // NOTE: docker-compose sets NEXT_PUBLIC_CLOUD_API_BASE
+// Example (recommended): https://cloud.fullstackjedi.dev
 const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function isMutationMethod(method: string | undefined): boolean {
     const m = (method || "GET").toUpperCase();
     return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
 }
 
+function joinUrl(base: string, path: string): string {
+    const b = base.endsWith("/") ? base.slice(0, -1) : base;
+    const p = path.startsWith("/") ? path : `/${path}`;
+    return `${b}${p}`;
+}
+
 // ---------------------------------------------------------------------------
 // Low-level helper: always use this so we can inject X-Embed-Token centrally.
 // ---------------------------------------------------------------------------
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const url = `${API_BASE}${path}`;
+    const url = joinUrl(API_BASE, path);
 
     const headers = new Headers(init.headers || {});
     const method = (init.method || "GET").toUpperCase();
@@ -43,12 +54,12 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
         if (token) headers.set("X-Embed-Token", token);
     }
 
-
     const res = await fetch(url, {
         ...init,
         method,
         headers,
-        // If you don't need cookies, you can drop this.
+        // If you don't need cookies, you can keep omit.
+        // If your auth ever moves to cookies, flip to "include".
         credentials: init.credentials ?? "omit",
     });
 
