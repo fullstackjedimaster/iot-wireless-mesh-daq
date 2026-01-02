@@ -9,7 +9,6 @@ from DAQ.util.redis.access_utils import get_redis_client
 from DAQ.util.redis.access_utils import get_sitearray_id
 from DAQ.util.redis.access_utils import set_prop
 from DAQ.util.redis.exceptions import *
-from redis import Redis
 
 
 def natsort(l: List[str]) -> List[str]:
@@ -26,7 +25,7 @@ class GraphNode:
     A node within an acyclic graph with twinned edges and named properties.
     """
 
-    def __init__(self, node_id: str, client: Redis, **kwargs: Any):
+    def __init__(self, node_id: str, client: Any, **kwargs: Any):
         self.nodes = []
         if node_id is None:
             raise ValueError("Node ID cannot be None.")
@@ -45,7 +44,7 @@ class GraphNode:
             raise Exception(f"Error setting property: {str(e)}")
 
     @staticmethod
-    def get_prop(device_id: str, propname: str, client: Redis) -> Optional[str]:
+    def get_prop(device_id: str, propname: str, client: Any) -> Optional[str]:
         """Get a specific property of a device node."""
         try:
             return client.hget(device_id, propname)
