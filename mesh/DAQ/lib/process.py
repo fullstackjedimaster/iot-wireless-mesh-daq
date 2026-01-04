@@ -14,7 +14,6 @@ import shutil
 import time
 from datetime import datetime, time as dtime, timedelta, timezone, UTC
 from bson import BSON
-
 from DAQ.commands.protocol import Message, DataIndication
 from DAQ.commands.strategy import CMD_FUNCS, MeshCommands
 from DAQ.util.handlers.common import (

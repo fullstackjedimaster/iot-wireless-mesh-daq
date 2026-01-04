@@ -1,4 +1,4 @@
-  GNU nano 7.2                                                                   Dockerfile                                                                             
+#  GNU nano 7.2                                                                   Dockerfile                                                                             
 # deploy/docker/mesh/Dockerfile
 FROM python:3.13-slim
 
@@ -16,15 +16,15 @@ RUN apt-get update \
 # non-root user
 RUN useradd -m -u 1001 -s /usr/sbin/nologin appuser
 
-COPY mesh/requirements.txt /mesh/requirements.txt
-RUN pip install --no-cache-dir -r /mesh/requirements.txt
+COPY mesh/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY mesh /mesh
+COPY mesh .
 
 ENV PYTHONPATH=/mesh
 
 # ensure app is readable by non-root
-RUN chown -R appuser:appuser /mesh
+RUN chown -R appuser:appuser mesh
 
 USER appuser
 

@@ -1,0 +1,38 @@
+# ---- general junk ----
+.git
+.gitignore
+**/.DS_Store
+**/*.swp
+**/*.log
+
+# ---- python ----
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+
+# ---- node / next ----
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+**/.npm/
+**/.pnpm-store/
+
+# ---- data / secrets / runtime state ----
+data/
+deploy/env/*.env
+deploy/env/*.local
+**/.env
+**/.env.*
+!deploy/env/*.env.example
+
+# ---- DO NOT ignore app source dirs ----
+!mesh/**
+!cloud/**
+!daq-ui/**
+!deploy/**
