@@ -1,13 +1,20 @@
-FROM python:3.13-slim
+FROM python:3.12-bookworm
 
-WORKDIR /app
+WORKDIR /cloud
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-client \
- && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends postgresql-client; \
+    rm -rf /var/lib/apt/lists/*; \
+    command -v psql; \
+    psql --version; \
+    python -V
 
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN python -m pip install --no-cache-dir "psycopg[binary]" redis fastapi uvicorn
 
-RUN pip install --no-cache-dir psycopg[binary] redis fastapi uvicorn
+# ADD THESE:
+COPY deploy/scripts /deploy/scripts
+RUN chmod +x /deploy/scripts/*.sh
 
-# no code copied; wrapper mounts /scripts
 CMD ["python", "-c", "print('bootstrap image ready')"]

@@ -2,17 +2,31 @@ FROM python:3.13-slim
 
 WORKDIR /cloud
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tini \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1001 -s /usr/sbin/nologin appuser
+
 # Install deps
-COPY repo/cloud/requirements.txt /cloudrequirements.txt
+COPY cloud/requirements.txt /cloud/requirements.txt
 RUN pip install --no-cache-dir -r /cloud/requirements.txt
 
 # App code
-COPY repo/cloud /cloud
+COPY cloud /cloud
 
-# Deploy scripts live OUTSIDE the repo, so copy from deploy/
+# Deploy scripts
 COPY deploy/scripts /deploy/scripts
 RUN chmod +x /deploy/scripts/*.sh
 
 ENV PYTHONPATH=/cloud
 
-# default command overridden by compose for cloud-api / cloud-bootstrap
+RUN chown -R appuser:appuser /cloud /deploy
+
+USER appuser
+
+ENTRYPOINT ["/usr/bin/tini","--"]

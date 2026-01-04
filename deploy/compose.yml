@@ -1,18 +1,27 @@
 services:
   nats:
     image: nats:2.10
-    command: ["-js"]
+    command: ["-js", "-sd", "/data"]
     volumes:
       - ../data/nats:/data
     ports:
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"
+    restart: unless-stopped
+    # nats image runs non-root by default
+    security_opt:
+      - no-new-privileges:true
 
   redis:
     image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - ../data/redis:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    # redis image runs as redis user in official image
+    security_opt:
+      - no-new-privileges:true
 
   postgres:
     image: postgres:16
@@ -21,8 +30,13 @@ services:
     volumes:
       - ../data/postgres:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+    # postgres image runs as postgres user in official image
+    security_opt:
+      - no-new-privileges:true
 
+  # Build-only helper (kept for your existing flow)
   cloud-image:
     build:
       context: ..
@@ -31,7 +45,7 @@ services:
     env_file:
       - ./env/shared.env
       - ./env/cloud.env
-    command: ["bash","-lc","echo cloud-image built"]
+    command: ["sh","-lc","echo cloud-image built"]
     restart: "no"
 
   cloud-bootstrap:
@@ -47,11 +61,19 @@ services:
       redis:
         condition: service_started
     command: >
-      bash -lc "
+      sh -lc "
         /deploy/scripts/init-postgres.sh &&
         /deploy/scripts/seed-redis.sh
       "
     restart: "no"
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
 
   cloud-api:
     image: iot-wireless-mesh-daq/cloud:local
@@ -68,10 +90,18 @@ services:
       postgres:
         condition: service_started
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     command: >
-      uvicorn app.main:app --host 0.0.0.0 --port 8000
-
+      uvicorn apps.main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
 
   mesh:
     build:
@@ -86,9 +116,18 @@ services:
         condition: service_started
       redis:
         condition: service_started
-    command: python rundaq.py
+    command: ["python","-u","rundaq.py"]
     restart: unless-stopped
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
 
+  # IMPORTANT: host port should be 3001 per your canonical port plan
   daq-ui:
     build:
       context: ..
@@ -97,21 +136,31 @@ services:
     env_file:
       - ./env/daq-ui.env
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       cloud-api:
         condition: service_started
       bootstrap-health:
         condition: service_started
     restart: unless-stopped
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
 
   bootstrap-health:
     image: python:3.13-alpine
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
+    # only needed for internal depends_on; keep it localhost if you want to curl it
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
+    user: "1001:1001"
     command: >
       sh -lc "python - <<'PY'
       from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -132,6 +181,14 @@ services:
       HTTPServer(('0.0.0.0', 8001), H).serve_forever()
       PY"
     restart: unless-stopped
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
 
   mesh-emulator:
     image: iot-wireless-mesh-daq/mesh:local
@@ -142,7 +199,12 @@ services:
     env_file:
       - ./env/shared.env
       - ./env/mesh.env
-
-      # copy whatever mesh service already uses
-      # (usually NATS urls / topics / site, etc.)
     command: ["python", "-u", "emulator.py"]
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
