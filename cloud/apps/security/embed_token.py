@@ -1,205 +1,131 @@
-# apps/security/embed_token.py
+# cloud/apps/security/embed_token.py
 import os
-import hmac
-import json
 import time
+import json
+import hmac
 import base64
 import hashlib
-from typing import Optional, Dict, Any
+from typing import Callable, Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import HTTPException, Request
+
 
 EMBED_SECRET = os.getenv("EMBED_SECRET", "")
+SESSION_COOKIE = "pf_embed_sid"
+ALLOWED_TYP = {"JWT", "JWS", "EMBED"}
+ALLOWED_ALG = {"HS256"}
 
-# Allow small clock skew between client/server/container hosts
-DEFAULT_LEEWAY_SECONDS = int(os.getenv("EMBED_LEEWAY_SECONDS", "30"))
-
-
-class EmbedPayload(dict):
-    """
-    Minimal payload: aud, iat, exp, jti.
-    Dict subclass to avoid pulling in Pydantic.
-    """
-    @property
-    def aud(self) -> Optional[str]:
-        v = self.get("aud")
-        return str(v) if v is not None else None
-
-    @property
-    def iat(self) -> Optional[int]:
-        v = self.get("iat")
-        try:
-            return int(v) if v is not None else None
-        except Exception:
-            return None
-
-    @property
-    def exp(self) -> Optional[int]:
-        v = self.get("exp")
-        try:
-            return int(v) if v is not None else None
-        except Exception:
-            return None
-
-    @property
-    def jti(self) -> Optional[str]:
-        v = self.get("jti")
-        return str(v) if v is not None else None
+# Small clock skew tolerance
+SKEW_SECONDS = 30
 
 
 def _b64url_decode(s: str) -> bytes:
-    """
-    Strict-ish base64url decode (accepts missing padding).
-    Raises ValueError on invalid inputs.
-    """
-    if not isinstance(s, str) or not s:
-        raise ValueError("empty b64")
-    # Restore padding
+    # base64url without padding
+    s = s.strip()
     pad = "=" * (-len(s) % 4)
-    return base64.urlsafe_b64decode((s + pad).encode("utf-8"))
+    return base64.urlsafe_b64decode(s + pad)
 
 
-def _b64url_encode(b: bytes) -> str:
-    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
+def _b64url_json(b: bytes) -> dict:
+    return json.loads(b.decode("utf-8"))
 
 
-def _parse_jws(token: str) -> tuple[Dict[str, Any], Dict[str, Any], bytes, bytes, str, str]:
-    """
-    Returns: (header_dict, payload_dict, signing_input_bytes, sig_bytes, header_b64, payload_b64)
-    """
-    try:
-        header_b64, payload_b64, sig_b64 = token.split(".")
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format")
+def _verify_hs256(token: str, secret: str) -> dict:
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise HTTPException(status_code=401, detail="Invalid token format")
+
+    h_b64, p_b64, sig_b64 = parts
 
     try:
-        header_raw = _b64url_decode(header_b64)
-        payload_raw = _b64url_decode(payload_b64)
-        sig_bytes = _b64url_decode(sig_b64)
+        header = _b64url_json(_b64url_decode(h_b64))
+        payload = _b64url_json(_b64url_decode(p_b64))
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token encoding")
+        raise HTTPException(status_code=401, detail="Invalid token encoding")
 
-    try:
-        header = json.loads(header_raw.decode("utf-8"))
-        payload = json.loads(payload_raw.decode("utf-8"))
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token JSON")
+    alg = str(header.get("alg") or "")
+    typ = str(header.get("typ") or "")
 
-    if not isinstance(header, dict) or not isinstance(payload, dict):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token structure")
+    if alg not in ALLOWED_ALG:
+        raise HTTPException(status_code=401, detail="Invalid token alg")
+    if typ and typ not in ALLOWED_TYP:
+        raise HTTPException(status_code=401, detail="Invalid token typ")
 
-    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-    return header, payload, signing_input, sig_bytes, header_b64, payload_b64
+    # Verify signature
+    signing_input = f"{h_b64}.{p_b64}".encode("utf-8")
+    expected = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    expected_b64 = base64.urlsafe_b64encode(expected).decode("utf-8").rstrip("=")
 
-
-def verify_embed_token_raw(token: str, expected_aud: str, leeway_seconds: int = DEFAULT_LEEWAY_SECONDS) -> EmbedPayload:
-    """
-    Verifies a compact JWS-like token: base64url(header).base64url(payload).base64url(signature)
-    Signature = HMAC-SHA256(secret, header_b64 + "." + payload_b64)
-    """
-    if not EMBED_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Embed secret not configured (EMBED_SECRET missing)",
-        )
-
-    header, payload_dict, signing_input, sig_bytes, _, _ = _parse_jws(token)
-
-    alg = header.get("alg")
-    typ = header.get("typ")
-
-    # Hard-enforce HS256; reject "none" and anything else.
-    if alg != "HS256":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token algorithm")
-    # Optional sanity check
-    if typ is not None and str(typ).upper() not in ("JWT", "EMBED", "JWS"):
-        # not fatal, but you can choose to be strict. We'll be strict.
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
-
-    expected_sig = hmac.new(
-        EMBED_SECRET.encode("utf-8"),
-        signing_input,
-        hashlib.sha256,
-    ).digest()
-
-    # Constant-time compare on raw bytes, not base64 strings
-    if not hmac.compare_digest(expected_sig, sig_bytes):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature")
-
-    payload = EmbedPayload(payload_dict)
-
-    now = int(time.time())
-
-    # exp required
-    exp = payload.exp
-    if exp is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing exp")
-    if exp < (now - leeway_seconds):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-
-    # aud required
-    if payload.aud != expected_aud:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token audience")
-
-    # Optional: iat must not be too far in the future
-    iat = payload.iat
-    if iat is not None and iat > (now + leeway_seconds):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token used before issued")
+    # Constant-time compare
+    if not hmac.compare_digest(expected_b64, sig_b64):
+        raise HTTPException(status_code=401, detail="Invalid token signature")
 
     return payload
 
 
-def require_embed_token(expected_aud: str):
+def _extract_token(request: Request) -> str:
+    # Prefer X-Embed-Token
+    t = request.headers.get("x-embed-token") or request.headers.get("X-Embed-Token") or ""
+    t = t.strip()
+
+    # Fall back to Authorization: Bearer ...
+    if not t:
+        auth = (request.headers.get("authorization") or request.headers.get("Authorization") or "").strip()
+        if auth.lower().startswith("bearer "):
+            t = auth[7:].strip()
+
+    return t
+
+
+def require_embed_token(audience: str) -> Callable[[Request], bool]:
     """
     FastAPI dependency factory.
-    Supports:
-      - X-Embed-Token: <token>
-      - Authorization: Bearer <token>   (optional convenience)
+
+    Enforces:
+      - token present in X-Embed-Token or Authorization: Bearer
+      - HS256 signature using EMBED_SECRET
+      - aud == expected audience
+      - exp not expired
+      - sid claim matches pf_embed_sid cookie
     """
-    async def _dep(
-        x_embed_token: Optional[str] = Header(None, alias="X-Embed-Token"),
-        authorization: Optional[str] = Header(None, alias="Authorization"),
-    ) -> EmbedPayload:
-        # Optional bypass for "public mode"
-        if os.getenv("EMBED_ENFORCEMENT", "1").lower() in ("0", "false", "off", "no"):
-            return EmbedPayload({})
+    async def _dep(request: Request) -> bool:
+        if not EMBED_SECRET or len(EMBED_SECRET) < 16:
+            raise HTTPException(status_code=500, detail="Server misconfigured (EMBED_SECRET)")
 
-        token = None
-
-        if x_embed_token:
-            token = x_embed_token.strip()
-
-        # If no X-Embed-Token, accept Authorization: Bearer ...
-        if not token and authorization:
-            parts = authorization.split()
-            if len(parts) == 2 and parts[0].lower() == "bearer":
-                token = parts[1].strip()
-
+        token = _extract_token(request)
         if not token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing embed token")
+            raise HTTPException(status_code=401, detail="Missing embed token")
 
-        return verify_embed_token_raw(token, expected_aud)
+        payload = _verify_hs256(token, EMBED_SECRET)
+
+        aud = payload.get("aud")
+        if aud != audience:
+            raise HTTPException(status_code=403, detail="Invalid token audience")
+
+        now = int(time.time())
+
+        exp = payload.get("exp")
+        if not isinstance(exp, int):
+            raise HTTPException(status_code=401, detail="Invalid token exp")
+        if now > exp + SKEW_SECONDS:
+            raise HTTPException(status_code=401, detail="Token expired")
+
+        # Optional sanity check for iat (not required, but nice)
+        iat = payload.get("iat")
+        if isinstance(iat, int) and iat > now + SKEW_SECONDS:
+            raise HTTPException(status_code=401, detail="Invalid token iat")
+
+        # --- SID binding ---
+        sid_claim = payload.get("sid")
+        sid_cookie = request.cookies.get(SESSION_COOKIE, "")
+
+        if not isinstance(sid_claim, str) or not sid_claim.strip():
+            raise HTTPException(status_code=401, detail="Missing token sid")
+        if not sid_cookie or not sid_cookie.strip():
+            raise HTTPException(status_code=401, detail="Missing session cookie")
+        if sid_cookie.strip() != sid_claim.strip():
+            raise HTTPException(status_code=403, detail="Session binding failed")
+
+        return True
 
     return _dep
-
-
-# Optional helper: generate a token (useful for admin scripts / debugging)
-def mint_embed_token(expected_aud: str, ttl_seconds: int = 3600) -> str:
-    """
-    Creates a signed token with HS256 HMAC.
-    """
-    if not EMBED_SECRET:
-        raise RuntimeError("EMBED_SECRET missing")
-
-    now = int(time.time())
-    header = {"alg": "HS256", "typ": "EMBED"}
-    payload = {"aud": expected_aud, "iat": now, "exp": now + int(ttl_seconds)}
-
-    header_b64 = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_b64 = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-
-    sig = hmac.new(EMBED_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    sig_b64 = _b64url_encode(sig)
-
-    return f"{header_b64}.{payload_b64}.{sig_b64}"

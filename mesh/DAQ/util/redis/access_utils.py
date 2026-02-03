@@ -1,7 +1,10 @@
 from DAQ.util.redis.exceptions import *
 from redis.asyncio import Redis
+import os
 
-MANAGER_SLOT = 0
+DEFAULT_REDIS_DB = int(os.getenv("REDIS_DB", "3"))
+
+MANAGER_SLOT = 3
 MIN_SLOT = 1
 MAX_SLOT = 158
 TESTING_SLOT = 159
@@ -65,11 +68,13 @@ def phrase(label: str, use_lower: bool = False) -> str:
         devtype = devtype.lower()
     return f"{devtype} {number}"
 
-async def get_redis_client(db=0):
-    """
-    Create an async Redis client connected to the specified database.
-    """
-    return Redis(host="redis", port=6379, db=db)
+
+async def get_redis_client(db=None):
+    use_db = DEFAULT_REDIS_DB if db is None else db
+    return Redis(host=os.getenv("REDIS_HOST","redis"),
+                 port=int(os.getenv("REDIS_PORT","6379")),
+                 db=use_db)
+
 
 async def has_sitearray_id(client: Redis):
     keys = await client.keys(pattern="SA-*")

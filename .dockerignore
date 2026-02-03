@@ -1,38 +1,21 @@
-# ---- general junk ----
-.git
-.gitignore
-**/.DS_Store
-**/*.swp
+# Never send runtime data into build contexts
+data/
+**/data/
+!mesh/DAQ/services/core/data/
+!mesh/DAQ/services/core/data/**
+**/jetstream/
 **/*.log
 
-# ---- python ----
+# Node / Next
+**/node_modules/
+**/.next/
+**/out/
+
+# Python
 **/__pycache__/
 **/*.pyc
-**/.pytest_cache/
-**/.mypy_cache/
-**/.ruff_cache/
 **/.venv/
 **/venv/
 
-# ---- node / next ----
-**/node_modules/
-**/.next/
-**/dist/
-**/build/
-**/.turbo/
-**/.npm/
-**/.pnpm-store/
-
-# ---- data / secrets / runtime state ----
-data/
-deploy/env/*.env
-deploy/env/*.local
-**/.env
-**/.env.*
-!deploy/env/*.env.example
-
-# ---- DO NOT ignore app source dirs ----
-!mesh/**
-!cloud/**
-!daq-ui/**
-!deploy/**
+# Git
+.git/

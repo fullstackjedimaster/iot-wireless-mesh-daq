@@ -1,20 +1,40 @@
-FROM python:3.12-bookworm
+# docker/bootstrap/Dockerfile
+FROM python:3.13-slim
 
-WORKDIR /cloud
+WORKDIR /deploy
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends postgresql-client; \
+    apt-get install -y --no-install-recommends \
+      tini \
+      ca-certificates \
+      postgresql-client \
+      redis-tools \
+      bash \
+    ; \
     rm -rf /var/lib/apt/lists/*; \
     command -v psql; \
     psql --version; \
+    command -v pg_isready; \
+    command -v redis-cli; \
+    bash --version; \
     python -V
 
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN python -m pip install --no-cache-dir "psycopg[binary]" redis fastapi uvicorn
+RUN useradd -m -u 1001 -s /usr/sbin/nologin appuser
 
-# ADD THESE:
-COPY deploy/scripts /deploy/scripts
-RUN chmod +x /deploy/scripts/*.sh
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && python -m pip install --no-cache-dir "psycopg[binary]" redis
 
+# Scripts live in the DEPLOY DIR build context
+COPY scripts/ /deploy/scripts/
+RUN chmod +x /deploy/scripts/*.sh \
+ && chown -R appuser:appuser /deploy
+
+USER appuser
+
+ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["python", "-c", "print('bootstrap image ready')"]

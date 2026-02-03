@@ -1,15 +1,15 @@
+# docker/daq-ui/Dockerfile
+
 # ---- build ----
 FROM node:22-alpine AS build
 WORKDIR /daq-ui
 
-COPY daq-ui/package*.json ./
+COPY --from=repo daq-ui/package*.json ./
 RUN npm ci
 
-COPY daq-ui ./
+COPY --from=repo daq-ui/ ./
 
-# Fix common "next: Permission denied" when host mode bits are wrong
 RUN chmod -R a+x node_modules/.bin || true
-
 RUN npm run build
 
 # ---- runtime ----

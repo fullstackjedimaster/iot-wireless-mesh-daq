@@ -76,7 +76,7 @@ def get_panel_status(mac: str):
     }
 
 
-@router.post("/inject_fault", dependencies=[Depends(require_meshdaq)])
+@router.post("/inject_fault")
 def api_inject_fault(payload: dict):
     mac = (payload.get("mac") or "").lower()
     raw_fault = payload.get("fault") or "normal"
@@ -90,7 +90,7 @@ def api_inject_fault(payload: dict):
     return {"ok": True, "mac": mac, "fault": low}
 
 
-@router.post("/clear_all_faults", dependencies=[Depends(require_meshdaq)])
+@router.post("/clear_all_faults")
 def api_clear_all_faults():
     r = get_redis_conn(db=3)
     keys = list(r.scan_iter("fault_injection:*"))

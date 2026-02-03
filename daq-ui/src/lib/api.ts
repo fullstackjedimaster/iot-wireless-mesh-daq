@@ -41,6 +41,7 @@ function joinUrl(base: string, path: string): string {
 
 // ---------------------------------------------------------------------------
 // Low-level helper: always use this so we can inject X-Embed-Token centrally.
+// Also: credentials MUST be "include" so pf_embed_sid cookie is sent to cloud.
 // ---------------------------------------------------------------------------
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const url = joinUrl(API_BASE, path);
@@ -58,9 +59,8 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
         ...init,
         method,
         headers,
-        // If you don't need cookies, you can keep omit.
-        // If your auth ever moves to cookies, flip to "include".
-        credentials: init.credentials ?? "omit",
+        // REQUIRED for sid-binding cookie to be included on cross-subdomain calls
+        credentials: init.credentials ?? "include",
     });
 
     return res;
