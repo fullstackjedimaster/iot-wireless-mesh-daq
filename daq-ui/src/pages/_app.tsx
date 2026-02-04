@@ -3,36 +3,41 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import "@/app/globals.css";
 
-const DOCK_ORIGIN = "https://ai-ui.fullstackjedi.dev";
+const DOCK_ORIGIN = "https://rag.fullstackjedi.dev";
 const DOCK_FRAME_ID = "daq-dock";
 const WRAPPER_ID = "dock-wrapper-" + DOCK_FRAME_ID;
 
-type DockMessage =
-    | { type: "SET_DOCK_VISIBLE"; visible?: boolean }
-    | { type: "refreshDock" }
-    | { type: "AI_SET_USECASE"; usecase?: string }
-    | { type: "embedReady" }
-    | { type: "EMBED_HEIGHT"; frameId?: string; height?: number };
+// Minimal messages host cares about receiving
+type DockToHost =
+    | { type: "DOCK_READY"; version?: number }
+    | { type: "DOCK_HEIGHT"; height?: number };
 
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
+function isObject(v: unknown): v is Record<string, unknown> {
+    return typeof v === "object" && v !== null;
 }
 
 export default function MyApp({ Component, pageProps }: AppProps) {
-    const [dockVisible, setDockVisible] = useState(false);
+    // For now: always show dock (you can later wire a toggle button)
+    const [dockVisible] = useState(true);
 
-    // 1️⃣ Listen for visibility toggle messages from parent (portfolio/testbed)
+    // Listen for dock messages (ready + height)
     useEffect(() => {
         const onMsg = (ev: MessageEvent<unknown>) => {
-            const d = ev?.data;
+            if (ev.origin !== DOCK_ORIGIN) return;
+            const d = ev.data;
             if (!isObject(d)) return;
 
             const type = d["type"];
-            if (type === "SET_DOCK_VISIBLE") {
-                const visible = d["visible"];
-                setDockVisible(Boolean(visible));
-            } else if (type === "refreshDock") {
-                setDockVisible(true);
+            if (type === "DOCK_READY") {
+                // optional: log, or set state if you want
+                // console.debug("[dock] ready");
+            } else if (type === "DOCK_HEIGHT") {
+                const h = Number(d["height"]);
+                if (!Number.isFinite(h) || h <= 0) return;
+
+                // resize the dock iframe
+                const iframe = document.getElementById(DOCK_FRAME_ID) as HTMLIFrameElement | null;
+                if (iframe) iframe.style.height = `${Math.max(120, Math.min(900, h))}px`;
             }
         };
 
@@ -40,43 +45,16 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         return () => window.removeEventListener("message", onMsg);
     }, []);
 
-    // 2️⃣ Send "AI_SET_USECASE" to parent when opened from testbed host
+    // Inject dock boot.js (host-side)
     useEffect(() => {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const host = params.get("host");
-            if (host === "testbed" && window.parent) {
-                window.parent.postMessage(
-                    { type: "AI_SET_USECASE", usecase: "mesh" } satisfies DockMessage,
-                    "*"
-                );
-                // Immediately request a dock refresh handshake
-                window.parent.postMessage({ type: "embedReady" } satisfies DockMessage, "*");
-            }
-        } catch {
-            // ignore
-        }
-    }, []);
+        const removeDock = () => {
+            const wrap = document.getElementById(WRAPPER_ID);
+            if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
+        };
 
-    // 3️⃣ Safe injector for dock boot.js with retry to fix missing-dock-on-first-load
-    useEffect(() => {
         const injectDock = () => {
             if (!dockVisible) {
-                const wrap = document.getElementById(WRAPPER_ID);
-                if (wrap && wrap.parentElement) wrap.parentElement.removeChild(wrap);
-
-                try {
-                    window.dispatchEvent(new Event("resize"));
-                    const frameId =
-                        new URLSearchParams(location.search).get("frameId") || undefined;
-                    const height = document.documentElement.scrollHeight;
-                    window.parent?.postMessage(
-                        { type: "EMBED_HEIGHT", frameId, height } satisfies DockMessage,
-                        "*"
-                    );
-                } catch {
-                    // ignore
-                }
+                removeDock();
                 return;
             }
 
@@ -85,22 +63,25 @@ export default function MyApp({ Component, pageProps }: AppProps) {
             const s = document.createElement("script");
             s.src = `${DOCK_ORIGIN}/dock/boot.js?v=${Date.now()}`;
             s.defer = true;
+
+            // pass settings via data-attrs
             s.dataset.origin = DOCK_ORIGIN;
-            s.dataset.visible = "1";
-            s.dataset.height = "420";
             s.dataset.frameId = DOCK_FRAME_ID;
+            s.dataset.height = "420";
+            s.dataset.usecase = "mesh_daq_faults"; // default usecase for this host
+            s.dataset.visible = "1";
+
             (document.body || document.documentElement).appendChild(s);
         };
 
         injectDock();
-        const retryTimer = setTimeout(() => {
-            if (!document.getElementById(WRAPPER_ID) && dockVisible) {
-                console.debug("[dock] retrying injection after initial delay");
-                injectDock();
-            }
-        }, 500);
 
-        return () => clearTimeout(retryTimer);
+        // Small retry: sometimes script loads before DOM stable
+        const t = setTimeout(() => {
+            if (dockVisible && !document.getElementById(WRAPPER_ID)) injectDock();
+        }, 300);
+
+        return () => clearTimeout(t);
     }, [dockVisible]);
 
     return (

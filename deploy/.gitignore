@@ -4,6 +4,9 @@ data/
 .env.*
 *.log
 
+# generated env (keep *.env.example committed)
+env/*.env
+
 # editor junk
 .DS_Store
 .idea/

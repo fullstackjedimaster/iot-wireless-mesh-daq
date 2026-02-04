@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getLayout, getPanelStatus } from "@/lib/api";
 
 interface PanelInfo { mac: string; x: number; y: number; }
-export type PanelTelemetry = { voltage?: string; current?: string; status?: string; };
+export type PanelTelemetry = { voltage?: string; current?: string; status?: string; power?: string; temperature?: string; };
 type RawPanelData = { voltage?: number; current?: number; status?: string; };
 
 interface Props {

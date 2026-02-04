@@ -2,18 +2,16 @@
 import "@/app/globals.css";
 import type { ReactNode } from "react";
 import DockHost from "@/components/dock/DockHost";
-
-export const metadata = {
-    title: "Wireless Mesh DAQ Dashboard",
-};
+import { SelectedPanelProvider } from "@/contexts/SelectedPanelContext";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
     return (
         <html lang="en">
         <body>
-        {/* DockHost is the ONLY place that knows about iframe + postMessage */}
-        <DockHost />
-        {children}
+        <SelectedPanelProvider>
+            <DockHost />
+            {children}
+        </SelectedPanelProvider>
         </body>
         </html>
     );

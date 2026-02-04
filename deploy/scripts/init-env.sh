@@ -120,5 +120,3 @@ main() {
   echo "  docker compose build --no-cache cloud-image mesh daq-ui"
   echo "  docker compose up -d"
 }
-
-main "$@"

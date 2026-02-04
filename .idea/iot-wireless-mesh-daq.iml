@@ -19,6 +19,5 @@
     <orderEntry type="jdk" jdkName="Python 3.13 virtualenv at /opt/projects/iot-wireless-mesh-daq/cloud/.venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="boot" level="application" />
-    <orderEntry type="library" name="Python 3.13 (repo) interpreter library" level="application" />
   </component>
 </module>

@@ -37,7 +37,6 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    # NOTE: run pg_isready inside the postgres container; no host/port needed
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 2s
@@ -51,7 +50,6 @@ services:
       dockerfile: docker/bootstrap/Dockerfile
     image: iot-wireless-mesh-daq/bootstrap:local
     env_file:
-      - ./env/shared.env
       - ./env/cloud.env
       - ./env/postgres.env
     depends_on:
@@ -87,10 +85,9 @@ services:
       context: .
       dockerfile: docker/cloud/Dockerfile
       additional_contexts:
-        repo: /opt/stacks/iot-wireless-mesh-daq
+        repo: ..
     image: iot-wireless-mesh-daq/cloud:local
     env_file:
-      - ./env/shared.env
       - ./env/cloud.env
     depends_on:
       cloud-bootstrap:
@@ -119,10 +116,9 @@ services:
       context: .
       dockerfile: docker/mesh/Dockerfile
       additional_contexts:
-        repo: /opt/stacks/iot-wireless-mesh-daq
+        repo: ..
     image: iot-wireless-mesh-daq/mesh:local
     env_file:
-      - ./env/shared.env
       - ./env/mesh.env
     depends_on:
       nats:
@@ -131,7 +127,6 @@ services:
         condition: service_healthy
       cloud-api:
         condition: service_started
-    # Wrap in sh so if python errors immediately, you still see shell-level output
     command: ["sh", "-lc", "python -u rundaq.py"]
     restart: unless-stopped
     pids_limit: 256
@@ -147,7 +142,7 @@ services:
       context: .
       dockerfile: docker/daq-ui/Dockerfile
       additional_contexts:
-        repo: /opt/stacks/iot-wireless-mesh-daq
+        repo: ..
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
       - ./env/daq-ui.env
@@ -210,7 +205,6 @@ services:
   mesh-emulator:
     image: iot-wireless-mesh-daq/mesh:local
     env_file:
-      - ./env/shared.env
       - ./env/mesh.env
     depends_on:
       nats:
