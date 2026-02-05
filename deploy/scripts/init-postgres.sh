@@ -2,10 +2,7 @@
 set -eu
 
 # ------------------------------------------------------------
-# init-postgres.sh (POSIX sh)
-# - Works under /bin/sh (dash/busybox)
-# - Initializes schema ss + seed data ONLY if schema doesn't exist
-#
+# Resolve Postgres connection
 # Supports:
 #   1) DATABASE_URL (legacy)
 #   2) POSTGRES_HOST/POSTGRES_PORT/POSTGRES_DB/POSTGRES_USER/POSTGRES_PASSWORD
@@ -20,65 +17,56 @@ POSTGRES_DB="${POSTGRES_DB:-}"
 POSTGRES_USER="${POSTGRES_USER:-}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
 
+if [ -z "$DATABASE_URL" ]; then
+  : "${POSTGRES_HOST:?POSTGRES_HOST (or DATABASE_HOST) is required}"
+  : "${POSTGRES_PORT:?POSTGRES_PORT (or DATABASE_PORT) is required}"
+  : "${POSTGRES_DB:?POSTGRES_DB is required}"
+  : "${POSTGRES_USER:?POSTGRES_USER is required}"
+  : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+
+  # Use libpq env for password so we don't echo it in process args.
+  export PGPASSWORD="$POSTGRES_PASSWORD"
+  DATABASE_URL="postgresql://${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+fi
+
 # Seed config
 SITE_NAME="${SITE_NAME:-TEST}"
 SITEARRAY_LABEL="${SITEARRAY_LABEL:-Site Array TEST}"
 TZ_NAME="${TZ_NAME:-America/Chicago}"
 
-log() {
-  printf "%s\n" "$*"
-}
+echo "[init-postgres] Using DB host='${POSTGRES_HOST:-<from DATABASE_URL>}' db='${POSTGRES_DB:-<from DATABASE_URL>}' user='${POSTGRES_USER:-<from DATABASE_URL>}'"
+echo "[init-postgres] Waiting for Postgres and checking schema..."
 
-die() {
-  printf "%s\n" "$*" >&2
+i=1
+while [ "$i" -le 60 ]; do
+  out="$(psql "$DATABASE_URL" -tA -c "SELECT 1 FROM pg_namespace WHERE nspname='ss' LIMIT 1;" 2>/dev/null || true)"
+  out="$(echo "$out" | tr -d '[:space:]')"
+
+  if [ "$out" = "1" ]; then
+    echo "[init-postgres] Postgres is ready. Schema 'ss' already exists. Skipping (only runs on fresh DB)."
+    exit 0
+  fi
+
+  # Distinguish "psql failed (not ready)" from "ready but schema missing"
+  if psql "$DATABASE_URL" -tAc "SELECT 1" >/dev/null 2>&1; then
+    echo "[init-postgres] Postgres is ready. Schema 'ss' not found; proceeding with initialization."
+    break
+  fi
+
+  echo "[init-postgres] Not ready yet ($i/60); sleeping 1s..."
+  sleep 1
+  i=$((i + 1))
+done
+
+# Final hard fail if Postgres never came up
+if ! psql "$DATABASE_URL" -tAc "SELECT 1" >/dev/null 2>&1; then
+  echo "[init-postgres] ERROR: Postgres never became ready."
   exit 1
-}
+fi
 
-main() {
-  if [ -z "$DATABASE_URL" ]; then
-    [ -n "$POSTGRES_HOST" ] || die "POSTGRES_HOST (or DATABASE_HOST) is required"
-    [ -n "$POSTGRES_PORT" ] || die "POSTGRES_PORT (or DATABASE_PORT) is required"
-    [ -n "$POSTGRES_DB" ]   || die "POSTGRES_DB is required"
-    [ -n "$POSTGRES_USER" ] || die "POSTGRES_USER is required"
-    [ -n "$POSTGRES_PASSWORD" ] || die "POSTGRES_PASSWORD is required"
+echo "[init-postgres] Creating schema/tables and seeding data..."
 
-    # Use libpq env for password so we don't echo it in process args.
-    export PGPASSWORD="$POSTGRES_PASSWORD"
-    DATABASE_URL="postgresql://${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-  fi
-
-  log "[init-postgres] Using DB host='${POSTGRES_HOST:-<from DATABASE_URL>}' db='${POSTGRES_DB:-<from DATABASE_URL>}' user='${POSTGRES_USER:-<from DATABASE_URL>}'"
-  log "[init-postgres] Waiting for Postgres and checking schema..."
-
-  i=1
-  while [ "$i" -le 60 ]; do
-    out="$(psql "$DATABASE_URL" -tA -c "SELECT 1 FROM pg_namespace WHERE nspname='ss' LIMIT 1;" 2>/dev/null || true)"
-    out="$(printf "%s" "$out" | tr -d '[:space:]')"
-
-    if [ "$out" = "1" ]; then
-      log "[init-postgres] Postgres is ready. Schema 'ss' already exists. Skipping (only runs on fresh DB)."
-      exit 0
-    fi
-
-    # If Postgres is up but schema doesn't exist, proceed.
-    if psql "$DATABASE_URL" -tAc "SELECT 1" >/dev/null 2>&1; then
-      log "[init-postgres] Postgres is ready. Schema 'ss' not found; proceeding with initialization."
-      break
-    fi
-
-    log "[init-postgres] Not ready yet ($i/60); sleeping 1s..."
-    sleep 1
-    i=$((i + 1))
-  done
-
-  # Final hard fail if Postgres never came up
-  if ! psql "$DATABASE_URL" -tAc "SELECT 1" >/dev/null 2>&1; then
-    die "[init-postgres] ERROR: Postgres never became ready."
-  fi
-
-  log "[init-postgres] Creating schema/tables and seeding data..."
-
-  psql -v ON_ERROR_STOP=1 "$DATABASE_URL" <<SQL
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" <<SQL
 BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS ss;
@@ -188,38 +176,45 @@ CREATE TABLE IF NOT EXISTS ss.device_data (
 -- -------------------------
 
 INSERT INTO ss.site (sitename)
-VALUES ('${SITE_NAME}');
+VALUES ('${SITE_NAME}')
+ON CONFLICT (sitename) DO NOTHING;
 
 INSERT INTO ss.site_array (site_id, label, timezone, commission_date)
 SELECT s.id, '${SITEARRAY_LABEL}', '${TZ_NAME}', CURRENT_DATE
 FROM ss.site s
-WHERE s.sitename='${SITE_NAME}';
+WHERE s.sitename='${SITE_NAME}'
+ON CONFLICT (label) DO NOTHING;
 
 INSERT INTO ss.equipment (manufacturer, model)
 VALUES
   ('SolarSynapse', 'GW-Emu'),
   ('SolarSynapse', 'INV-Emu'),
-  ('SolarSynapse', 'PNL-Emu');
+  ('SolarSynapse', 'PNL-Emu')
+ON CONFLICT DO NOTHING;
 
 INSERT INTO ss.gateways (label, mac_address, ip_address, equipment_id)
 SELECT
   'GW-1',
   'aa:bb:cc:dd:ee:ff',
   '192.168.1.1',
-  (SELECT id FROM ss.equipment WHERE model='GW-Emu' LIMIT 1);
+  (SELECT id FROM ss.equipment WHERE model='GW-Emu' LIMIT 1)
+ON CONFLICT (label) DO NOTHING;
 
 INSERT INTO ss.inverters (serial_number, label, gateway_id, equipment_id)
 SELECT
   'INV-7281-9321',
   'INV-1',
   (SELECT id FROM ss.gateways WHERE label='GW-1' LIMIT 1),
-  (SELECT id FROM ss.equipment WHERE model='INV-Emu' LIMIT 1);
+  (SELECT id FROM ss.equipment WHERE model='INV-Emu' LIMIT 1)
+ON CONFLICT (label) DO NOTHING;
 
 INSERT INTO ss.strings (label, inverter_id)
 SELECT
   'S-1',
-  (SELECT id FROM ss.inverters WHERE label='INV-1' LIMIT 1);
+  (SELECT id FROM ss.inverters WHERE label='INV-1' LIMIT 1)
+ON CONFLICT (label) DO NOTHING;
 
+-- Keep the demo tiny: 4 panels
 INSERT INTO ss.panels (serial_number, label, string_id, string_position, x, y, equipment_id)
 SELECT
   'PNL-SN-' || LPAD(gs::text, 6, '0'),
@@ -229,7 +224,8 @@ SELECT
   50 + (gs-1)*50,
   50 + (gs-1)*50,
   (SELECT id FROM ss.equipment WHERE model='PNL-Emu' LIMIT 1)
-FROM generate_series(1,4) gs;
+FROM generate_series(1,4) gs
+ON CONFLICT (label) DO NOTHING;
 
 INSERT INTO ss.monitors (mac_address, label, node_id, panel_id)
 SELECT
@@ -238,7 +234,8 @@ SELECT
   'M-' || LPAD(p.string_position::text, 6, '0'),
   p.id
 FROM ss.panels p
-ORDER BY p.string_position;
+ORDER BY p.string_position
+ON CONFLICT (mac_address) DO NOTHING;
 
 INSERT INTO ss.site_graph (sitearray_id, json)
 SELECT
@@ -295,13 +292,10 @@ JOIN ss.site_array sa ON sa.site_id = s.id
 JOIN ss.inverters inv ON inv.label='INV-1'
 JOIN ss.strings st ON st.label='S-1'
 WHERE s.sitename='${SITE_NAME}'
-LIMIT 1;
+LIMIT 1
+ON CONFLICT DO NOTHING;
 
 COMMIT;
 SQL
 
-  log "[init-postgres] Done."
-}
-
-main "$@"
-
+echo "[init-postgres] Done."
