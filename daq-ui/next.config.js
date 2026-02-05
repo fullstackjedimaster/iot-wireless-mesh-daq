@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // IMPORTANT: run as a Node server (not static export)
+  output: "standalone",
+
   async headers() {
     const domain = process.env.DOMAIN || "fullstackjedi.dev";
     const csp = [
@@ -29,3 +33,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+  
