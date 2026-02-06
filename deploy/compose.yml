@@ -32,8 +32,9 @@ services:
     env_file:
       - ./env/postgres.env
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
+      - iot-wireless-mesh-daq-pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -224,4 +225,4 @@ services:
       - /tmp:rw,noexec,nosuid,size=128m
 
 volumes:
-  pgdata: {}
+  iot-wireless-mesh-daq-pgdata: {}
