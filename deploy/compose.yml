@@ -33,7 +33,9 @@ services:
       - ./env/postgres.env
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # NOTE: no host port mapping -> avoids collisions
+    ports:
+      - "127.0.0.1:5432:5432"
+
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

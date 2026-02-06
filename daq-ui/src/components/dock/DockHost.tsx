@@ -5,14 +5,13 @@ import { useEffect, useRef } from "react";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
 import { toTargetSelectedMsg } from "@/lib/dock/selection";
 
-function assert(condition: unknown, msg: string): asserts condition {
-    if (!condition) throw new Error(`[daq-ui DockHost] ${msg}`);
+function getEnv(name: string): string | undefined {
+    const v = (process.env as any)?.[name];
+    return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
 }
 
-function requireEnv(name: string): string {
-    const v = process.env[name] as string | undefined;
-    assert(typeof v === "string" && v.length > 0, `${name} is required and must be set.`);
-    return v;
+function stripTrailingSlashes(s: string): string {
+    return s.replace(/\/+$/, "");
 }
 
 export default function DockHost() {
@@ -20,25 +19,50 @@ export default function DockHost() {
     const lastSentRef = useRef<string>("");
 
     useEffect(() => {
-        const FRAME_ID = requireEnv("NEXT_PUBLIC_DOCK_FRAME_ID");
-        const DOCK_ORIGIN = requireEnv("NEXT_PUBLIC_DOCK_ORIGIN");
+        // ✅ DO NOT require these. If missing, we behave like DockHost isn't here.
+        const frameId = getEnv("NEXT_PUBLIC_DOCK_FRAME_ID");
+        const dockOriginRaw = getEnv("NEXT_PUBLIC_DOCK_ORIGIN");
 
-        const iframe = document.getElementById(FRAME_ID) as HTMLIFrameElement | null;
-        assert(iframe, `Dock iframe not found: id="${FRAME_ID}"`);
+        if (!frameId || !dockOriginRaw) {
+            // Not configured => inert
+            return;
+        }
 
-        const target = iframe.contentWindow;
-        assert(target, "Dock iframe has no contentWindow.");
+        const dockOrigin = stripTrailingSlashes(dockOriginRaw);
 
-        return subscribeSelectedTarget((t) => {
-            assert(t, "SelectedTarget is null.");
+        // ✅ If the dock is NOT injected/connected yet, iframe won't exist => inert
+        const el = document.getElementById(frameId);
+        if (!el) return;
+
+        // Must be an iframe
+        const iframe = el as HTMLIFrameElement;
+        if (!iframe.contentWindow) return;
+
+        const targetWin = iframe.contentWindow;
+
+        // Subscribe only when we're actually connected (iframe present)
+        const unsubscribe = subscribeSelectedTarget((t) => {
+            if (!t) return;
 
             const msg = toTargetSelectedMsg(t);
             const serialized = JSON.stringify(msg);
-            if (serialized === lastSentRef.current) return; // dedupe only
+            if (serialized === lastSentRef.current) return; // dedupe
             lastSentRef.current = serialized;
 
-            target.postMessage(msg, DOCK_ORIGIN);
+            try {
+                targetWin.postMessage(msg, dockOrigin);
+            } catch {
+                // Never break host app because postMessage failed
+            }
         });
+
+        return () => {
+            try {
+                unsubscribe?.();
+            } catch {
+                // ignore
+            }
+        };
     }, [subscribeSelectedTarget]);
 
     return null;

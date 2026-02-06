@@ -1,4 +1,4 @@
-// src/app/page.tsx
+// daq-ui/src/app/page.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,10 +12,7 @@ import { BlinkyThing } from "@/components/BlinkyThing";
 import { getLayout } from "@/lib/api";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
 
-// Layout items returned by getLayout()
 type LayoutItem = { x: number; y: number; mac: string };
-
-// Generic attribute bag (sent to dock)
 type Attrs = Record<string, string | number | boolean | null | undefined>;
 
 export default function HomePage() {
@@ -48,9 +45,11 @@ export default function HomePage() {
         let mounted = true;
 
         const run = async () => {
-            const layout: LayoutItem[] = await getLayout(); // if this throws, we want to see it
+            const layout: LayoutItem[] = await getLayout();
             if (!mounted) return;
-            if (!Array.isArray(layout) || layout.length === 0) throw new Error("[page] getLayout() returned empty/invalid layout.");
+            if (!Array.isArray(layout) || layout.length === 0) {
+                throw new Error("[page] getLayout() returned empty/invalid layout.");
+            }
 
             const sorted = [...layout].sort((a, b) => (a.y !== b.y ? a.y - b.y : a.x - b.x));
             const first = sorted[0]?.mac;
@@ -64,7 +63,7 @@ export default function HomePage() {
         };
     }, []);
 
-    // Single integration point: push selection into context (DockHost broadcasts it)
+    // Single integration point: push selection into context (DockHost broadcasts it *only if connected*)
     useEffect(() => {
         if (!selectedMac) return;
         setSelectedTarget({
