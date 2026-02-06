@@ -51,6 +51,7 @@ services:
     image: iot-wireless-mesh-daq/bootstrap:local
     env_file:
       - ./env/postgres.env
+      - ./env/cloud.env
     depends_on:
       postgres:
         condition: service_healthy
