@@ -1,4 +1,4 @@
-name: meshdaq
+name: iot-wireless-mesh-daq
 
 services:
   nats:
@@ -50,7 +50,6 @@ services:
       dockerfile: docker/bootstrap/Dockerfile
     image: iot-wireless-mesh-daq/bootstrap:local
     env_file:
-      - ./env/cloud.env
       - ./env/postgres.env
     depends_on:
       postgres:
@@ -60,6 +59,7 @@ services:
     command: >
       sh -lc "
         set -eux;
+        /deploy/scripts/init-env.sh
         /deploy/scripts/init-postgres.sh;
         /deploy/scripts/seed-redis.sh
       "

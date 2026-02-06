@@ -40,10 +40,6 @@ copy_example() {
   local example="$1"
   local target="$2"
 
-  if [[ -f "$target" && "${FORCE:-0}" != "1" ]]; then
-    log "Exists: $(basename "$target") (skipping; set FORCE=1 to overwrite)"
-    return 0
-  fi
 
   cp -f "$example" "$target"
   log "Wrote: $(basename "$target")"
@@ -58,7 +54,6 @@ replace_key() {
 }
 
 main() {
-  [[ -d "$ENV_DIR" ]] || err "Env dir not found: $ENV_DIR"
 
   local files=(
     "nats.env"
@@ -109,14 +104,4 @@ main() {
     log "EMBED_SECRET already set in $(basename "$cloud_file")"
   fi
 
-  warn "Review env files now:"
-  echo "  ${ENV_DIR}/postgres.env"
-  echo "  ${ENV_DIR}/cloud.env"
-  echo
-  log "Done. Next:"
-  echo "  cd $(dirname "$ENV_DIR")"
-  echo "  docker compose config >/dev/null && echo 'YAML OK'"
-  echo "  docker compose down"
-  echo "  docker compose build --no-cache cloud-image mesh daq-ui"
-  echo "  docker compose up -d"
 }
