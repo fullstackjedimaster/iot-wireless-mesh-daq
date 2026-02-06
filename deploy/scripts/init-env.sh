@@ -26,6 +26,7 @@ need awk
 
 gen_secret() {
   # Prefer openssl if present; fallback to python
+  log "Generating secret"
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 48 | tr -d '\n'
   else
@@ -63,6 +64,7 @@ main() {
     "mesh.env"
     "daq-ui.env"
   )
+  echo "Copying examples."
 
   for f in "${files[@]}"; do
     local example="${ENV_DIR}/${f}.example"
@@ -80,6 +82,7 @@ main() {
     local pg_pass
     pg_pass="$(gen_secret)"
     replace_key "$pg_file" "POSTGRES_PASSWORD" "$pg_pass"
+    echo "Generated POSTGRES_PASSWORD in $(basename "$pg_file")"
     log "Generated POSTGRES_PASSWORD in $(basename "$pg_file")"
   else
     log "POSTGRES_PASSWORD already set in $(basename "$pg_file")"
@@ -91,6 +94,7 @@ main() {
     local pg_pass_current
     pg_pass_current="$(awk -F= '/^POSTGRES_PASSWORD=/{print $2}' "$pg_file" | tr -d '\r')"
     replace_key "$cloud_file" "POSTGRES_PASSWORD" "$pg_pass_current"
+    echo "Generated POSTGRES_PASSWORD in $(basename "$pg_file")"
     log "Copied POSTGRES_PASSWORD into $(basename "$cloud_file")"
   fi
 
@@ -99,6 +103,7 @@ main() {
     local embed
     embed="$(gen_secret)"
     replace_key "$cloud_file" "EMBED_SECRET" "$embed"
+    echo "Generated EMBED_SECRET in $(basename "$cloud_file")"
     log "Generated EMBED_SECRET in $(basename "$cloud_file")"
   else
     log "EMBED_SECRET already set in $(basename "$cloud_file")"
