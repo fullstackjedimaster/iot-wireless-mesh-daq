@@ -39,14 +39,11 @@ copy_example() {
   local example="$1"
   local target="$2"
 
-  if [[ -f "$target" && "${FORCE:-0}" != "1" ]]; then
-    log "Exists (skipping): $(basename "$target")"
-    return 0
-  fi
-
+  # ALWAYS overwrite for demo stacks
   cp -f "$example" "$target"
-  log "Wrote: $(basename "$target")"
+  log "Wrote fresh: $(basename "$target")"
 }
+
 
 replace_key() {
   local file="$1"
