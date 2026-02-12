@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import os
 import random
 import socket
 
@@ -13,14 +14,14 @@ from DAQ.util.faults import get_fault  # ✅ Fault injection support
 # -------------------------
 cfg = load_config()
 
-comm_host = cfg['gateway']['comm_host']
-comm_port = cfg['gateway']['comm_port']
-ad_listen_port = cfg['gateway']['ad_listen_port']
-ad_respond_port = cfg['gateway']['ad_respond_port']
-ad_host = cfg['gateway'].get('ad_host', '0.0.0.0') or "0.0.0.0"
+comm_host = cfg["gateway"]["comm_host"]
+comm_port = cfg["gateway"]["comm_port"]
+ad_listen_port = cfg["gateway"]["ad_listen_port"]
+ad_respond_port = cfg["gateway"]["ad_respond_port"]
+ad_host = cfg["gateway"].get("ad_host", "0.0.0.0") or "0.0.0.0"
 
-panel_delay = cfg['emulator'].get('panel_delay', 0.25)
-cycle_delay = cfg['emulator'].get('cycle_delay', 0.5)
+panel_delay = cfg["emulator"].get("panel_delay", 0.25)
+cycle_delay = cfg["emulator"].get("cycle_delay", 0.5)
 
 PANEL_MACS = [
     "fa:29:eb:6d:87:01",
@@ -37,6 +38,44 @@ FAULTS = {
     "normal": None,
 }
 FAULTS_KEYS = list(FAULTS.keys())
+
+
+# -------------------------
+# Helpers
+# -------------------------
+def _in_docker() -> bool:
+    """
+    Best-effort detection for Docker/container environments.
+    Works for Docker, many OCI runtimes, and typical compose setups.
+    """
+    if os.path.exists("/.dockerenv"):
+        return True
+    try:
+        with open("/proc/1/cgroup", "rt", encoding="utf-8", errors="ignore") as f:
+            s = f.read()
+        return ("docker" in s) or ("containerd" in s) or ("kubepods" in s)
+    except Exception:
+        return False
+
+
+def _direct_host() -> str:
+    """
+    Decide what host to connect to when bypassing UDP broadcast discovery.
+
+    Priority:
+      1) ENV override: MESH_GATEWAY_HOST
+      2) config override: emulator.gateway_host
+      3) default Docker DNS name: "mesh"
+    """
+    env = (os.getenv("MESH_GATEWAY_HOST") or "").strip()
+    if env:
+        return env
+
+    cfg_host = (cfg.get("emulator", {}).get("gateway_host") or "").strip()
+    if cfg_host:
+        return cfg_host
+
+    return "mesh"
 
 
 # -------------------------
@@ -131,13 +170,15 @@ class AsyncEmulator:
 
         return None
 
-
-    async def connect(self, host):
+    async def connect(self, host: str):
         print(f"[EMULATOR] Connecting to {host}:{comm_port}...")
         self.reader, self.writer = await asyncio.open_connection(host, comm_port)
         print(f"[EMULATOR] Connected to {host}:{comm_port}")
 
     async def send_status_message(self, macaddr: str):
+        if not self.writer:
+            return
+
         profile = generate_profile(macaddr)
         Vi, Ii, Pi = profile["voltage"], profile["current"], profile["power"]
         timestamp = utcepochnow() - self.start_time
@@ -174,16 +215,36 @@ class AsyncEmulator:
         print(f"[EMULATOR] Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f}")
 
     async def run(self):
-        # 🔁 Retry discovery until gateway responds
-        siteserver_host = None
-        while not siteserver_host:
-            siteserver_host = await self.find_siteserver()
-            if not siteserver_host:
-                print("[EMULATOR] Siteserver not found. Retrying in 5s...")
-                await asyncio.sleep(5)
+        # -----------------------------
+        # Option A: Docker/direct mode
+        # -----------------------------
+        # In Docker, UDP broadcast discovery is unreliable. Use deterministic host.
+        force_direct = (os.getenv("MESH_FORCE_DIRECT", "").strip() == "1")
+        if force_direct or _in_docker():
+            host = _direct_host()
+            print(f"[EMULATOR] Direct-connect mode (docker={_in_docker()} force={force_direct}) → {host}:{comm_port}")
 
-        # Connect to gateway
-        await self.connect(siteserver_host)
+            # Keep retrying until gateway is up
+            while True:
+                try:
+                    await self.connect(host)
+                    break
+                except Exception as e:
+                    print(f"[EMULATOR] Direct connect failed: {e}. Retrying in 3s...")
+                    await asyncio.sleep(3)
+
+        else:
+            # -----------------------------
+            # LAN mode: broadcast discovery
+            # -----------------------------
+            siteserver_host = None
+            while not siteserver_host:
+                siteserver_host = await self.find_siteserver()
+                if not siteserver_host:
+                    print("[EMULATOR] Siteserver not found. Retrying in 5s...")
+                    await asyncio.sleep(5)
+
+            await self.connect(siteserver_host)
 
         # Main loop: broadcast panel telemetry
         try:
@@ -215,3 +276,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("[EMULATOR] Interrupted.")
+
