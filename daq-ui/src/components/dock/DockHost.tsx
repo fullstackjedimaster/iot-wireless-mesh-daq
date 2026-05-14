@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+// import {Attrs} from "@/lib/dock/selection";
 
 const RAG_BASE = process.env.NEXT_PUBLIC_RAG_CORE_BASE;
 const CLIENT_NAME = process.env.NEXT_PUBLIC_RAG_CLIENT_NAME;
@@ -11,11 +12,11 @@ const FRAME_ID = process.env.NEXT_PUBLIC_DOCK_FRAME_ID ?? "daq-dock";
 // The dock UI should listen for this and store the token in memory (not localStorage).
 type RagSessionMessage = { type: "RAG_SESSION"; token: string; exp?: number };
 
-type TargetSelectedMessage = {
-    type: "TARGET_SELECTED";
-    subject_id: string;
-    attrs?: any;
-};
+// type TargetSelectedMessage = {
+//     type: "TARGET_SELECTED";
+//     subject_id: string;
+//     attrs?: Attrs;
+// };
 
 type RagClientRow = {
     id: number;
@@ -88,11 +89,11 @@ export default function DockHost() {
                 }
 
                 if (!cancelled) setClientId(match.id);
-            } catch (err: any) {
+            } catch (err) {
                 console.error("[DockHost] Failed to resolve client:", err);
                 if (!cancelled) {
                     setClientId(null);
-                    setLastError(String(err?.message || err));
+                    setLastError(String(err));
                 }
             }
         }
@@ -164,9 +165,9 @@ export default function DockHost() {
                         mintSession().catch(() => {});
                     }, 120_000);
                 }
-            } catch (err: any) {
+            } catch (err) {
                 console.error("[DockHost] mintSession failed:", err);
-                if (!cancelled) setLastError(String(err?.message || err));
+                if (!cancelled) setLastError(String(err));
 
                 // Retry with backoff-ish delay
                 clearMintTimer();
@@ -202,25 +203,25 @@ export default function DockHost() {
     // --------------------------------------------------
     // 5) Forward selection events to dock (always; token is separate)
     // --------------------------------------------------
-    useEffect(() => {
-        if (!configured) return;
-
-        function onPanelSelected(ev: any) {
-            const mac = ev?.detail?.mac;
-            if (!mac) return;
-
-            const msg: TargetSelectedMessage = {
-                type: "TARGET_SELECTED",
-                subject_id: String(mac),
-                attrs: ev?.detail?.attrs ?? null,
-            };
-
-            iframeRef.current?.contentWindow?.postMessage(msg, dockOrigin);
-        }
-
-        window.addEventListener("panel-selected", onPanelSelected as any);
-        return () => window.removeEventListener("panel-selected", onPanelSelected as any);
-    }, [configured, dockOrigin]);
+    // useEffect(() => {
+    //     if (!configured) return;
+    //
+    //     function onPanelSelected(ev) {
+    //         const mac = ev?.detail?.mac;
+    //         if (!mac) return;
+    //
+    //         const msg: TargetSelectedMessage = {
+    //             type: "TARGET_SELECTED",
+    //             subject_id: String(mac),
+    //             attrs: ev?.detail?.attrs ?? null,
+    //         };
+    //
+    //         iframeRef.current?.contentWindow?.postMessage(msg, dockOrigin);
+    //     }
+    //
+    //     window.addEventListener("panel-selected", onPanelSelected as any);
+    //     return () => window.removeEventListener("panel-selected", onPanelSelected as any);
+    // }, [configured, dockOrigin]);
 
     // --------------------------------------------------
     // Render: ALWAYS VISIBLE (per your request)
