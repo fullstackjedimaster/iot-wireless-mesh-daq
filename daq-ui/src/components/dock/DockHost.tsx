@@ -19,7 +19,7 @@ type RagSessionMessage = { type: "RAG_SESSION"; token: string; exp?: number };
 // };
 
 type RagClientRow = {
-    id: number;
+    id: string;
     name: string;
     host_url: string;
 };
@@ -38,7 +38,7 @@ export default function DockHost() {
     const mintTimerRef = useRef<number | null>(null);
 
     const [configured, setConfigured] = useState(false);
-    const [clientId, setClientId] = useState<number | null>(null);
+    const [clientId, setClientId] = useState<string | null>(null);
 
     const [sessionToken, setSessionToken] = useState<string>("");
     const [sessionExp, setSessionExp] = useState<number | null>(null);
