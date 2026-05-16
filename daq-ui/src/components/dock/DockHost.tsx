@@ -125,7 +125,7 @@ export default function DockHost() {
         return () => {
             cancelled = true;
         };
-    }, [configured, ragBase]);
+    }, [configured, ragClientId, ragBase]);
 
     useEffect(() => {
         if (!configured || !ragClientId) return;
