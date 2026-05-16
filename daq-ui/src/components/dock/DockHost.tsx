@@ -24,10 +24,7 @@ type TargetSelectedMessage = {
 
 type RagClientSelectedMessage = {
     type: "RAG_CLIENT_SELECTED";
-    rag_client_id?: string;
-    ragClientId?: string;
-    client?: string;
-    id?: string;
+    ragClientId: string;
     label?: string;
     hostUrl?: string;
 };
@@ -62,29 +59,21 @@ function getRagClientIdFromMessage(data: unknown): string | null {
     if (!isObject(data)) return null;
     if (data.type !== "RAG_CLIENT_SELECTED") return null;
 
-    const msg = data as RagClientSelectedMessage;
+    const msg = data as Partial<RagClientSelectedMessage>;
+    const ragClientId = msg.ragClientId;
 
-    const id =
-        msg.rag_client_id ??
-        msg.ragClientId ??
-        msg.client ??
-        msg.id ??
-        null;
-
-    return typeof id === "string" && id.trim() ? id.trim() : null;
+    return typeof ragClientId === "string" && ragClientId.trim()
+        ? ragClientId.trim()
+        : null;
 }
 
 function getRagClientIdFromUrl(): string | null {
     if (typeof window === "undefined") return null;
 
     const params = new URLSearchParams(window.location.search);
+    const ragClientId = params.get("ragClientId");
 
-    return (
-        params.get("rag_client_id") ||
-        params.get("ragClientId") ||
-        params.get("client_id") ||
-        params.get("client")
-    );
+    return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
 }
 
 export default function DockHost() {
@@ -120,27 +109,27 @@ export default function DockHost() {
     }, [ragBase, dockOrigin]);
 
     useEffect(() => {
-        const initialId = getRagClientIdFromUrl();
+        const initialRagClientId = getRagClientIdFromUrl();
 
-        if (initialId) {
-            setRagClientId(initialId);
+        if (initialRagClientId) {
+            setRagClientId(initialRagClientId);
         }
     }, []);
 
     useEffect(() => {
         function onMessage(ev: MessageEvent<unknown>) {
-            const nextId = getRagClientIdFromMessage(ev.data);
+            const nextRagClientId = getRagClientIdFromMessage(ev.data);
 
-            if (!nextId) return;
+            if (!nextRagClientId) return;
 
-            console.log("[DockHost] Received RAG_CLIENT_SELECTED:", nextId);
+            console.log("[DockHost] Received RAG_CLIENT_SELECTED:", nextRagClientId);
 
             setLastError("");
             setSessionToken("");
             setSessionExp(null);
             setIframeLoaded(false);
             setRagClient(null);
-            setRagClientId(nextId);
+            setRagClientId(nextRagClientId);
         }
 
         window.addEventListener("message", onMessage);
@@ -338,12 +327,12 @@ export default function DockHost() {
 
         if (!ragClientId) return base;
 
-        return `${base}?rag_client_id=${encodeURIComponent(ragClientId)}`;
+        return `${base}?ragClientId=${encodeURIComponent(ragClientId)}`;
     }, [dockOrigin, ragClientId]);
 
     const statusLine = (() => {
         if (!configured) return "Dock not configured.";
-        if (!ragClientId) return "Waiting for rag client id…";
+        if (!ragClientId) return "Waiting for ragClientId…";
         if (!ragClient) return lastError ? `Registry: ${lastError}` : "Resolving rag client…";
         if (!sessionToken) return lastError ? `Session: ${lastError}` : "Minting session…";
         if (!iframeLoaded) return "Loading dock…";
