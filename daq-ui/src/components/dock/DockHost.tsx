@@ -50,7 +50,7 @@ export default function DockHost() {
     const mintTimerRef = useRef<number | null>(null);
 
     const [configured, setConfigured] = useState(false);
-    const [ragClientId, setClientId] = useState<string | null>(null);
+    const [ragClientId, setRagClientId] = useState<string | null>(null);
 
     const [sessionToken, setSessionToken] = useState<string>("");
     const [sessionExp, setSessionExp] = useState<number | null>(null);
@@ -108,13 +108,13 @@ export default function DockHost() {
                 }
 
                 if (!cancelled) {
-                    setClientId(match.id);
+                    setRagClientId(match.id);
                 }
             } catch (err) {
                 console.error("[DockHost] Failed to resolve client:", err);
 
                 if (!cancelled) {
-                    setClientId(null);
+                    setRagClientId(null);
                     setLastError(err instanceof Error ? err.message : String(err));
                 }
             }
