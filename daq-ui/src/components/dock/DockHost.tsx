@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Attrs } from "@/lib/dock/selection";
 import {settings} from "@/lib/settings";
 
-const RAG_BASE = settings.RAG_CORE_BASE;
+const RAG_API_BASE = settings.RAG_API_BASE;
 const CLIENT_NAME = settings.RAG_CLIENT_NAME;
 const DOCK_ORIGIN = settings.DOCK_ORIGIN;
 const FRAME_ID = settings.DOCK_FRAME_ID ?? "daq-dock";
@@ -63,7 +63,7 @@ export default function DockHost() {
     }, []);
 
     const ragBase = useMemo(() => {
-        return RAG_BASE ? safeTrimSlash(RAG_BASE) : "";
+        return RAG_API_BASE ? safeTrimSlash(RAG_API_BASE) : "";
     }, []);
 
     useEffect(() => {

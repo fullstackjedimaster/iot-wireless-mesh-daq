@@ -12,8 +12,8 @@ export const settings = {
     process.env.NEXT_PUBLIC_RAG_CORE_BASE ||
      "https://ai-core.fullstackjedi.dev",
 
-  RAG_BASE:
-    process.env.NEXT_PUBLIC_RAG_BASE ||
+  RAG_API_BASE:
+    process.env.NEXT_PUBLIC_RAG_API_BASE ||
      "https://rag.fullstackjedi.dev",
 
 
