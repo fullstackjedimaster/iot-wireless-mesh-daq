@@ -50,7 +50,7 @@ export default function DockHost() {
     const mintTimerRef = useRef<number | null>(null);
 
     const [configured, setConfigured] = useState(false);
-    const [clientId, setClientId] = useState<string | null>(null);
+    const [ragClientId, setClientId] = useState<string | null>(null);
 
     const [sessionToken, setSessionToken] = useState<string>("");
     const [sessionExp, setSessionExp] = useState<number | null>(null);
@@ -128,7 +128,7 @@ export default function DockHost() {
     }, [configured, ragBase]);
 
     useEffect(() => {
-        if (!configured || !clientId) return;
+        if (!configured || !ragClientId) return;
 
         let cancelled = false;
 
@@ -150,7 +150,7 @@ export default function DockHost() {
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
                     body: JSON.stringify({
-                        client_id: clientId,
+                        rag_client_id: ragClientId,
                         host_url,
                     }),
                 });
@@ -211,7 +211,7 @@ export default function DockHost() {
             cancelled = true;
             clearMintTimer();
         };
-    }, [configured, clientId, ragBase]);
+    }, [configured, ragClientId, ragBase]);
 
     useEffect(() => {
         if (!configured) return;
@@ -265,14 +265,14 @@ export default function DockHost() {
     const iframeSrc = useMemo(() => {
         const base = `${dockOrigin}/dock`;
 
-        if (!clientId) return base;
+        if (!ragClientId) return base;
 
-        return `${base}?client_id=${encodeURIComponent(String(clientId))}`;
-    }, [dockOrigin, clientId]);
+        return `${base}?rag_client_id=${encodeURIComponent(String(ragClientId))}`;
+    }, [dockOrigin, ragClientId]);
 
     const statusLine = (() => {
         if (!configured) return "Dock not configured (missing env vars).";
-        if (!clientId) return lastError ? `Registry: ${lastError}` : "Resolving rag client…";
+        if (!ragClientId) return lastError ? `Registry: ${lastError}` : "Resolving rag client…";
         if (!sessionToken) return lastError ? `Session: ${lastError}` : "Minting session…";
         if (!iframeLoaded) return "Loading dock…";
 
