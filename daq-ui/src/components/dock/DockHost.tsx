@@ -35,10 +35,10 @@ type RagClientRow = {
     host_url: string;
 };
 
-type MintResponse = {
-    token: string;
-    exp?: number;
-};
+// type MintResponse = {
+//     token: string;
+//     exp?: number;
+// };
 
 type PanelSelectedDetail = {
     mac?: string;
@@ -78,7 +78,7 @@ function getRagClientIdFromUrl(): string | null {
 
 export default function DockHost() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
-    const mintTimerRef = useRef<number | null>(null);
+    // const mintTimerRef = useRef<number | null>(null);
 
     const [configured, setConfigured] = useState(false);
     const [ragClientId, setRagClientId] = useState<string | null>(null);
@@ -187,91 +187,102 @@ export default function DockHost() {
         };
     }, [configured, ragClientId, ragBase]);
 
+    // useEffect(() => {
+    //     if (!configured || !ragClientId || !ragClient) return;
+    //
+    //     let cancelled = false;
+    //
+    //     function clearMintTimer() {
+    //         if (mintTimerRef.current) {
+    //             window.clearTimeout(mintTimerRef.current);
+    //             mintTimerRef.current = null;
+    //         }
+    //     }
+    //
+    //     async function mintSession() {
+    //         try {
+    //             setLastError("");
+    //
+    //             const host_url = safeTrimSlash(window.location.origin);
+    //
+    //             const res = await fetch(`${ragBase}/session/mint`, {
+    //                 method: "POST",
+    //                 headers: { "Content-Type": "application/json" },
+    //                 cache: "no-store",
+    //                 body: JSON.stringify({
+    //                     rag_client_id: ragClientId,
+    //                     host_url,
+    //                 }),
+    //             });
+    //
+    //             if (!res.ok) {
+    //                 const txt = await res.text().catch(() => "");
+    //
+    //                 throw new Error(
+    //                     `mintSession: ${res.status} ${res.statusText}${
+    //                         txt ? ` — ${txt}` : ""
+    //                     }`
+    //                 );
+    //             }
+    //
+    //             const data = (await res.json()) as MintResponse;
+    //
+    //             if (!data?.token) {
+    //                 throw new Error("mintSession: missing token in response");
+    //             }
+    //
+    //             if (cancelled) return;
+    //
+    //             setSessionToken(data.token);
+    //             setSessionExp(typeof data.exp === "number" ? data.exp : null);
+    //
+    //             clearMintTimer();
+    //
+    //             if (typeof data.exp === "number" && data.exp > 0) {
+    //                 const nowSec = Math.floor(Date.now() / 1000);
+    //                 const refreshInSec = Math.max(10, data.exp - nowSec - 30);
+    //
+    //                 mintTimerRef.current = window.setTimeout(() => {
+    //                     void mintSession();
+    //                 }, refreshInSec * 1000);
+    //             } else {
+    //                 mintTimerRef.current = window.setTimeout(() => {
+    //                     void mintSession();
+    //                 }, 120_000);
+    //             }
+    //         } catch (err) {
+    //             console.error("[DockHost] mintSession failed:", err);
+    //
+    //             if (!cancelled) {
+    //                 setLastError(err instanceof Error ? err.message : String(err));
+    //             }
+    //
+    //             clearMintTimer();
+    //
+    //             mintTimerRef.current = window.setTimeout(() => {
+    //                 void mintSession();
+    //             }, 5000);
+    //         }
+    //     }
+    //
+    //     void mintSession();
+    //
+    //     return () => {
+    //         cancelled = true;
+    //         clearMintTimer();
+    //     };
+    // }, [configured, ragClientId, ragClient, ragBase]);
+
     useEffect(() => {
         if (!configured || !ragClientId || !ragClient) return;
 
-        let cancelled = false;
+        console.log("[DockHost] Session mint disabled.");
 
-        function clearMintTimer() {
-            if (mintTimerRef.current) {
-                window.clearTimeout(mintTimerRef.current);
-                mintTimerRef.current = null;
-            }
-        }
+        // Fake a session so downstream logic stops waiting
+        setSessionToken("debug-disabled");
+        setSessionExp(null);
 
-        async function mintSession() {
-            try {
-                setLastError("");
-
-                const host_url = safeTrimSlash(window.location.origin);
-
-                const res = await fetch(`${ragBase}/session/mint`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    cache: "no-store",
-                    body: JSON.stringify({
-                        rag_client_id: ragClientId,
-                        host_url,
-                    }),
-                });
-
-                if (!res.ok) {
-                    const txt = await res.text().catch(() => "");
-
-                    throw new Error(
-                        `mintSession: ${res.status} ${res.statusText}${
-                            txt ? ` — ${txt}` : ""
-                        }`
-                    );
-                }
-
-                const data = (await res.json()) as MintResponse;
-
-                if (!data?.token) {
-                    throw new Error("mintSession: missing token in response");
-                }
-
-                if (cancelled) return;
-
-                setSessionToken(data.token);
-                setSessionExp(typeof data.exp === "number" ? data.exp : null);
-
-                clearMintTimer();
-
-                if (typeof data.exp === "number" && data.exp > 0) {
-                    const nowSec = Math.floor(Date.now() / 1000);
-                    const refreshInSec = Math.max(10, data.exp - nowSec - 30);
-
-                    mintTimerRef.current = window.setTimeout(() => {
-                        void mintSession();
-                    }, refreshInSec * 1000);
-                } else {
-                    mintTimerRef.current = window.setTimeout(() => {
-                        void mintSession();
-                    }, 120_000);
-                }
-            } catch (err) {
-                console.error("[DockHost] mintSession failed:", err);
-
-                if (!cancelled) {
-                    setLastError(err instanceof Error ? err.message : String(err));
-                }
-
-                clearMintTimer();
-
-                mintTimerRef.current = window.setTimeout(() => {
-                    void mintSession();
-                }, 5000);
-            }
-        }
-
-        void mintSession();
-
-        return () => {
-            cancelled = true;
-            clearMintTimer();
-        };
-    }, [configured, ragClientId, ragClient, ragBase]);
+    }, [configured, ragClientId, ragClient]);
 
     useEffect(() => {
         if (!configured) return;
