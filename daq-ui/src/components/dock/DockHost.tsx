@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Attrs } from "@/lib/dock/selection";
+import {settings} from "@/lib/settings";
 
-const RAG_BASE = process.env.NEXT_PUBLIC_RAG_CORE_BASE;
-const CLIENT_NAME = process.env.NEXT_PUBLIC_RAG_CLIENT_NAME;
-const DOCK_ORIGIN = process.env.NEXT_PUBLIC_DOCK_ORIGIN;
-const FRAME_ID = process.env.NEXT_PUBLIC_DOCK_FRAME_ID ?? "daq-dock";
+const RAG_BASE = settings.RAG_CORE_BASE;
+const CLIENT_NAME = settings.RAG_CLIENT_NAME;
+const DOCK_ORIGIN = settings.DOCK_ORIGIN;
+const FRAME_ID = settings.DOCK_FRAME_ID ?? "daq-dock";
 
 type RagSessionMessage = {
     type: "RAG_SESSION";

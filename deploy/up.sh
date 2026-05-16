@@ -23,4 +23,4 @@ docker compose -p "$COMPOSE_PROJECT_NAME" -f "$DEPLOY_DIR"/compose.yml  up -d --
 
 echo "[up] Done"
 
-docker compose logs -f
+docker compose logs -f daq-ui cloud
