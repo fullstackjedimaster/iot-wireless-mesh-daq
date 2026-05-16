@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-// import {Attrs} from "@/lib/dock/selection";
+import {Attrs} from "@/lib/dock/selection";
 
 const RAG_BASE = process.env.NEXT_PUBLIC_RAG_CORE_BASE;
 const CLIENT_NAME = process.env.NEXT_PUBLIC_RAG_CLIENT_NAME;
@@ -12,11 +12,11 @@ const FRAME_ID = process.env.NEXT_PUBLIC_DOCK_FRAME_ID ?? "daq-dock";
 // The dock UI should listen for this and store the token in memory (not localStorage).
 type RagSessionMessage = { type: "RAG_SESSION"; token: string; exp?: number };
 
-// type TargetSelectedMessage = {
-//     type: "TARGET_SELECTED";
-//     subject_id: string;
-//     attrs?: Attrs;
-// };
+type TargetSelectedMessage = {
+    type: "TARGET_SELECTED";
+    subject_id: string;
+    attrs?: Attrs;
+};
 
 type RagClientRow = {
     id: string;
@@ -203,26 +203,47 @@ export default function DockHost() {
     // --------------------------------------------------
     // 5) Forward selection events to dock (always; token is separate)
     // --------------------------------------------------
-    // useEffect(() => {
-    //     if (!configured) return;
-    //
-    //     function onPanelSelected(ev) {
-    //         const mac = ev?.detail?.mac;
-    //         if (!mac) return;
-    //
-    //         const msg: TargetSelectedMessage = {
-    //             type: "TARGET_SELECTED",
-    //             subject_id: String(mac),
-    //             attrs: ev?.detail?.attrs ?? null,
-    //         };
-    //
-    //         iframeRef.current?.contentWindow?.postMessage(msg, dockOrigin);
-    //     }
-    //
-    //     window.addEventListener("panel-selected", onPanelSelected as any);
-    //     return () => window.removeEventListener("panel-selected", onPanelSelected as any);
-    // }, [configured, dockOrigin]);
+    // --------------------------------------------------
+// 5) Forward selection events to dock (always; token is separate)
+// --------------------------------------------------
+useEffect(() => {
+    if (!configured) return;
 
+    type PanelSelectedDetail = {
+        mac?: string;
+        attrs?: Attrs | null;
+    };
+
+    function onPanelSelected(ev: Event) {
+        const customEvent = ev as CustomEvent<PanelSelectedDetail>;
+
+        const mac = customEvent.detail?.mac;
+        if (!mac) return;
+
+        const msg: TargetSelectedMessage = {
+            type: "TARGET_SELECTED",
+            subject_id: String(mac),
+            attrs: customEvent.detail?.attrs ?? undefined,
+        };
+
+        iframeRef.current?.contentWindow?.postMessage(
+            msg,
+            dockOrigin
+        );
+    }
+
+    window.addEventListener(
+        "panel-selected",
+        onPanelSelected as EventListener
+    );
+
+    return () => {
+        window.removeEventListener(
+            "panel-selected",
+            onPanelSelected as EventListener
+        );
+    };
+}, [configured, dockOrigin]);
     // --------------------------------------------------
     // Render: ALWAYS VISIBLE (per your request)
     // --------------------------------------------------
