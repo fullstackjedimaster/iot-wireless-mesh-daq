@@ -90,7 +90,7 @@ export default function DockHost() {
             try {
                 setLastError("");
 
-                const res = await fetch(`${ragBase}/api/rag-clients/json`, {
+                const res = await fetch(`${ragBase}/api/rag-clients/${ragClientId}`, {
                     cache: "no-store",
                 });
 
