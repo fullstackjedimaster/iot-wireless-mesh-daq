@@ -1,4 +1,3 @@
-// daq-ui/src/app/page.tsx
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -7,13 +6,13 @@ import GroupBox from "@/components/GroupBox";
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
 import { FaultLegend } from "@/components/FaultLegend";
-import { PanelMapOverlay, type PanelTelemetry } from "@/components/PanelMapOverlay";
+import PanelMapOverlay, { type PanelTelemetry } from "@/components/PanelMapOverlay";
 import { BlinkyThing } from "@/components/BlinkyThing";
 import { getLayout } from "@/lib/api";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
+import type { Attrs } from "@/lib/dock/selection";
 
 type LayoutItem = { x: number; y: number; mac: string };
-type Attrs = Record<string, string | number | boolean | null | undefined>;
 
 export default function HomePage() {
     const { setSelectedTarget } = useSelectedTarget();
@@ -40,32 +39,41 @@ export default function HomePage() {
         };
     }, [currentTelemetry]);
 
-    // Pick the first panel on load (top-left y then x)
     useEffect(() => {
         let mounted = true;
 
         const run = async () => {
             const layout: LayoutItem[] = await getLayout();
+
             if (!mounted) return;
+
             if (!Array.isArray(layout) || layout.length === 0) {
                 throw new Error("[page] getLayout() returned empty/invalid layout.");
             }
 
-            const sorted = [...layout].sort((a, b) => (a.y !== b.y ? a.y - b.y : a.x - b.x));
+            const sorted = [...layout].sort((a, b) =>
+                a.y !== b.y ? a.y - b.y : a.x - b.x
+            );
+
             const first = sorted[0]?.mac;
-            if (!first) throw new Error("[page] layout missing mac for first panel.");
+
+            if (!first) {
+                throw new Error("[page] layout missing mac for first panel.");
+            }
+
             setSelectedMac(first);
         };
 
         void run();
+
         return () => {
             mounted = false;
         };
     }, []);
 
-    // Single integration point: push selection into context (DockHost broadcasts it *only if connected*)
     useEffect(() => {
         if (!selectedMac) return;
+
         setSelectedTarget({
             id: selectedMac,
             attrs,
@@ -84,6 +92,7 @@ export default function HomePage() {
                         onPanelClick={handlePanelClick}
                         onSelectionMeta={handleSelectionMeta}
                     />
+
                     <FaultLegend />
                 </GroupBox>
 

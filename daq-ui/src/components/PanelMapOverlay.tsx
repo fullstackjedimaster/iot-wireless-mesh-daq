@@ -5,7 +5,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getLayout, getPanelStatus } from "@/lib/api";
 
 interface PanelInfo { mac: string; x: number; y: number; }
-export type PanelTelemetry = { voltage?: string; current?: string; status?: string; power?: string; temperature?: string; };
 type RawPanelData = { voltage?: number; current?: number; status?: string; };
 
 interface Props {
@@ -13,6 +12,18 @@ interface Props {
     onPanelClick: (mac: string) => void;
     onSelectionMeta?: (mac: string, telem: PanelTelemetry) => void;
 }
+
+export type PanelTelemetry = {
+    voltage?: string;
+    current?: string;
+    status?: string;
+    power?: string;
+    temperature?: string;
+};
+
+
+
+
 
 const statusColorMap: Record<string, string> = {
     normal: "#0aff02",
@@ -37,7 +48,7 @@ function sendSelectedToDock(mac: string, telem: PanelTelemetry) {
     postToDock({ type: "PANEL_SELECTED", mac, telemetry: telem });
 }
 
-export const PanelMapOverlay: React.FC<Props> = ({ selectedMac, onPanelClick, onSelectionMeta }) => {
+export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelectionMeta }:Props) {
     const [layout, setLayout] = useState<PanelInfo[]>([]);
     const [statuses, setStatuses] = useState<Record<string, string>>({});
     const [rawByMac, setRawByMac] = useState<Record<string, RawPanelData | undefined>>({});
