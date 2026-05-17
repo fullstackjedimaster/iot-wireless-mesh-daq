@@ -17,21 +17,20 @@ type LayoutItem = { x: number; y: number; mac: string };
 function postHostHeight() {
     if (typeof window === "undefined") return;
 
-    const body = document.body;
-    const html = document.documentElement;
+    const visibleElements = Array.from(document.body.children).filter((el) => {
+        const style = window.getComputedStyle(el);
+        return style.display !== "none" && style.visibility !== "hidden";
+    });
 
-    const height = Math.max(
-        body.scrollHeight,
-        body.offsetHeight,
-        html.clientHeight,
-        html.scrollHeight,
-        html.offsetHeight
-    );
+    const bottom = visibleElements.reduce((max, el) => {
+        const rect = el.getBoundingClientRect();
+        return Math.max(max, rect.bottom);
+    }, 0);
 
     window.parent.postMessage(
         {
             type: "HOST_APP_HEIGHT",
-            height: height + 24,
+            height: Math.ceil(bottom + 24),
         },
         "*"
     );
