@@ -8,7 +8,6 @@ import ControlPanel from "@/components/ControlPanel";
 import { FaultLegend } from "@/components/FaultLegend";
 import PanelMapOverlay, { type PanelTelemetry } from "@/components/PanelMapOverlay";
 import { BlinkyThing } from "@/components/BlinkyThing";
-import DockHost from "@/components/dock/DockHost";
 import { getLayout } from "@/lib/api";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
 import type { Attrs } from "@/lib/dock/selection";
@@ -166,7 +165,6 @@ export default function HomePage() {
                 <ControlPanel />
             </GroupBox>
 
-            <DockHost />
 
             <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
                 <BlinkyThing
