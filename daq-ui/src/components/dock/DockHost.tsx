@@ -22,11 +22,17 @@ type TargetSelectedMessage = {
     source?: string;
 };
 
-type RagClientSelectedMessage = {
-    type: "RAG_CLIENT_SELECTED";
+type RagDockConnectMessage = {
+    type: "RAG_DOCK_CONNECT";
     ragClientId: string;
+    dockUrl: string;
     label?: string;
     hostUrl?: string;
+};
+
+type RagDockDisconnectMessage = {
+    type: "RAG_DOCK_DISCONNECT";
+    ragClientId?: string;
 };
 
 type RagClientRow = {
@@ -34,11 +40,6 @@ type RagClientRow = {
     name: string;
     host_url: string;
 };
-
-// type MintResponse = {
-//     token: string;
-//     exp?: number;
-// };
 
 type PanelSelectedDetail = {
     mac?: string;
@@ -55,33 +56,55 @@ function isObject(v: unknown): v is Record<string, unknown> {
     return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
-function getRagClientIdFromMessage(data: unknown): string | null {
-    if (!isObject(data)) return null;
-    if (data.type !== "RAG_CLIENT_SELECTED") return null;
-
-    const msg = data as Partial<RagClientSelectedMessage>;
-    const ragClientId = msg.ragClientId;
-
-    return typeof ragClientId === "string" && ragClientId.trim()
-        ? ragClientId.trim()
-        : null;
-}
-
-function getRagClientIdFromUrl(): string | null {
+function getInitialRagClientIdFromUrl(): string | null {
     if (typeof window === "undefined") return null;
 
     const params = new URLSearchParams(window.location.search);
-    const ragClientId = params.get("ragClientId");
+    const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
 
     return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
 }
 
+function parseConnectMessage(data: unknown): RagDockConnectMessage | null {
+    if (!isObject(data)) return null;
+    if (data.type !== "RAG_DOCK_CONNECT") return null;
+
+    const ragClientId = data.ragClientId;
+    const dockUrl = data.dockUrl;
+
+    if (typeof ragClientId !== "string" || !ragClientId.trim()) return null;
+    if (typeof dockUrl !== "string" || !dockUrl.trim()) return null;
+
+    return {
+        type: "RAG_DOCK_CONNECT",
+        ragClientId: ragClientId.trim(),
+        dockUrl: dockUrl.trim(),
+        label: typeof data.label === "string" ? data.label : undefined,
+        hostUrl: typeof data.hostUrl === "string" ? data.hostUrl : undefined,
+    };
+}
+
+function parseDisconnectMessage(data: unknown): RagDockDisconnectMessage | null {
+    if (!isObject(data)) return null;
+    if (data.type !== "RAG_DOCK_DISCONNECT") return null;
+
+    return {
+        type: "RAG_DOCK_DISCONNECT",
+        ragClientId:
+            typeof data.ragClientId === "string" && data.ragClientId.trim()
+                ? data.ragClientId.trim()
+                : undefined,
+    };
+}
+
 export default function DockHost() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
-    // const mintTimerRef = useRef<number | null>(null);
 
     const [configured, setConfigured] = useState(false);
+    const [attached, setAttached] = useState(false);
+
     const [ragClientId, setRagClientId] = useState<string | null>(null);
+    const [dockUrl, setDockUrl] = useState<string | null>(null);
     const [ragClient, setRagClient] = useState<RagClientRow | null>(null);
 
     const [sessionToken, setSessionToken] = useState<string>("");
@@ -109,27 +132,61 @@ export default function DockHost() {
     }, [ragBase, dockOrigin]);
 
     useEffect(() => {
-        const initialRagClientId = getRagClientIdFromUrl();
+        if (!configured) return;
 
-        if (initialRagClientId) {
-            setRagClientId(initialRagClientId);
-        }
-    }, []);
+        const initialRagClientId = getInitialRagClientIdFromUrl();
+
+        if (!initialRagClientId) return;
+
+        const url = new URL("/dock", dockOrigin);
+        url.searchParams.set("ragClientId", initialRagClientId);
+
+        setAttached(true);
+        setRagClientId(initialRagClientId);
+        setDockUrl(url.toString());
+    }, [configured, dockOrigin]);
 
     useEffect(() => {
+        if (!configured) return;
+
         function onMessage(ev: MessageEvent<unknown>) {
-            const nextRagClientId = getRagClientIdFromMessage(ev.data);
+            if (dockOrigin && ev.origin !== dockOrigin) {
+                return;
+            }
 
-            if (!nextRagClientId) return;
+            const connectMsg = parseConnectMessage(ev.data);
 
-            console.log("[DockHost] Received RAG_CLIENT_SELECTED:", nextRagClientId);
+            if (connectMsg) {
+                console.log("[DockHost] Received RAG_DOCK_CONNECT:", connectMsg);
 
-            setLastError("");
-            setSessionToken("");
-            setSessionExp(null);
-            setIframeLoaded(false);
-            setRagClient(null);
-            setRagClientId(nextRagClientId);
+                setLastError("");
+                setSessionToken("");
+                setSessionExp(null);
+                setIframeLoaded(false);
+                setRagClient(null);
+                setRagClientId(connectMsg.ragClientId);
+                setDockUrl(connectMsg.dockUrl);
+                setAttached(true);
+                return;
+            }
+
+            const disconnectMsg = parseDisconnectMessage(ev.data);
+
+            if (disconnectMsg) {
+                console.log("[DockHost] Received RAG_DOCK_DISCONNECT:", disconnectMsg);
+
+                setLastError("");
+                setSessionToken("");
+                setSessionExp(null);
+                setIframeLoaded(false);
+                setRagClient(null);
+
+                if (!disconnectMsg.ragClientId || disconnectMsg.ragClientId === ragClientId) {
+                    setAttached(false);
+                    setDockUrl(null);
+                    setRagClientId(null);
+                }
+            }
         }
 
         window.addEventListener("message", onMessage);
@@ -137,10 +194,10 @@ export default function DockHost() {
         return () => {
             window.removeEventListener("message", onMessage);
         };
-    }, []);
+    }, [configured, dockOrigin, ragClientId]);
 
     useEffect(() => {
-        if (!configured || !ragClientId) return;
+        if (!configured || !attached || !ragClientId) return;
 
         let cancelled = false;
 
@@ -155,9 +212,7 @@ export default function DockHost() {
                 if (!res.ok) {
                     const txt = await res.text().catch(() => "");
                     throw new Error(
-                        `resolveClient: ${res.status} ${res.statusText}${
-                            txt ? ` — ${txt}` : ""
-                        }`
+                        `resolveClient: ${res.status} ${res.statusText}${txt ? ` — ${txt}` : ""}`
                     );
                 }
 
@@ -185,107 +240,20 @@ export default function DockHost() {
         return () => {
             cancelled = true;
         };
-    }, [configured, ragClientId, ragBase]);
-
-    // useEffect(() => {
-    //     if (!configured || !ragClientId || !ragClient) return;
-    //
-    //     let cancelled = false;
-    //
-    //     function clearMintTimer() {
-    //         if (mintTimerRef.current) {
-    //             window.clearTimeout(mintTimerRef.current);
-    //             mintTimerRef.current = null;
-    //         }
-    //     }
-    //
-    //     async function mintSession() {
-    //         try {
-    //             setLastError("");
-    //
-    //             const host_url = safeTrimSlash(window.location.origin);
-    //
-    //             const res = await fetch(`${ragBase}/session/mint`, {
-    //                 method: "POST",
-    //                 headers: { "Content-Type": "application/json" },
-    //                 cache: "no-store",
-    //                 body: JSON.stringify({
-    //                     rag_client_id: ragClientId,
-    //                     host_url,
-    //                 }),
-    //             });
-    //
-    //             if (!res.ok) {
-    //                 const txt = await res.text().catch(() => "");
-    //
-    //                 throw new Error(
-    //                     `mintSession: ${res.status} ${res.statusText}${
-    //                         txt ? ` — ${txt}` : ""
-    //                     }`
-    //                 );
-    //             }
-    //
-    //             const data = (await res.json()) as MintResponse;
-    //
-    //             if (!data?.token) {
-    //                 throw new Error("mintSession: missing token in response");
-    //             }
-    //
-    //             if (cancelled) return;
-    //
-    //             setSessionToken(data.token);
-    //             setSessionExp(typeof data.exp === "number" ? data.exp : null);
-    //
-    //             clearMintTimer();
-    //
-    //             if (typeof data.exp === "number" && data.exp > 0) {
-    //                 const nowSec = Math.floor(Date.now() / 1000);
-    //                 const refreshInSec = Math.max(10, data.exp - nowSec - 30);
-    //
-    //                 mintTimerRef.current = window.setTimeout(() => {
-    //                     void mintSession();
-    //                 }, refreshInSec * 1000);
-    //             } else {
-    //                 mintTimerRef.current = window.setTimeout(() => {
-    //                     void mintSession();
-    //                 }, 120_000);
-    //             }
-    //         } catch (err) {
-    //             console.error("[DockHost] mintSession failed:", err);
-    //
-    //             if (!cancelled) {
-    //                 setLastError(err instanceof Error ? err.message : String(err));
-    //             }
-    //
-    //             clearMintTimer();
-    //
-    //             mintTimerRef.current = window.setTimeout(() => {
-    //                 void mintSession();
-    //             }, 5000);
-    //         }
-    //     }
-    //
-    //     void mintSession();
-    //
-    //     return () => {
-    //         cancelled = true;
-    //         clearMintTimer();
-    //     };
-    // }, [configured, ragClientId, ragClient, ragBase]);
+    }, [configured, attached, ragClientId, ragBase]);
 
     useEffect(() => {
-        if (!configured || !ragClientId || !ragClient) return;
+        if (!configured || !attached || !ragClientId || !ragClient) return;
 
         console.log("[DockHost] Session mint disabled.");
 
-        // Fake a session so downstream logic stops waiting
         setSessionToken("debug-disabled");
         setSessionExp(null);
-
-    }, [configured, ragClientId, ragClient]);
+    }, [configured, attached, ragClientId, ragClient]);
 
     useEffect(() => {
         if (!configured) return;
+        if (!attached) return;
         if (!iframeLoaded) return;
         if (!sessionToken) return;
         if (!iframeRef.current?.contentWindow) return;
@@ -300,10 +268,11 @@ export default function DockHost() {
         }
 
         iframeRef.current.contentWindow.postMessage(msg, dockOrigin);
-    }, [configured, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
+    }, [configured, attached, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
 
     useEffect(() => {
         if (!configured) return;
+        if (!attached) return;
 
         function onPanelSelected(ev: Event) {
             const customEvent = ev as CustomEvent<PanelSelectedDetail>;
@@ -331,18 +300,21 @@ export default function DockHost() {
                 onPanelSelected as EventListener
             );
         };
-    }, [configured, dockOrigin]);
+    }, [configured, attached, dockOrigin]);
 
     const iframeSrc = useMemo(() => {
+        if (dockUrl) return dockUrl;
+
         const base = `${dockOrigin}/dock`;
 
         if (!ragClientId) return base;
 
         return `${base}?ragClientId=${encodeURIComponent(ragClientId)}`;
-    }, [dockOrigin, ragClientId]);
+    }, [dockOrigin, dockUrl, ragClientId]);
 
     const statusLine = (() => {
         if (!configured) return "Dock not configured.";
+        if (!attached) return "Dock detached.";
         if (!ragClientId) return "Waiting for ragClientId…";
         if (!ragClient) return lastError ? `Registry: ${lastError}` : "Resolving rag client…";
         if (!sessionToken) return lastError ? `Session: ${lastError}` : "Minting session…";
@@ -350,6 +322,10 @@ export default function DockHost() {
 
         return "Dock connected.";
     })();
+
+    if (!configured || !attached) {
+        return null;
+    }
 
     return (
         <div className="fixed bottom-0 left-0 right-0 h-[360px] z-50 border-t bg-white shadow-xl">
