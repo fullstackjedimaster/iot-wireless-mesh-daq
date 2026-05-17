@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import GroupBox from "@/components/GroupBox";
 import type { Attrs } from "@/lib/dock/selection";
 import { settings } from "@/lib/settings";
 
@@ -97,6 +98,10 @@ function parseDisconnectMessage(data: unknown): RagDockDisconnectMessage | null 
     };
 }
 
+function clampDockHeight(height: number): number {
+    return Math.max(320, Math.min(height, 1600));
+}
+
 export default function DockHost() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -111,6 +116,7 @@ export default function DockHost() {
     const [sessionExp, setSessionExp] = useState<number | null>(null);
 
     const [iframeLoaded, setIframeLoaded] = useState(false);
+    const [iframeHeight, setIframeHeight] = useState(520);
     const [lastError, setLastError] = useState<string>("");
 
     const dockOrigin = useMemo(() => {
@@ -123,7 +129,6 @@ export default function DockHost() {
 
     useEffect(() => {
         if (!ragBase || !dockOrigin) {
-            console.log("[DockHost] Not configured.", { ragBase, dockOrigin });
             setConfigured(false);
             return;
         }
@@ -154,11 +159,23 @@ export default function DockHost() {
                 return;
             }
 
+            const data = ev.data;
+
+            if (
+                data &&
+                typeof data === "object" &&
+                "type" in data &&
+                data.type === "RAG_DOCK_RESIZE" &&
+                "height" in data &&
+                typeof data.height === "number"
+            ) {
+                setIframeHeight(clampDockHeight(data.height));
+                return;
+            }
+
             const connectMsg = parseConnectMessage(ev.data);
 
             if (connectMsg) {
-                console.log("[DockHost] Received RAG_DOCK_CONNECT:", connectMsg);
-
                 setLastError("");
                 setSessionToken("");
                 setSessionExp(null);
@@ -173,8 +190,6 @@ export default function DockHost() {
             const disconnectMsg = parseDisconnectMessage(ev.data);
 
             if (disconnectMsg) {
-                console.log("[DockHost] Received RAG_DOCK_DISCONNECT:", disconnectMsg);
-
                 setLastError("");
                 setSessionToken("");
                 setSessionExp(null);
@@ -226,8 +241,6 @@ export default function DockHost() {
                     setRagClient(client);
                 }
             } catch (err) {
-                console.error("[DockHost] Failed to resolve client:", err);
-
                 if (!cancelled) {
                     setRagClient(null);
                     setLastError(err instanceof Error ? err.message : String(err));
@@ -244,8 +257,6 @@ export default function DockHost() {
 
     useEffect(() => {
         if (!configured || !attached || !ragClientId || !ragClient) return;
-
-        console.log("[DockHost] Session mint disabled.");
 
         setSessionToken("debug-disabled");
         setSessionExp(null);
@@ -295,10 +306,7 @@ export default function DockHost() {
         window.addEventListener("panel-selected", onPanelSelected as EventListener);
 
         return () => {
-            window.removeEventListener(
-                "panel-selected",
-                onPanelSelected as EventListener
-            );
+            window.removeEventListener("panel-selected", onPanelSelected as EventListener);
         };
     }, [configured, attached, dockOrigin]);
 
@@ -312,36 +320,34 @@ export default function DockHost() {
         return `${base}?ragClientId=${encodeURIComponent(ragClientId)}`;
     }, [dockOrigin, dockUrl, ragClientId]);
 
-    const statusLine = (() => {
-        if (!configured) return "Dock not configured.";
-        if (!attached) return "Dock detached.";
-        if (!ragClientId) return "Waiting for ragClientId…";
-        if (!ragClient) return lastError ? `Registry: ${lastError}` : "Resolving rag client…";
-        if (!sessionToken) return lastError ? `Session: ${lastError}` : "Minting session…";
-        if (!iframeLoaded) return "Loading dock…";
-
-        return "Dock connected.";
-    })();
-
     if (!configured || !attached) {
         return null;
     }
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 h-[360px] z-50 border-t bg-white shadow-xl">
-            <div className="h-[28px] px-3 flex items-center text-xs border-b bg-white/80">
-                <span className="truncate">{statusLine}</span>
-            </div>
+        <>
+            <br />
 
-            <iframe
-                key={ragClientId ?? "no-rag-client"}
-                ref={iframeRef}
-                id={FRAME_ID}
-                src={iframeSrc}
-                className="w-full h-[calc(100%-28px)] border-0"
-                onLoad={() => setIframeLoaded(true)}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-            />
-        </div>
+            <GroupBox title="AI Explanation">
+                {lastError ? (
+                    <div className="mb-2 text-xs text-red-700">{lastError}</div>
+                ) : null}
+
+                <iframe
+                    key={ragClientId ?? "no-rag-client"}
+                    ref={iframeRef}
+                    id={FRAME_ID}
+                    src={iframeSrc}
+
+                    className="block w-full border-0 overflow-hidden"
+                    style={{
+                        height: `${iframeHeight}px`,
+                        overflow: "hidden",
+                    }}
+                    onLoad={() => setIframeLoaded(true)}
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+                />
+            </GroupBox>
+        </>
     );
 }
