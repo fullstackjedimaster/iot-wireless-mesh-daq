@@ -98,8 +98,11 @@ function parseDisconnectMessage(data: unknown): RagDockDisconnectMessage | null 
     };
 }
 
-function clampDockHeight(height: number): number {
-    return Math.max(260, Math.min(height, 520));
+function clampDockHeight(height:number){
+    return Math.max(
+        220,
+        Math.min(height,420)
+    );
 }
 
 export default function DockHost() {
