@@ -2,15 +2,6 @@
 set -euo pipefail
 
 # deploy/scripts/init-env.sh
-# Creates deploy/env/*.env from *.env.example (idempotent).
-# Generates strong secrets for POSTGRES_PASSWORD + EMBED_SECRET.
-#
-# Usage:
-#   cd /opt/stacks/iot-wireless-mesh-daq/deploy
-#   bash ./scripts/init-env.sh
-#
-# Overwrite existing .env files:
-#   FORCE=1 bash ./scripts/init-env.sh
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
 
@@ -39,17 +30,23 @@ copy_example() {
   local example="$1"
   local target="$2"
 
-  # ALWAYS overwrite for demo stacks
   cp -f "$example" "$target"
   log "Wrote fresh: $(basename "$target")"
 }
-
 
 replace_key() {
   local file="$1"
   local key="$2"
   local value="$3"
+
   sed -i -E "s|^(${key}=).*$|\1${value}|g" "$file"
+}
+
+read_key() {
+  local file="$1"
+  local key="$2"
+
+  awk -F= -v k="$key" '$1 == k {print substr($0, index($0, "=") + 1)}' "$file" | tr -d '\r'
 }
 
 main() {
@@ -66,39 +63,41 @@ main() {
   log "Copying examples..."
 
   for f in "${files[@]}"; do
-    local example="${ENV_DIR}/${f}.example"   # e.g. mesh.env.example
-    local target="${ENV_DIR}/${f}"           # e.g. mesh.env
+    local example="${ENV_DIR}/${f}.example"
+    local target="${ENV_DIR}/${f}"
+
     [[ -f "$example" ]] || err "Missing example file: $example"
     copy_example "$example" "$target"
   done
 
   local pg_file="${ENV_DIR}/postgres.env"
   local cloud_file="${ENV_DIR}/cloud.env"
+  local daq_ui_file="${ENV_DIR}/daq-ui.env"
 
   if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$pg_file"; then
     local pg_pass
     pg_pass="$(gen_secret)"
     replace_key "$pg_file" "POSTGRES_PASSWORD" "$pg_pass"
     log "Generated POSTGRES_PASSWORD in $(basename "$pg_file")"
-  else
-    log "POSTGRES_PASSWORD already set in $(basename "$pg_file")"
   fi
 
   if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$cloud_file"; then
     local pg_pass_current
-    pg_pass_current="$(awk -F= '/^POSTGRES_PASSWORD=/{print $2}' "$pg_file" | tr -d '\r')"
+    pg_pass_current="$(read_key "$pg_file" "POSTGRES_PASSWORD")"
     replace_key "$cloud_file" "POSTGRES_PASSWORD" "$pg_pass_current"
     log "Copied POSTGRES_PASSWORD into $(basename "$cloud_file")"
   fi
 
-  if grep -q '^EMBED_SECRET=CHANGE_ME' "$cloud_file"; then
-    local embed
-    embed="$(gen_secret)"
-    replace_key "$cloud_file" "EMBED_SECRET" "$embed"
-    log "Generated EMBED_SECRET in $(basename "$cloud_file")"
-  else
-    log "EMBED_SECRET already set in $(basename "$cloud_file")"
-  fi
+  local embed_secret
+  embed_secret="$(gen_secret)"
+
+  replace_key "$cloud_file" "EMBED_SECRET" "$embed_secret"
+  replace_key "$daq_ui_file" "EMBED_SECRET" "$embed_secret"
+
+  log "Generated shared EMBED_SECRET in cloud.env and daq-ui.env"
+
+  warn "Copy this same EMBED_SECRET into the portfolio service env."
+  warn "Portfolio, daq-ui, and cloud must all share it for this POC."
 }
 
 main "$@"

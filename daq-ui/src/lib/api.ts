@@ -1,5 +1,4 @@
 // daq-ui/src/lib/api.ts
-import { getEmbedToken } from "@/lib/embedTokenStore";
 
 interface Panel {
     mac: string;
@@ -20,18 +19,7 @@ interface PanelStatusResponse {
 
 export type FaultProfile = Record<string, number>;
 
-// NOTE: docker-compose sets NEXT_PUBLIC_CLOUD_API_BASE
-// Example (recommended): https://cloud.fullstackjedi.dev
 const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isMutationMethod(method: string | undefined): boolean {
-    const m = (method || "GET").toUpperCase();
-    return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
-}
 
 function joinUrl(base: string, path: string): string {
     const b = base.endsWith("/") ? base.slice(0, -1) : base;
@@ -39,36 +27,14 @@ function joinUrl(base: string, path: string): string {
     return `${b}${p}`;
 }
 
-// ---------------------------------------------------------------------------
-// Low-level helper: always use this so we can inject X-Embed-Token centrally.
-// Also: credentials MUST be "include" so pf_embed_sid cookie is sent to cloud.
-// ---------------------------------------------------------------------------
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const url = joinUrl(API_BASE, path);
 
-    const headers = new Headers(init.headers || {});
-    const method = (init.method || "GET").toUpperCase();
-
-    // Only attach embed token for POST/PUT/PATCH/DELETE
-    if (isMutationMethod(method)) {
-        const token = getEmbedToken();
-        if (token) headers.set("X-Embed-Token", token);
-    }
-
-    const res = await fetch(url, {
+    return fetch(url, {
         ...init,
-        method,
-        headers,
-        // REQUIRED for sid-binding cookie to be included on cross-subdomain calls
         credentials: init.credentials ?? "include",
     });
-
-    return res;
 }
-
-// ---------------------------------------------------------------------------
-// Public API helpers used by components
-// ---------------------------------------------------------------------------
 
 export async function getLayout(): Promise<Panel[]> {
     const res = await apiFetch("/api/layout");
@@ -135,11 +101,13 @@ export function getStatusLabel(profile: FaultProfile): string {
     const criticalFaults = Object.entries(profile).filter(
         ([k, v]) => ["OPEN_CIRCUIT", "SNAPPED_DIODE", "DEAD_PANEL"].includes(k) && v > 0
     );
+
     if (criticalFaults.length) return "faulted";
 
     const warnings = Object.entries(profile).filter(
         ([k, v]) => ["POWER_DROP", "LOW_VOLTAGE", "LOW_POWER"].includes(k) && v > 0
     );
+
     if (warnings.length) return "degraded";
 
     return "normal";
