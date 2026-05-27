@@ -155,7 +155,7 @@ export async function middleware(req: NextRequest) {
             return forbidden("Invalid portfolio session.");
         }
 
-        if (cookieSid && cookieSid !== sid) {
+        if (!queryToken && cookieSid && cookieSid !== sid) {
             return forbidden("Invalid portfolio session.");
         }
 
