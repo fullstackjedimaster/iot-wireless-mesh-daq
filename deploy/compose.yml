@@ -66,8 +66,9 @@ services:
 
   cloud:
     image: iot-wireless-mesh-daq/cloud:local
-    command: ["python", "-u", "run_catcher.py"]
+    command: [ "python", "-u", "run_catcher.py" ]
     env_file:
+      - ${PORTFOLIO_DEPLOY}/shared/env/embed.env
       - ./env/cloud.env
     depends_on:
       nats:
@@ -87,6 +88,7 @@ services:
         repo: ..
     image: iot-wireless-mesh-daq/cloud:local
     env_file:
+      - ${PORTFOLIO_DEPLOY}/shared/env/embed.env
       - ./env/cloud.env
     depends_on:
       cloud-bootstrap:
@@ -144,6 +146,7 @@ services:
         repo: ..
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
+      - ${PORTFOLIO_DEPLOY}/shared/env/embed.env
       - ./env/daq-ui.env
     ports:
       - "127.0.0.1:3001:3000"

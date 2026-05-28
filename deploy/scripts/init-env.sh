@@ -7,7 +7,7 @@ ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
 
 log()  { echo -e "\033[1;32m[+] $*\033[0m"; }
 warn() { echo -e "\033[1;33m[!] $*\033[0m"; }
-err()  { echo -e "\033[1;31m[?] $*\033[0m" >&2; exit 1; }
+err()  { echo -e "\033[1;31m[✗] $*\033[0m" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || err "Missing required command: $1"; }
 
@@ -19,7 +19,7 @@ gen_secret() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 48 | tr -d '\n'
   else
-    python - <<'PY'
+    python3 - <<'PY'
 import secrets, base64
 print(base64.b64encode(secrets.token_bytes(48)).decode().strip())
 PY
@@ -57,7 +57,6 @@ main() {
     "cloud.env"
     "mesh.env"
     "daq-ui.env"
-    "portfolio.env"
   )
 
   log "ENV_DIR=$ENV_DIR"
@@ -73,8 +72,6 @@ main() {
 
   local pg_file="${ENV_DIR}/postgres.env"
   local cloud_file="${ENV_DIR}/cloud.env"
-  local daq_ui_file="${ENV_DIR}/daq-ui.env"
-  local portfolio_file="${ENV_DIR}/portfolio.env"
 
   if grep -q '^POSTGRES_PASSWORD=CHANGE_ME' "$pg_file"; then
     local pg_pass
@@ -90,14 +87,7 @@ main() {
     log "Copied POSTGRES_PASSWORD into $(basename "$cloud_file")"
   fi
 
-  local embed_secret
-  embed_secret="$(gen_secret)"
-
-  replace_key "$cloud_file" "EMBED_SECRET" "$embed_secret"
-  replace_key "$daq_ui_file" "EMBED_SECRET" "$embed_secret"
-  replace_key "$portfolio_file" "EMBED_SECRET" "$embed_secret"
-
-  log "Generated shared EMBED_SECRET in cloud.env, daq-ui.env, and portfolio.env"
+  log "IoT env ready."
 }
 
 main "$@"
