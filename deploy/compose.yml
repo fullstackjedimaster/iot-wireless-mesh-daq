@@ -85,8 +85,8 @@ services:
         repo: ..
     image: iot-wireless-mesh-daq/cloud:local
     env_file:
-      - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/cloud.env
+      - /opt/stacks/portfolio/deploy/shared/env/embed.env
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
@@ -142,8 +142,8 @@ services:
         repo: ..
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
-      - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/daq-ui.env
+      - /opt/stacks/portfolio/deploy/shared/env/embed.env
     ports:
       - "127.0.0.1:3001:3000"
     depends_on:
