@@ -185,7 +185,8 @@ export async function middleware(req: NextRequest) {
         }
 
         return NextResponse.next();
-    } catch {
+    } catch (e) {
+        console.error("[middleware verifyToken]", e);
         return forbidden("Invalid or expired portfolio session.");
     }
 }
