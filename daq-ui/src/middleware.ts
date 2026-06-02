@@ -7,6 +7,9 @@ const EXPECTED_AUD = "mesh-daq";
 const TOKEN_COOKIE = "pf_embed_token";
 const SID_COOKIE = "pf_embed_sid";
 
+const PORTFOLIO_LOCK_ENABLED = process.env.PORTFOLIO_LOCK_ENABLED !== "false";
+
+
 const SESSION_SECONDS = 180;
 const SKEW_SECONDS = 30;
 
@@ -98,7 +101,7 @@ async function verifyToken(token: string): Promise<JwtPayload> {
         throw new Error("Invalid token audience");
     }
 
-    if (!payload.sid || typeof payload.sid !== "string") {
+    if (!payload.sid) {
         throw new Error("Missing token sid");
     }
 
@@ -131,6 +134,10 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(req: NextRequest) {
+    if (!PORTFOLIO_LOCK_ENABLED) {
+        return NextResponse.next();
+    }
+
     const { pathname } = req.nextUrl;
 
     if (isPublicPath(pathname)) {
