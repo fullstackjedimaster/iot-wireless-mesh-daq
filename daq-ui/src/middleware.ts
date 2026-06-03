@@ -7,7 +7,7 @@ const EXPECTED_AUD = "mesh-daq";
 const TOKEN_COOKIE = "pf_embed_token";
 const SID_COOKIE = "pf_embed_sid";
 
-const PORTFOLIO_LOCK_ENABLED = process.env.PORTFOLIO_LOCK_ENABLED !== "false";
+const PORTFOLIO_LOCK_ENABLED = process.env.PORTFOLIO_LOCK_ENABLED !== "true";
 
 
 const SESSION_SECONDS = 180;
