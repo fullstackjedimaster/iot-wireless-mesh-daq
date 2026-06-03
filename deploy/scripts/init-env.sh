@@ -60,24 +60,24 @@ main() {
     "cloud.env"
     "mesh.env"
     "daq-ui.env"
-    "embed.env"
+
   )
 
   log "ENV_DIR=$ENV_DIR"
   log "Copying examples..."
 
   for f in "${files[@]}"; do
-    if f is "embed.env"; then
-     local example="${SHARED_PORTFOLIO_ENV_DIR}/${f}.example"
-    else
-      local example="${ENV_DIR}/${f}.example"
-    fi
 
+    local example="${ENV_DIR}/${f}.example"
     local target="${ENV_DIR}/${f}"
 
     [[ -f "$example" ]] || err "Missing example file: $example"
     copy_example "$example" "$target"
   done
+
+  local example="${SHARED_PORTFOLIO_ENV_DIR}/embed.env.example"
+  local target="${ENV_DIR}/embed.env"
+  copy_example "$example" "$target"
 
   local pg_file="${ENV_DIR}/postgres.env"
   local cloud_file="${ENV_DIR}/cloud.env"
