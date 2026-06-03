@@ -4,7 +4,9 @@ set -euo pipefail
 # deploy/scripts/init-env.sh
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
-
+SHARED_PORTFOLIO_ENV_DIR="$(
+    cd "$(dirname "${BASH_SOURCE[0]}")/../../portfolio/deploy/shared/env" && pwd
+)"
 log()  { echo -e "\033[1;32m[+] $*\033[0m"; }
 warn() { echo -e "\033[1;33m[!] $*\033[0m"; }
 err()  { echo -e "\033[1;31m[✗] $*\033[0m" >&2; exit 1; }
@@ -50,6 +52,8 @@ read_key() {
 }
 
 main() {
+
+
   local files=(
     "nats.env"
     "redis.env"
@@ -57,13 +61,19 @@ main() {
     "cloud.env"
     "mesh.env"
     "daq-ui.env"
+    "embed.env"
   )
 
   log "ENV_DIR=$ENV_DIR"
   log "Copying examples..."
 
   for f in "${files[@]}"; do
-    local example="${ENV_DIR}/${f}.example"
+    if f is "embed.env"; then
+     local example="${SHARED_PORTFOLIO_ENV_DIR}/${f}.example"
+    else
+      local example="${ENV_DIR}/${f}.example"
+    fi
+
     local target="${ENV_DIR}/${f}"
 
     [[ -f "$example" ]] || err "Missing example file: $example"

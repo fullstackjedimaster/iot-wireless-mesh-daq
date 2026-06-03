@@ -3,7 +3,7 @@ set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_PROJECT_NAME="$(basename "$(dirname "$DEPLOY_DIR")")"
-PORTFOLIO_DEPLOY="/opt/stacks/portfolio/deploy"
+
 TAIL_LOGS="${TAIL_LOGS:-1}"
 
 export DOCKER_BUILDKIT=1
@@ -14,8 +14,6 @@ docker compose \
   -f "$DEPLOY_DIR"/compose.yml \
   down -v --remove-orphans
 
-echo "[up] Initializing shared env"
-bash "$PORTFOLIO_DEPLOY/shared/scripts/init-shared-env.sh"
 
 echo "[up] Generating env + secrets"
 bash "$DEPLOY_DIR/scripts/init-env.sh"
