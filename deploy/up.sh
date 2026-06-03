@@ -32,5 +32,5 @@ if [[ "$TAIL_LOGS" == "1" ]]; then
   docker compose \
     -p "$COMPOSE_PROJECT_NAME" \
     -f "$DEPLOY_DIR"/compose.yml \
-    logs -f daq-ui cloud cloud-api
+    logs -f
 fi
