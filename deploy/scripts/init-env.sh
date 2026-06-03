@@ -4,9 +4,8 @@ set -euo pipefail
 # deploy/scripts/init-env.sh
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
-SHARED_PORTFOLIO_ENV_DIR="$(
-    cd "$(dirname "${BASH_SOURCE[0]}")/../../portfolio/deploy/shared/env" && pwd
-)"
+SHARED_PORTFOLIO_ENV_DIR="/opt/stacks/portfolio/deploy/shared/env"
+
 log()  { echo -e "\033[1;32m[+] $*\033[0m"; }
 warn() { echo -e "\033[1;33m[!] $*\033[0m"; }
 err()  { echo -e "\033[1;31m[✗] $*\033[0m" >&2; exit 1; }
