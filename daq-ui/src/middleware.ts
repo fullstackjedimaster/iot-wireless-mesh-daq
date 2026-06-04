@@ -7,8 +7,8 @@ const EXPECTED_AUD = "mesh-daq";
 const TOKEN_COOKIE = "pf_embed_token";
 const SID_COOKIE = "pf_embed_sid";
 
-const PORTFOLIO_LOCK_ENABLED = process.env.PORTFOLIO_LOCK_ENABLED !== "true";
-
+const PORTFOLIO_LOCK_ENABLED =
+    process.env.PORTFOLIO_LOCK_ENABLED !== "false";
 
 const SESSION_SECONDS = 180;
 const SKEW_SECONDS = 30;
@@ -22,16 +22,15 @@ type JwtPayload = {
     jti?: string;
 };
 
-function forbidden(message = "Forbidden") {
+function forbidden(message = "Not found") {
     return new NextResponse(message, {
-        status: 403,
+        status: 404,
         headers: {
             "content-type": "text/plain; charset=utf-8",
             "x-robots-tag": "noindex",
         },
     });
 }
-
 function base64UrlToBytes(input: string): Uint8Array {
     const padded = input.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (input.length % 4)) % 4);
     const raw = atob(padded);
