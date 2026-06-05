@@ -19,7 +19,7 @@ class FaultRequest(BaseModel):
     fault: str
 
 
-require_meshdaq = require_embed_token("mesh-daq")
+require_meshdaq = require_embed_token("iot-wireless-mesh-daq")
 
 router = APIRouter(
     dependencies=[Depends(require_meshdaq)]

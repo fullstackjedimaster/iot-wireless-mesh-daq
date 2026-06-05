@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const EMBED_SECRET = process.env.EMBED_SECRET || "";
-const EXPECTED_AUD = "mesh-daq";
+const EXPECTED_AUD = "iot-wireless-mesh-daq";
 
 const TOKEN_COOKIE = "pf_embed_token";
 const SID_COOKIE = "pf_embed_sid";
