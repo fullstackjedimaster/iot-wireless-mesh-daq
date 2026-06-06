@@ -26,10 +26,17 @@ export const settings = {
       "https://rag.fullstackjedi.dev",
 
 
-
   DOCK_FRAME_ID:
      process.env.NEXT_PUBLIC_DOCK_FRAME_ID ||
       "daq-dock",
+
+  PORTFOLIO_LOCK_ENABLED:
+      process.env.NEXT_PUBLIC_PORTFOLIO_LOCK_ENABLED ||
+      "true",
+
+  EMBED_SECRET:
+      process.env.EMBED_SECRET ||
+      "true",
 
 
 } as const;
