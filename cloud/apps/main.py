@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-
+from security.portfolio_lock import install_portfolio_lock
 from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
@@ -43,6 +43,12 @@ app = FastAPI(
     # Token enforcement is applied ONLY on specific POST routes in routes.py.
 )
 
+
+
+install_portfolio_lock(
+    app,
+    expected_aud="iot-wireless-mesh-daq",
+)
 # Enforce referer checks
 app.add_middleware(RefererMiddleware)
 
