@@ -8,7 +8,7 @@ const TOKEN_COOKIE = "pf_lock_token";
 const SID_COOKIE = "pf_lock_sid";
 
 const PORTFOLIO_LOCK_ENABLED =
-    process.env.PORTFOLIO_LOCK_ENABLED !== "false";
+    process.env.PORTFOLIO_LOCK_ENABLED || "true"  ;
 
 const SESSION_SECONDS = 180;
 const SKEW_SECONDS = 30;
@@ -133,6 +133,14 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(req: NextRequest) {
+    console.log(
+        "[middleware]",
+        req.method,
+        req.nextUrl.pathname
+    );
+
+
+
     if (!PORTFOLIO_LOCK_ENABLED) {
         return NextResponse.next();
     }
