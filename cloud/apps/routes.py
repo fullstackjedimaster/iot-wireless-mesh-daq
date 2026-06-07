@@ -11,19 +11,14 @@ from .util.faults import (
     normalize_fault_token,
 )
 
-from apps.security.portfolio_lock_token import require_portfolio_lock_token
-
 
 class FaultRequest(BaseModel):
     mac: str
     fault: str
 
 
-require_iot_wireless_mesh_daq = require_portfolio_lock_token("PORTFOLIO_LOCK_SECRET")
 
-router = APIRouter(
-    dependencies=[Depends(require_iot_wireless_mesh_daq)]
-)
+router = APIRouter()
 
 config = load_config()
 logger = make_logger("Route")
