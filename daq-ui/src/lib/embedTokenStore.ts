@@ -1,5 +1,5 @@
 // daq-ui/src/lib/embedTokenStore.ts
-const LS_KEY = "meshdaq_embed_token";
+const LS_KEY = "iot_wireless_mesh_daq_portfolio_lock_token";
 
 export function getEmbedToken(): string {
     // 1) localStorage
@@ -13,7 +13,7 @@ export function getEmbedToken(): string {
     }
 
     // 2) env fallback (bundled at build time)
-    const envToken = process.env.NEXT_PUBLIC_EMBED_TOKEN;
+    const envToken = process.env.NEXT_PUBLIC_POTYFOLIO_LOCK_TOKEN;
     if (envToken && envToken.trim()) return envToken.trim();
 
     return "";

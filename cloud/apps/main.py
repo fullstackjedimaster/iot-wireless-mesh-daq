@@ -6,8 +6,8 @@ from apps.security.portfolio_lock import install_portfolio_lock
 from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
-# (Routes import require_embed_token and apply to POST routes only.)
-# from apps.security.embed_token import require_embed_token
+# (Routes import require_portfolio_lock_token and apply to POST routes only.)
+# from apps.security.portfolio_lock_token import require_portfolio_lock_token
 
 
 # Domains we trust as callers / embedders

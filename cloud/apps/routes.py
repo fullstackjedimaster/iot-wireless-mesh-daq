@@ -11,7 +11,7 @@ from .util.faults import (
     normalize_fault_token,
 )
 
-from apps.security.embed_token import require_embed_token
+from apps.security.portfolio_lock_token import require_portfolio_lock_token
 
 
 class FaultRequest(BaseModel):
@@ -19,10 +19,10 @@ class FaultRequest(BaseModel):
     fault: str
 
 
-require_meshdaq = require_embed_token("iot-wireless-mesh-daq")
+require_iot_wireless_mesh_daq = require_portfolio_lock_token("PORTFOLIO_LOCK_SECRET")
 
 router = APIRouter(
-    dependencies=[Depends(require_meshdaq)]
+    dependencies=[Depends(require_iot_wireless_mesh_daq)]
 )
 
 config = load_config()

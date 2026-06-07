@@ -34,8 +34,8 @@ export const settings = {
       process.env.NEXT_PUBLIC_PORTFOLIO_LOCK_ENABLED ||
       "true",
 
-  EMBED_SECRET:
-      process.env.EMBED_SECRET ||
+  PORTFOLIO_LOCK_SECRET:
+      process.env.PORTFOLIO_LOCK_SECRET ||
       "true",
 
 

@@ -17,15 +17,15 @@ export default function EmbedTokenListener() {
         try {
             const params = new URLSearchParams(window.location.search);
             const embedded = params.get("embed") === "1" || params.get("dock") === "1";
-            const qpRaw = (params.get("embed_token") || "").trim();
+            const qpRaw = (params.get("portfolio_lock_token") || "").trim();
 
             if (embedded && looksLikeJwt(qpRaw)) {
                 setEmbedToken(qpRaw);
 
-                // Optional: strip embed_token from URL after storing
+                // Optional: strip portfolio_lock_token from URL after storing
                 try {
                     const u = new URL(window.location.href);
-                    u.searchParams.delete("embed_token");
+                    u.searchParams.delete("portfolio_lock_token");
                     window.history.replaceState({}, "", u.toString());
                 } catch {
                     // ignore

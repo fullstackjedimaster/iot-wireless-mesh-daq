@@ -1,11 +1,11 @@
 // daq-ui/src/middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const EMBED_SECRET = process.env.EMBED_SECRET || "";
+const PORTFOLIO_LOCK_SECRET = process.env.PORTFOLIO_LOCK_SECRET || "";
 const EXPECTED_AUD = "iot-wireless-mesh-daq";
 
-const TOKEN_COOKIE = "pf_embed_token";
-const SID_COOKIE = "pf_embed_sid";
+const TOKEN_COOKIE = "pf_lock_token";
+const SID_COOKIE = "pf_lock_sid";
 
 const PORTFOLIO_LOCK_ENABLED =
     process.env.PORTFOLIO_LOCK_ENABLED !== "false";
@@ -73,8 +73,8 @@ async function hmacSha256Base64Url(data: string, secret: string): Promise<string
 }
 
 async function verifyToken(token: string): Promise<JwtPayload> {
-    if (!EMBED_SECRET || EMBED_SECRET.length < 32) {
-        throw new Error("EMBED_SECRET is missing or too short");
+    if (!PORTFOLIO_LOCK_SECRET || PORTFOLIO_LOCK_SECRET.length < 32) {
+        throw new Error("PORTFOLIO_LOCK_SECRET is missing or too short");
     }
 
     const parts = token.split(".");
@@ -89,7 +89,7 @@ async function verifyToken(token: string): Promise<JwtPayload> {
         throw new Error("Invalid token alg");
     }
 
-    const expected = await hmacSha256Base64Url(`${headerB64}.${payloadB64}`, EMBED_SECRET);
+    const expected = await hmacSha256Base64Url(`${headerB64}.${payloadB64}`, PORTFOLIO_LOCK_SECRET);
     if (expected !== sigB64) {
         throw new Error("Invalid token signature");
     }
@@ -143,7 +143,7 @@ export async function middleware(req: NextRequest) {
         return NextResponse.next();
     }
 
-    const queryToken = req.nextUrl.searchParams.get("embed_token") || "";
+    const queryToken = req.nextUrl.searchParams.get("portfolio_lock_token") || "";
     const cookieToken = req.cookies.get(TOKEN_COOKIE)?.value || "";
     const cookieSid = req.cookies.get(SID_COOKIE)?.value || "";
 
@@ -167,7 +167,7 @@ export async function middleware(req: NextRequest) {
 
         if (queryToken) {
             const cleanUrl = req.nextUrl.clone();
-            cleanUrl.searchParams.delete("embed_token");
+            cleanUrl.searchParams.delete("portfolio_lock_token");
 
             const res = NextResponse.redirect(cleanUrl);
 
