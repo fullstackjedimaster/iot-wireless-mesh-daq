@@ -2,12 +2,12 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from apps.security.portfolio_lock import install_portfolio_lock
+from apps.security.embed_lock import install_embed_lock
 from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
-# (Routes import require_portfolio_lock_token and apply to POST routes only.)
-# from apps.security.portfolio_lock_token import require_portfolio_lock_token
+# (Routes import require_embed_lock_token and apply to POST routes only.)
+# from apps.security.embed_lock_token import require_embed_lock_token
 
 
 # Domains we trust as callers / embedders
@@ -45,7 +45,7 @@ app = FastAPI(
 
 
 
-install_portfolio_lock(
+install_embed_lock(
     app,
     expected_aud="iot-wireless-mesh-daq",
 )

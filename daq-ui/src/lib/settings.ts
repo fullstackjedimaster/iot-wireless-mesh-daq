@@ -30,12 +30,12 @@ export const settings = {
      process.env.NEXT_PUBLIC_DOCK_FRAME_ID ||
       "daq-dock",
 
-  PORTFOLIO_LOCK_ENABLED:
-      process.env.NEXT_PUBLIC_PORTFOLIO_LOCK_ENABLED ||
+  EMBED_LOCK_ENABLED:
+      process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED ||
       "true",
 
-  PORTFOLIO_LOCK_SECRET:
-      process.env.PORTFOLIO_LOCK_SECRET ||
+  EMBED_SECRET:
+      process.env.EMBED_SECRET ||
       "true",
 
 
