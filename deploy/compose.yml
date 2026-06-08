@@ -66,7 +66,7 @@ services:
     image: iot-wireless-mesh-daq/cloud:local
     command: ["python", "-u", "run_catcher.py"]
     env_file:
-      - /opt/stacks/portfolio/deploy/shared/env/embed-lock.env
+      - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/cloud.env
     depends_on:
       nats:
@@ -86,7 +86,7 @@ services:
     image: iot-wireless-mesh-daq/cloud:local
     env_file:
       - ./env/cloud.env
-      - /opt/stacks/portfolio/deploy/shared/env/embed-lock.env
+      - /opt/stacks/portfolio/deploy/shared/env/embed.env
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
@@ -143,7 +143,7 @@ services:
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
       - ./env/daq-ui.env
-      - /opt/stacks/portfolio/deploy/shared/env/embed-lock.env
+      - /opt/stacks/portfolio/deploy/shared/env/embed.env
     ports:
       - "127.0.0.1:3001:3000"
     depends_on:

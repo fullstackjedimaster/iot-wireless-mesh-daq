@@ -75,8 +75,8 @@ main() {
     copy_example "$example" "$target"
   done
 
-  local example="${SHARED_PORTFOLIO_ENV_DIR}/embed-lock.env"
-  local target="${ENV_DIR}/embed-lock.env"
+  local example="${SHARED_PORTFOLIO_ENV_DIR}/embed.env"
+  local target="${ENV_DIR}/embed.env"
   copy_example "$example" "$target"
 
   local pg_file="${ENV_DIR}/postgres.env"
