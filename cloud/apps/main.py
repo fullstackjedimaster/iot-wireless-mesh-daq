@@ -44,11 +44,11 @@ app = FastAPI(
 )
 
 
-
-install_embed_lock(
-    app,
-    expected_aud="iot-wireless-mesh-daq",
-)
+#
+# install_embed_lock(
+#     app,
+#     expected_aud="iot-wireless-mesh-daq",
+# )
 # Enforce referer checks
 app.add_middleware(RefererMiddleware)
 
