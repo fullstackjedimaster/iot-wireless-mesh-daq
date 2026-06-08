@@ -142,6 +142,9 @@ export async function middleware(req: NextRequest) {
 
 
     if (!PORTFOLIO_LOCK_ENABLED) {
+        console.log(
+            "[middleware] lock off"
+        );
         return NextResponse.next();
     }
 
