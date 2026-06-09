@@ -57,14 +57,14 @@ function isObject(v: unknown): v is Record<string, unknown> {
     return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
-// function getInitialRagClientIdFromUrl(): string | null {
-//     if (typeof window === "undefined") return null;
-//
-//     const params = new URLSearchParams(window.location.search);
-//     const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
-//
-//     return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
-// }
+function getInitialRagClientIdFromUrl(): string | null {
+    if (typeof window === "undefined") return null;
+
+    const params = new URLSearchParams(window.location.search);
+    const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
+
+    return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
+}
 
 function parseConnectMessage(data: unknown): RagDockConnectMessage | null {
     if (!isObject(data)) return null;
@@ -139,20 +139,20 @@ export default function DockHost() {
         setConfigured(true);
     }, [ragBase, dockOrigin]);
 
-    // useEffect(() => {
-    //     if (!configured) return;
-    //
-    //     const initialRagClientId = getInitialRagClientIdFromUrl();
-    //
-    //     if (!initialRagClientId) return;
-    //
-    //     const url = new URL("/dock", dockOrigin);
-    //     url.searchParams.set("ragClientId", initialRagClientId);
-    //
-    //     setAttached(true);
-    //     setRagClientId(initialRagClientId);
-    //     setDockUrl(url.toString());
-    // }, [configured, dockOrigin]);
+    useEffect(() => {
+        if (!configured) return;
+
+        const initialRagClientId = getInitialRagClientIdFromUrl();
+
+        if (!initialRagClientId) return;
+
+        const url = new URL("/dock", dockOrigin);
+        url.searchParams.set("ragClientId", initialRagClientId);
+
+        setAttached(true);
+        setRagClientId(initialRagClientId);
+        setDockUrl(url.toString());
+    }, [configured, dockOrigin]);
 
     useEffect(() => {
         if (!configured) return;

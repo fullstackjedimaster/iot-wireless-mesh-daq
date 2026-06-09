@@ -125,7 +125,7 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
         if (!selectedMac) return;
         const raw = rawByMac[selectedMac];
         const telem: PanelTelemetry = {
-            status: statuses[selectedMac] ?? "unknown",
+            // status: statuses[selectedMac] ?? "unknown",
             voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
             current: raw?.current !== undefined ? String(raw.current) : undefined,
         };
@@ -164,7 +164,7 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                                 onPanelClick(panel.mac);
                                 const raw = rawByMac[panel.mac];
                                 const telem: PanelTelemetry = {
-                                    status,
+                                   // status,
                                     voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
                                     current: raw?.current !== undefined ? String(raw.current) : undefined,
                                 };
