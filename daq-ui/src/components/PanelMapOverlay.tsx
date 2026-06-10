@@ -134,7 +134,7 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
         sendSelectedToDock(selectedMac, telem);
     }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
 
-    const cellWidth = 30, cellHeight = 15, panelWidth = 25, panelHeight = 10;
+    const cellWidth = 50, cellHeight = 15, panelWidth = 45, panelHeight = 10;
 
     const { svgWidth, svgHeight } = useMemo(() => {
         const maxX = layout.length ? Math.max(...layout.map((p) => p.x)) : 1;
@@ -150,38 +150,6 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                 preserveAspectRatio="xMidYMid meet"
                 className="w-full h-auto"
             >
-                {[...layout]
-                    .sort((a, b) => {
-                        if (a.x !== b.x) return a.x - b.x;
-
-                        // Serpentine wiring:
-                        // odd columns top-to-bottom, even columns bottom-to-top
-                        return a.x % 2 === 1 ? a.y - b.y : b.y - a.y;
-                    })
-                    .slice(0, -1)
-                    .map((panel, index, ordered) => {
-                        const nextPanel = ordered[index + 1];
-
-                        const x1 = (panel.x - 1) * cellWidth + cellWidth / 2;
-                        const y1 = (panel.y - 1) * cellHeight + cellHeight / 2;
-
-                        const x2 = (nextPanel.x - 1) * cellWidth + cellWidth / 2;
-                        const y2 = (nextPanel.y - 1) * cellHeight + cellHeight / 2;
-
-                        return (
-                            <line
-                                key={`${panel.mac}-${nextPanel.mac}`}
-                                x1={x1}
-                                y1={y1 + panelHeight / 2}
-                                x2={x2}
-                                y2={y2 - panelHeight / 2}
-                                stroke="#000"
-                                strokeWidth={4}
-                                strokeLinecap="round"
-                            />
-                        );
-                    })}
-
                 {layout.map((panel) => {
                     const status = statuses[panel.mac] ?? "unknown";
                     const color = statusColorMap[status] ?? "#6b7280";
