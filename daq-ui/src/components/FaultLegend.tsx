@@ -5,10 +5,10 @@ export const FaultLegend = () => {
   return (
       <div className="legend-section">
         <h3>Fault Legend</h3>
-        <ul className="font-size: 10px; space-y-1">
+        <ul className="legend-items">
           {Object.entries(FAULTS_METADATA).map(([key, meta]) => (
-              <li key={key} className="flex items-center gap-2">
-                <span className="text-lg" style={{ color: meta.color || "white" }}>⬤</span>
+              <li key={key} className="flex items-center gap-4">
+                <span className="text-sm" style={{ color: meta.color || "white" }}>⬤</span>
                 <span>{meta.label}</span>
               </li>
           ))}

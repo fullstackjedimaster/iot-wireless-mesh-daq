@@ -94,13 +94,13 @@ body {
 }
 
 
-.legend-item {
-    font-size: 8px;
+.legend-items {
+    font-size: 10px;
     padding-top: 2px;
 }
 
 .legend-section h3 {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: bold;
     margin: 0 0 2px 0;
 }
@@ -123,6 +123,7 @@ body {
     width: auto;
     justify-items: center;
     align-content:  center;
+    font-size: 12px;
 }
 
 .panel{

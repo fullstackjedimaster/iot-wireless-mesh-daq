@@ -118,16 +118,16 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
             }}
         >
             {/* Fixed-height container prevents iframe feedback loops */}
-            <div style={{ position: "relative", width: "100%", height: 260, overflow: "hidden" }}>
+            <div style={{ position: "relative", width: "100%", height: 180, overflow: "hidden" }}>
                 <Line
                     ref={chartRef}
-                    data={chartData}
+                    data={chartData}    
                     options={{
                         responsive: true,
                         maintainAspectRatio: false, // fill the 260px box
                         animation: false,           // avoid tiny reflow jitter
                         parsing: false,
-                        layout: { padding: { top: 8, right: 8, bottom: 8, left: 8 } },
+                        layout: { padding: { top: 4, right: 4, bottom: 4, left: 4 } },
                         scales: {
                             x: {
                                 type: "time",
@@ -153,8 +153,8 @@ export default function ChartPanel({ selectedMac }: ChartPanelProps) {
                                 display: true,       // ✅ keep legend
                                 position: "bottom",
                                 labels: {
-                                    boxWidth: 18,
-                                    padding: 12,
+                                    boxWidth: 12,
+                                    padding: 8,
                                 },
                             },
                             tooltip: { mode: "nearest", intersect: false },
