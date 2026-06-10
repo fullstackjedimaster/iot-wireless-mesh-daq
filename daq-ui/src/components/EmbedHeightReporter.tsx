@@ -3,65 +3,71 @@
 import { useEffect } from "react";
 
 const SNAP = 8;
-const MAX_HEIGHT = 4000;
+const MAX_HEIGHT = 5000;
+
+function getFrameId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("frameId") || "";
+}
 
 export default function EmbedHeightReporter() {
-  useEffect(() => {
-    const getHeight = () => {
-      const body = document.body;
-      const html = document.documentElement;
+    useEffect(() => {
+        const frameId = getFrameId();
 
-      return Math.min(
-        MAX_HEIGHT,
-        Math.ceil(
-          Math.max(
-            body.scrollHeight,
-            body.offsetHeight,
-            html.clientHeight,
-            html.scrollHeight,
-            html.offsetHeight
-          ) / SNAP
-        ) * SNAP
-      );
-    };
+        function getHeight() {
+            const body = document.body;
+            const html = document.documentElement;
 
-    const postHeight = () => {
-      window.parent.postMessage(
-        {
-          type: "EMBED_HEIGHT",
-          height: getHeight(),
-        },
-        "*"
-      );
-    };
+            const rawHeight = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.scrollHeight,
+                html.offsetHeight
+            );
 
-    postHeight();
+            return Math.min(
+                MAX_HEIGHT,
+                Math.ceil(rawHeight / SNAP) * SNAP
+            );
+        }
 
-    const resizeObserver = new ResizeObserver(postHeight);
-    resizeObserver.observe(document.body);
-    resizeObserver.observe(document.documentElement);
+        function postHeight() {
+            window.parent.postMessage(
+                {
+                    type: "EMBED_HEIGHT",
+                    frameId,
+                    height: getHeight(),
+                },
+                "*"
+            );
+        }
 
-    const mutationObserver = new MutationObserver(postHeight);
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      characterData: true,
-    });
+        postHeight();
 
-    window.addEventListener("load", postHeight);
-    window.addEventListener("resize", postHeight);
+        const resizeObserver = new ResizeObserver(postHeight);
+        resizeObserver.observe(document.body);
 
-    const interval = window.setInterval(postHeight, 750);
+        const mutationObserver = new MutationObserver(postHeight);
+        mutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            characterData: true,
+        });
 
-    return () => {
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener("load", postHeight);
-      window.removeEventListener("resize", postHeight);
-      window.clearInterval(interval);
-    };
-  }, []);
+        window.addEventListener("load", postHeight);
+        window.addEventListener("resize", postHeight);
 
-  return null;
+        const interval = window.setInterval(postHeight, 1000);
+
+        return () => {
+            resizeObserver.disconnect();
+            mutationObserver.disconnect();
+            window.removeEventListener("load", postHeight);
+            window.removeEventListener("resize", postHeight);
+            window.clearInterval(interval);
+        };
+    }, []);
+
+    return null;
 }
