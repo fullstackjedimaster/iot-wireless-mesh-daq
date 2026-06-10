@@ -55,6 +55,10 @@ monitors = [
     (string_id, "fa:29:eb:6d:87:02", "M-000002", 2),
     (string_id, "fa:29:eb:6d:87:03", "M-000003", 3),
     (string_id, "fa:29:eb:6d:87:04", "M-000004", 4),
+    (string_id, "fa:29:eb:6d:87:05", "M-000005", 5),
+    (string_id, "fa:29:eb:6d:87:06", "M-000006", 6),
+    (string_id, "fa:29:eb:6d:87:07", "M-000007", 7),
+    (string_id, "fa:29:eb:6d:87:08", "M-000008", 8),
 ]
 cur.executemany(
     "INSERT INTO ss.monitors (string_id, mac_address, node_id, string_position) VALUES (%s, %s, %s, %s)",

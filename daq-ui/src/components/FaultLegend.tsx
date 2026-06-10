@@ -3,8 +3,8 @@ import { FAULTS_METADATA } from "@/lib/faults/metadata"
 
 export const FaultLegend = () => {
   return (
-      <div>
-        <h3 className="font-size: 12px;  font-semibold mb-1">Fault Legend</h3>
+      <div className="legend-section">
+        <h3>Fault Legend</h3>
         <ul className="font-size: 10px; space-y-1">
           {Object.entries(FAULTS_METADATA).map(([key, meta]) => (
               <li key={key} className="flex items-center gap-2">

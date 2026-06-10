@@ -88,6 +88,25 @@ body {
     font-weight: bold;
 }
 
+.legend-section {
+    margin-top: 2px;
+    padding-top: 2px;
+}
+
+
+.legend-item {
+    font-size: 8px;
+    padding-top: 2px;
+}
+
+.legend-section h3 {
+    font-size: 10px;
+    font-weight: bold;
+    margin: 0 0 2px 0;
+}
+
+
+
 .panel-section{
     background: white;
     padding: 3px;

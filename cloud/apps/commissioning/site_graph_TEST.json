@@ -71,6 +71,62 @@
                     "macaddr": "fa:29:eb:6d:87:04"
                   }
                 ]
+              },
+               {
+                "id": "P-000005",
+                "devtype": "P",
+                "label": "PNL-5",
+                "x": 1,
+                "y": 3,
+                "inputs": [
+                  {
+                    "id": "M-000005",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:05"
+                  }
+                ]
+              },
+               {
+                "id": "P-000006",
+                "devtype": "P",
+                "label": "PNL-6",
+                "x": 2,
+                "y": 3,
+                "inputs": [
+                  {
+                    "id": "M-000006",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:06"
+                  }
+                ]
+              },
+               {
+                "id": "P-000007",
+                "devtype": "P",
+                "label": "PNL-7",
+                "x": 1,
+                "y": 4,
+                "inputs": [
+                  {
+                    "id": "M-000007",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:07"
+                  }
+                ]
+              },
+               {
+                "id": "P-000008",
+                "devtype": "P",
+                "label": "PNL-8",
+                "x": 2,
+                "y": 4,
+                "inputs": [
+                  {
+                    "id": "M-000008",
+                    "devtype": "M",
+                    "macaddr": "fa:29:eb:6d:87:08"
+                  }
+                ]
               }
             ]
           }
