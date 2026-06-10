@@ -88,16 +88,16 @@ body {
     font-weight: bold;
 }
 
-.legend-section {
-    margin-top: 2px;
-    padding-top: 2px;
-}
-
-
 .legend-items {
-    font-size: 10px;
-    padding-top: 2px;
+    columns: 2;
+    column-gap: 24px;
+     font-size: 10px;
 }
+
+.legend-items li {
+    break-inside: avoid;
+}
+
 
 .legend-section h3 {
     font-size: 12px;
