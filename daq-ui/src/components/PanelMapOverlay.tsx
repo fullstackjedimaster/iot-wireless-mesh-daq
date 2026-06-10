@@ -134,7 +134,7 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
         sendSelectedToDock(selectedMac, telem);
     }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
 
-    const cellWidth = 50, cellHeight = 15, panelWidth = 45, panelHeight = 10;
+    const cellWidth = 30, cellHeight = 15, panelWidth = 25, panelHeight = 10;
 
     const { svgWidth, svgHeight } = useMemo(() => {
         const maxX = layout.length ? Math.max(...layout.map((p) => p.x)) : 1;
