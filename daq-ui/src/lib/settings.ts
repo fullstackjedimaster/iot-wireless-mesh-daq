@@ -36,7 +36,7 @@ export const settings = {
 
   EMBED_SECRET:
       process.env.EMBED_SECRET ||
-      "true",
+      "",
 
 
 } as const;
