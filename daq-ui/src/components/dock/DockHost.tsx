@@ -5,6 +5,7 @@ import GroupBox from "@/components/GroupBox";
 import type { Attrs } from "@/lib/dock/selection";
 import { settings } from "@/lib/settings";
 
+
 const RAG_API_BASE = settings.RAG_API_BASE;
 const DOCK_ORIGIN = settings.DOCK_ORIGIN;
 const FRAME_ID = settings.DOCK_FRAME_ID ?? "daq-dock";
@@ -57,14 +58,14 @@ function isObject(v: unknown): v is Record<string, unknown> {
     return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
 
-// function getInitialRagClientIdFromUrl(): string | null {
-//     if (typeof window === "undefined") return null;
-//
-//     const params = new URLSearchParams(window.location.search);
-//     const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
-//
-//     return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
-// }
+function getInitialRagClientIdFromUrl(): string | null {
+    if (typeof window === "undefined") return null;
+
+    const params = new URLSearchParams(window.location.search);
+    const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
+
+    return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
+}
 
 function parseConnectMessage(data: unknown): RagDockConnectMessage | null {
     if (!isObject(data)) return null;
@@ -105,6 +106,33 @@ function clampDockHeight(height:number){
     );
 }
 
+function readHostTheme() {
+  const styles = getComputedStyle(document.documentElement);
+
+  return {
+    bg: styles.getPropertyValue("--bg").trim(),
+    card: styles.getPropertyValue("--card").trim(),
+    border: styles.getPropertyValue("--border").trim(),
+    text: styles.getPropertyValue("--text").trim(),
+    muted: styles.getPropertyValue("--muted").trim(),
+    accent: styles.getPropertyValue("--accent").trim(),
+    ok: styles.getPropertyValue("--ok").trim(),
+    err: styles.getPropertyValue("--err").trim(),
+    sans: styles.getPropertyValue("--sans").trim(),
+    mono: styles.getPropertyValue("--mono").trim(),
+  };
+}
+
+function sendThemeToDock(iframe: HTMLIFrameElement | null, targetOrigin: string) {
+  iframe?.contentWindow?.postMessage(
+    {
+      type: "RAG_HOST_THEME",
+      theme: readHostTheme(),
+    },
+    targetOrigin
+  );
+}
+
 export default function DockHost() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -139,20 +167,20 @@ export default function DockHost() {
         setConfigured(true);
     }, [ragBase, dockOrigin]);
 
-    // useEffect(() => {
-    //     if (!configured) return;
-    //
-    //     const initialRagClientId = getInitialRagClientIdFromUrl();
-    //
-    //     if (!initialRagClientId) return;
-    //
-    //     const url = new URL("/dock", dockOrigin);
-    //     url.searchParams.set("ragClientId", initialRagClientId);
-    //
-    //     setAttached(true);
-    //     setRagClientId(initialRagClientId);
-    //     setDockUrl(url.toString());
-    // }, [configured, dockOrigin]);
+    useEffect(() => {
+        if (!configured) return;
+
+        const initialRagClientId = getInitialRagClientIdFromUrl();
+
+        if (!initialRagClientId) return;
+
+        const url = new URL("/dock", dockOrigin);
+        url.searchParams.set("ragClientId", initialRagClientId);
+
+        setAttached(true);
+        setRagClientId(initialRagClientId);
+        setDockUrl(url.toString());
+    }, [configured, dockOrigin]);
 
     useEffect(() => {
         if (!configured) return;
@@ -206,7 +234,9 @@ export default function DockHost() {
                 }
             }
         }
-
+        window.setTimeout(() => {
+          sendThemeToDock(iframeRef.current, dockOrigin);
+        }, 100);
         window.addEventListener("message", onMessage);
 
         return () => {
@@ -284,6 +314,8 @@ export default function DockHost() {
         iframeRef.current.contentWindow.postMessage(msg, dockOrigin);
     }, [configured, attached, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
 
+
+
     useEffect(() => {
         if (!configured) return;
         if (!attached) return;
@@ -347,7 +379,10 @@ export default function DockHost() {
                         height: `${iframeHeight}px`,
                         overflow: "hidden",
                     }}
-                    onLoad={() => setIframeLoaded(true)}
+                    onLoad={() => {
+                      setIframeLoaded(true);
+                      sendThemeToDock(iframeRef.current, dockOrigin);
+                    }}
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
                 />
             </GroupBox>

@@ -1,11 +1,11 @@
 // /src/lib/env.ts
 
-function required(name: string, value?: string): string {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
+// function required(name: string, value?: string): string {
+//   if (!value) {
+//     throw new Error(`Missing required environment variable: ${name}`);
+//   }
+//   return value;
+// }
 
 export const settings = {
   RAG_CORE_BASE:
@@ -23,20 +23,20 @@ export const settings = {
 
   DOCK_ORIGIN:
      process.env.NEXT_PUBLIC_DOCK_ORIGIN ||
-      "https://rag.fullstackjedi.dev",
+      "https://mesh-daq.fullstackjedi.dev",
 
 
   DOCK_FRAME_ID:
      process.env.NEXT_PUBLIC_DOCK_FRAME_ID ||
       "daq-dock",
 
-  PORTFOLIO_LOCK_ENABLED:
-      process.env.NEXT_PUBLIC_PORTFOLIO_LOCK_ENABLED ||
+  EMBED_LOCK_ENABLED:
+      process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED ||
       "true",
 
   EMBED_SECRET:
       process.env.EMBED_SECRET ||
-      "true",
+      "",
 
 
 } as const;
