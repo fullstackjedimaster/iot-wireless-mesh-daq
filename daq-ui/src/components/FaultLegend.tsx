@@ -3,12 +3,12 @@ import { FAULTS_METADATA } from "@/lib/faults/metadata"
 
 export const FaultLegend = () => {
   return (
-      <div className="legend-section">
-        <h3>Fault Legend</h3>
-        <ul className="legend-items">
+      <div>
+        <h3 className="text-md font-semibold mb-1">Fault Legend</h3>
+        <ul className="text-sm space-y-1">
           {Object.entries(FAULTS_METADATA).map(([key, meta]) => (
-              <li key={key} className="flex items-center gap-4">
-                <span className="text-sm" style={{ color: meta.color || "white" }}>⬤</span>
+              <li key={key} className="flex items-center gap-2">
+                <span className="text-lg" style={{ color: meta.color || "white" }}>⬤</span>
                 <span>{meta.label}</span>
               </li>
           ))}
