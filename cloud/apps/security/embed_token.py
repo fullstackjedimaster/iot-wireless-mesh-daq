@@ -11,6 +11,7 @@ from fastapi import HTTPException, Request
 
 
 EMBED_SECRET = os.getenv("EMBED_SECRET", "")
+PORTFOLIO_LOCK_ENABLED = env("PORTFOLIO_LOCK_ENABLED", "true")
 
 TOKEN_COOKIE = "pf_embed_token"
 SESSION_COOKIE = "pf_embed_sid"
