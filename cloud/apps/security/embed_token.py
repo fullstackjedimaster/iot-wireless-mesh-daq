@@ -13,7 +13,7 @@ from fastapi import HTTPException, Request
 EMBED_SECRET = os.getenv("EMBED_SECRET", "")
 
 TOKEN_COOKIE = "pf_embed_token"
-SESSION_COOKIE = "pf_embed_token"
+SESSION_COOKIE = "pf_embed_sid"
 
 ALLOWED_TYP = {"JWT", "JWS", "EMBED"}
 ALLOWED_ALG = {"HS256"}
