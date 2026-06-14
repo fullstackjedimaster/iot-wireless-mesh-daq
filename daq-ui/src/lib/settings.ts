@@ -1,11 +1,11 @@
 // /src/lib/env.ts
 
-function required(name: string, value?: string): string {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
+// function required(name: string, value?: string): string {
+//   if (!value) {
+//     throw new Error(`Missing required environment variable: ${name}`);
+//   }
+//   return value;
+// }
 
 export const settings = {
   RAG_CORE_BASE:
@@ -31,7 +31,7 @@ export const settings = {
       "daq-dock",
 
   PORTFOLIO_LOCK_ENABLED:
-      process.env.NEXT_PUBLIC_PORTFOLIO_LOCK_ENABLED ||
+      process.env.PORTFOLIO_LOCK_ENABLED ||
       "true",
 
   EMBED_SECRET:
