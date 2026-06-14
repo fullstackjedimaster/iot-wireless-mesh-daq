@@ -8,10 +8,10 @@ from .util.config import get_redis_conn, load_config
 from .util.logger import make_logger
 from .util.faults import (
     set_fault,
-    normalize_fault_token,
+    normalize_fault_token
 )
 
-# from apps.security.embed_token import require_embed_token
+from apps.security.embed_token import require_embed_token
 
 
 class FaultRequest(BaseModel):
