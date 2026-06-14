@@ -7,12 +7,12 @@ interface GroupBoxProps {
 
 export default function GroupBox({ title, children }: GroupBoxProps) {
     return (
-        <fieldset className="fieldset-section">
-            <legend>
-                {title}
-            </legend>
-            {children}
-        </fieldset>
+            <fieldset className="fieldset-section">
+                <legend>
+                    {title}
+                </legend>
+                {children}
+            </fieldset>
 
     )
 }

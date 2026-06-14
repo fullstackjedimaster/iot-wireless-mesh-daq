@@ -151,13 +151,20 @@ export default function HomePage() {
 
                 <FaultLegend />
             </GroupBox>
+
+            <br />
+
             <GroupBox title={`DAQ:  ${selectedMac || "—"}`}>
                 <ChartPanel selectedMac={selectedMac} />
             </GroupBox>
+
+            <br />
+
             <GroupBox title="Fault Injection">
                 <ControlPanel />
             </GroupBox>
-            <br />
+
+
             <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
                 <BlinkyThing
                     size={36}

@@ -5,7 +5,6 @@ import GroupBox from "@/components/GroupBox";
 import type { Attrs } from "@/lib/dock/selection";
 import { settings } from "@/lib/settings";
 
-
 const RAG_API_BASE = settings.RAG_API_BASE;
 const DOCK_ORIGIN = settings.DOCK_ORIGIN;
 const FRAME_ID = settings.DOCK_FRAME_ID ?? "daq-dock";
@@ -104,33 +103,6 @@ function clampDockHeight(height:number){
         220,
         Math.min(height,420)
     );
-}
-
-function readHostTheme() {
-  const styles = getComputedStyle(document.documentElement);
-
-  return {
-    bg: styles.getPropertyValue("--bg").trim(),
-    card: styles.getPropertyValue("--card").trim(),
-    border: styles.getPropertyValue("--border").trim(),
-    text: styles.getPropertyValue("--text").trim(),
-    muted: styles.getPropertyValue("--muted").trim(),
-    accent: styles.getPropertyValue("--accent").trim(),
-    ok: styles.getPropertyValue("--ok").trim(),
-    err: styles.getPropertyValue("--err").trim(),
-    sans: styles.getPropertyValue("--sans").trim(),
-    mono: styles.getPropertyValue("--mono").trim(),
-  };
-}
-
-function sendThemeToDock(iframe: HTMLIFrameElement | null, targetOrigin: string) {
-  iframe?.contentWindow?.postMessage(
-    {
-      type: "RAG_HOST_THEME",
-      theme: readHostTheme(),
-    },
-    targetOrigin
-  );
 }
 
 export default function DockHost() {
@@ -234,9 +206,7 @@ export default function DockHost() {
                 }
             }
         }
-        window.setTimeout(() => {
-          sendThemeToDock(iframeRef.current, dockOrigin);
-        }, 100);
+
         window.addEventListener("message", onMessage);
 
         return () => {
@@ -314,8 +284,6 @@ export default function DockHost() {
         iframeRef.current.contentWindow.postMessage(msg, dockOrigin);
     }, [configured, attached, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
 
-
-
     useEffect(() => {
         if (!configured) return;
         if (!attached) return;
@@ -379,10 +347,7 @@ export default function DockHost() {
                         height: `${iframeHeight}px`,
                         overflow: "hidden",
                     }}
-                    onLoad={() => {
-                      setIframeLoaded(true);
-                      sendThemeToDock(iframeRef.current, dockOrigin);
-                    }}
+                    onLoad={() => setIframeLoaded(true)}
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
                 />
             </GroupBox>

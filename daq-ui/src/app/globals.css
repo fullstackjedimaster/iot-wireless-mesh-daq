@@ -88,25 +88,6 @@ body {
     font-weight: bold;
 }
 
-.legend-items {
-    columns: 2;
-    column-gap: 24px;
-     font-size: 10px;
-}
-
-.legend-items li {
-    break-inside: avoid;
-}
-
-
-.legend-section h3 {
-    font-size: 12px;
-    font-weight: bold;
-    margin: 0 0 2px 0;
-}
-
-
-
 .panel-section{
     background: white;
     padding: 3px;
@@ -123,7 +104,6 @@ body {
     width: auto;
     justify-items: center;
     align-content:  center;
-    font-size: 12px;
 }
 
 .panel{
