@@ -11,7 +11,7 @@ from .util.faults import (
     normalize_fault_token,
 )
 
-from apps.security.embed_token import require_embed_token
+# from apps.security.embed_token import require_embed_token
 
 
 class FaultRequest(BaseModel):
