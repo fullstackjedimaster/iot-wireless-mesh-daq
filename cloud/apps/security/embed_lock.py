@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 from apps.security.embed_token import (
     SESSION_COOKIE,
     TOKEN_COOKIE,
-    verify_embed_lock_token,
+    verify_embed_lock_token
 )
 
 EMBED_LOCK_ENABLED = (
