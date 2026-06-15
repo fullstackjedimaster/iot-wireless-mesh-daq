@@ -1,27 +1,26 @@
-# security/embed_token.py
-
-import base64
-import hashlib
-import hmac
-import json
+# cloud/apps/security/embed_token.py
 import os
 import time
-from typing import Any
+import json
+import hmac
+import base64
+import hashlib
+from typing import Callable
+from settings import env
 
-EMBED_LOCK_SECRET = os.getenv("EMBED_SECRET", "")
+from fastapi import HTTPException, Request
+
+
+EMBED_SECRET = env("EMBED_SECRET", "")
+EMBED_LOCK_ENABLED = env("EMBED_LOCK_ENABLED", "true")
 
 TOKEN_COOKIE = "embed_token"
 SESSION_COOKIE = "embed_sid"
 
-ALLOWED_TYP = {"JWT"}
+ALLOWED_TYP = {"JWT", "JWS", "EMBED"}
 ALLOWED_ALG = {"HS256"}
 
 SKEW_SECONDS = 30
-MIN_SECRET_LENGTH = 32
-
-
-class EmbedLockError(Exception):
-    pass
 
 
 def _b64url_decode(value: str) -> bytes:
@@ -30,87 +29,104 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + padding)
 
 
-def _b64url_json(value: str) -> dict[str, Any]:
-    return json.loads(_b64url_decode(value).decode("utf-8"))
+def _b64url_json(value: bytes) -> dict:
+    return json.loads(value.decode("utf-8"))
 
 
-def _secret() -> str:
-    if not EMBED_LOCK_SECRET or len(EMBED_LOCK_SECRET) < MIN_SECRET_LENGTH:
-        raise EmbedLockError("EMBED_LOCK_SECRET is not configured securely")
-
-    return EMBED_LOCK_SECRET
-
-
-def verify_embed_lock_token(
-        token: str,
-        *,
-        expected_aud: str,
-        sid: str,
-) -> dict[str, Any]:
-    token = token.strip()
-    sid = sid.strip()
-
-    if not token:
-        raise EmbedLockError("missing embed lock token")
-
-    if not sid:
-        raise EmbedLockError("missing embed lock session")
-
+def _verify_hs256(token: str, secret: str) -> dict:
     parts = token.split(".")
+
     if len(parts) != 3:
-        raise EmbedLockError("invalid token format")
+        raise HTTPException(status_code=401, detail="Invalid token format")
 
     header_b64, payload_b64, sig_b64 = parts
 
     try:
-        header = _b64url_json(header_b64)
-        payload = _b64url_json(payload_b64)
-    except Exception as exc:
-        raise EmbedLockError("invalid token encoding") from exc
+        header = _b64url_json(_b64url_decode(header_b64))
+        payload = _b64url_json(_b64url_decode(payload_b64))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token encoding")
 
-    if str(header.get("alg") or "") not in ALLOWED_ALG:
-        raise EmbedLockError("invalid token algorithm")
+    alg = str(header.get("alg") or "")
+    typ = str(header.get("typ") or "")
 
-    if str(header.get("typ") or "") not in ALLOWED_TYP:
-        raise EmbedLockError("invalid token type")
+    if alg not in ALLOWED_ALG:
+        raise HTTPException(status_code=401, detail="Invalid token alg")
+
+    if typ and typ not in ALLOWED_TYP:
+        raise HTTPException(status_code=401, detail="Invalid token typ")
 
     signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    expected = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    expected_b64 = base64.urlsafe_b64encode(expected).decode("utf-8").rstrip("=")
 
-    expected_sig = hmac.new(
-        _secret().encode("utf-8"),
-        signing_input,
-        hashlib.sha256,
-    ).digest()
-
-    actual_sig = _b64url_decode(sig_b64)
-
-    if not hmac.compare_digest(expected_sig, actual_sig):
-        raise EmbedLockError("invalid token signature")
-
-    if payload.get("aud") != expected_aud:
-        raise EmbedLockError("invalid token audience")
-
-    now = int(time.time())
-
-    exp = payload.get("exp")
-    if not isinstance(exp, int):
-        raise EmbedLockError("invalid token exp")
-
-    if now > exp + SKEW_SECONDS:
-        raise EmbedLockError("token expired")
-
-    iat = payload.get("iat")
-    if not isinstance(iat, int):
-        raise EmbedLockError("invalid token iat")
-
-    if iat > now + SKEW_SECONDS:
-        raise EmbedLockError("token issued in the future")
-
-    sid_claim = payload.get("sid")
-    if not isinstance(sid_claim, str) or not sid_claim.strip():
-        raise EmbedLockError("missing token sid")
-
-    if sid_claim.strip() != sid:
-        raise EmbedLockError("embed lock session mismatch")
+    if not hmac.compare_digest(expected_b64, sig_b64):
+        raise HTTPException(status_code=401, detail="Invalid token signature")
 
     return payload
+
+
+def _extract_token(request: Request) -> str:
+    token = (
+        request.cookies.get(TOKEN_COOKIE)
+        or request.headers.get("x-embed-token")
+        or request.headers.get("X-Embed-Token")
+        or ""
+    ).strip()
+
+    if token:
+        return token
+
+    auth = (request.headers.get("authorization") or request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+
+    return ""
+
+
+
+def require_embed_token(audience: str) -> Callable[[Request], bool]:
+    async def _dep(request: Request) -> bool:
+        if not EMBED_LOCK_ENABLED:
+            return True
+        if not EMBED_SECRET or len(EMBED_SECRET) < 32:
+            raise HTTPException(status_code=500, detail="Server misconfigured: EMBED_SECRET")
+
+        token = _extract_token(request)
+
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing embed token")
+
+        payload = _verify_hs256(token, EMBED_SECRET)
+
+        if payload.get("aud") != audience:
+            raise HTTPException(status_code=403, detail="Invalid token audience")
+
+        now = int(time.time())
+
+        exp = payload.get("exp")
+        if not isinstance(exp, int):
+            raise HTTPException(status_code=401, detail="Invalid token exp")
+
+        if now > exp + SKEW_SECONDS:
+            raise HTTPException(status_code=401, detail="Token expired")
+
+        iat = payload.get("iat")
+        if isinstance(iat, int) and iat > now + SKEW_SECONDS:
+            raise HTTPException(status_code=401, detail="Invalid token iat")
+
+        sid_claim = payload.get("sid")
+        sid_cookie = request.cookies.get(SESSION_COOKIE, "")
+
+        if not isinstance(sid_claim, str) or not sid_claim.strip():
+            raise HTTPException(status_code=401, detail="Missing token sid")
+
+        if not sid_cookie or not sid_cookie.strip():
+            raise HTTPException(status_code=401, detail="Missing session cookie")
+
+        if sid_cookie.strip() != sid_claim.strip():
+            raise HTTPException(status_code=403, detail="Session binding failed")
+
+        return True
+
+    return _dep
