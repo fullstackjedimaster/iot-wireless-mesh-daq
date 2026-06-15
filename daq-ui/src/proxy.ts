@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 const EMBED_SECRET = process.env.EMBED_SECRET || "";
 const EXPECTED_AUD = "iot-wireless-mesh-daq";
 
-const TOKEN_COOKIE = "embed_token";
-const SID_COOKIE = "embed_sid";
+const TOKEN_COOKIE = "pf_embed_token";
+const SID_COOKIE = "pf_embed_sid";
 
-const EMBED_LOCK_ENABLED =
-    (process.env.EMBED_LOCK_ENABLED || "true").toLowerCase() === "true";
+const PORTFOLIO_LOCK_ENABLED =
+    (process.env.PORTFOLIO_LOCK_ENABLED || "true").toLowerCase() === "true";
 
 const SESSION_SECONDS = 180;
 const SKEW_SECONDS = 30;
@@ -154,7 +154,7 @@ function isPublicPath(pathname: string): boolean {
 export async function proxy(req: NextRequest) {
     console.log("[middleware]", req.method, req.nextUrl.pathname);
 
-    if (!EMBED_LOCK_ENABLED) {
+    if (!PORTFOLIO_LOCK_ENABLED) {
         console.log("[middleware] lock off");
         return NextResponse.next();
     }
@@ -165,7 +165,7 @@ export async function proxy(req: NextRequest) {
         return NextResponse.next();
     }
 
-    const queryToken = req.nextUrl.searchParams.get("embed_token") || "";
+    const queryToken = req.nextUrl.searchParams.get("pf_embed_token") || "";
     const cookieToken = req.cookies.get(TOKEN_COOKIE)?.value || "";
     const cookieSid = req.cookies.get(SID_COOKIE)?.value || "";
 
@@ -190,7 +190,7 @@ export async function proxy(req: NextRequest) {
         if (queryToken) {
             const cleanUrl = req.nextUrl.clone();
 
-            cleanUrl.searchParams.delete("embed_token");
+            cleanUrl.searchParams.delete("pf_embed_token");
 
             const res = NextResponse.redirect(cleanUrl);
 

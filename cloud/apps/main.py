@@ -7,7 +7,7 @@ from .routes import router as main_router
 
 # Keep for per-route protection (do NOT wire globally here)
 # (Routes import require_embed_token and apply to POST routes only.)
-# from apps.security.embed_token import require_embed_token
+from apps.security.portfolio_lock import install_portfolio_lock
 
 
 # Domains we trust as callers / embedders
@@ -62,6 +62,10 @@ app.add_middleware(
 # Main API
 app.include_router(main_router, prefix="/api")
 
+install_portfolio_lock(
+    app,
+    expected_aud="modular-rag-assistant",
+)
 
 @app.get("/health")
 async def health():
