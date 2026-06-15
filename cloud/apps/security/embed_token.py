@@ -12,7 +12,7 @@ from fastapi import HTTPException, Request
 
 
 EMBED_SECRET = os.getenv("EMBED_SECRET", "")
-EMBED_LOCK_ENABLED = os.getenv("EMBED_LOCK_ENABLED", "true")
+EMBED_LOCK_ENABLED = os.getenv("EMBED_LOCK_ENABLED", "false")
 
 TOKEN_COOKIE = "embed_token"
 SESSION_COOKIE = "embed_sid"
