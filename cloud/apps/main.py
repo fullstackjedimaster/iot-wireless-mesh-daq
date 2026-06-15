@@ -64,7 +64,7 @@ app.include_router(main_router, prefix="/api")
 
 install_portfolio_lock(
     app,
-    expected_aud="modular-rag-assistant",
+    expected_aud="iot-wireless-mesh-daq",
 )
 
 @app.get("/health")
