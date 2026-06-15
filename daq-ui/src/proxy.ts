@@ -158,7 +158,7 @@ export async function proxy(req: NextRequest) {
         console.log("[middleware] lock off");
         return NextResponse.next();
     }
-
+    console.log("[middleware] lock on");
     const { pathname } = req.nextUrl;
 
     if (isPublicPath(pathname)) {
