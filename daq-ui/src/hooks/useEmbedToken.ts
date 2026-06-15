@@ -5,12 +5,9 @@ import { useEffect, useState } from "react";
 import { getEmbedToken, setEmbedToken } from "@/lib/embedTokenStore";
 
 export function useEmbedToken(): string {
-    const [token, setTokenState] = useState("");
+    const [token, setTokenState] = useState<string>(() => getEmbedToken());
 
     useEffect(() => {
-        const existing = getEmbedToken();
-        if (existing) setTokenState(existing);
-
         function handleMessage(ev: MessageEvent) {
             const data = ev.data;
 

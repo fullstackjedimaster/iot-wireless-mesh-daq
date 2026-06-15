@@ -1,5 +1,7 @@
 // daq-ui/src/lib/api.ts
 
+import { embedAwareFetch } from "@/lib/embedApi";
+
 interface Panel {
     mac: string;
     x: number;
@@ -21,19 +23,8 @@ export type FaultProfile = Record<string, number>;
 
 const API_BASE = process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "";
 
-function joinUrl(base: string, path: string): string {
-    const b = base.endsWith("/") ? base.slice(0, -1) : base;
-    const p = path.startsWith("/") ? path : `/${path}`;
-    return `${b}${p}`;
-}
-
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const url = joinUrl(API_BASE, path);
-
-    return fetch(url, {
-        ...init,
-        credentials: init.credentials ?? "include",
-    });
+    return embedAwareFetch(path, init, API_BASE);
 }
 
 export async function getLayout(): Promise<Panel[]> {
