@@ -5,10 +5,10 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
-from security.portfolio_token import (
+from cloud.apps.security.embed_token import (
     SESSION_COOKIE,
     TOKEN_COOKIE,
-    verify_portfolio_lock_token,
+    verify_embed_token,
 )
 
 PORTFOLIO_LOCK_ENABLED = (
@@ -20,7 +20,7 @@ ALLOWED_PATHS = {
 }
 
 
-def _forbidden() -> PlainTextResponse:
+def forbidden_response() -> PlainTextResponse:
     return PlainTextResponse(
         "This application is only available through the portfolio.",
         status_code=403,
@@ -43,12 +43,12 @@ def install_portfolio_lock(
         sid = request.cookies.get(SESSION_COOKIE, "")
 
         try:
-            verify_portfolio_lock_token(
+            verify_embed_token(
                 token,
-                expected_aud=expected_aud,
+                audience=expected_aud,
                 sid=sid,
             )
         except Exception:
-            return _forbidden()
+            return forbidden_response()
 
         return await call_next(request)
