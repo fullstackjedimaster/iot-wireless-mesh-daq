@@ -5,7 +5,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
-from cloud.apps.security.embed_token import (
+from .embed_token import (
     SESSION_COOKIE,
     TOKEN_COOKIE,
     verify_embed_token,
