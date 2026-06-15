@@ -6,13 +6,13 @@ import hmac
 import base64
 import hashlib
 from typing import Callable
-from settings import env
+
 
 from fastapi import HTTPException, Request
 
 
-EMBED_SECRET = env("EMBED_SECRET", "")
-EMBED_LOCK_ENABLED = env("EMBED_LOCK_ENABLED", "true")
+EMBED_SECRET = os.getenv("EMBED_SECRET", "")
+EMBED_LOCK_ENABLED = os.getenv("EMBED_LOCK_ENABLED", "true")
 
 TOKEN_COOKIE = "embed_token"
 SESSION_COOKIE = "embed_sid"
