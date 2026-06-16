@@ -105,6 +105,34 @@ function clampDockHeight(height:number){
     );
 }
 
+function readHostTheme() {
+    const styles = getComputedStyle(document.documentElement);
+
+    return {
+        bg: styles.getPropertyValue("--bg").trim(),
+        card: styles.getPropertyValue("--card").trim(),
+        border: styles.getPropertyValue("--border").trim(),
+        text: styles.getPropertyValue("--text").trim(),
+        muted: styles.getPropertyValue("--muted").trim(),
+        accent: styles.getPropertyValue("--accent").trim(),
+        ok: styles.getPropertyValue("--ok").trim(),
+        err: styles.getPropertyValue("--err").trim(),
+        font: styles.getPropertyValue("--sans").trim(),
+        mono: styles.getPropertyValue("--mono").trim(),
+    };
+}
+
+function sendThemeToDock(iframe: HTMLIFrameElement | null, targetOrigin: string) {
+    iframe?.contentWindow?.postMessage(
+        {
+            type: "RAG_HOST_THEME",
+            theme: readHostTheme(),
+        },
+        targetOrigin
+    );
+}
+
+
 export default function DockHost() {
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -284,6 +312,8 @@ export default function DockHost() {
         iframeRef.current.contentWindow.postMessage(msg, dockOrigin);
     }, [configured, attached, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
 
+
+
     useEffect(() => {
         if (!configured) return;
         if (!attached) return;
@@ -347,7 +377,10 @@ export default function DockHost() {
                         height: `${iframeHeight}px`,
                         overflow: "hidden",
                     }}
-                    onLoad={() => setIframeLoaded(true)}
+                    onLoad={() => {
+                        setIframeLoaded(true);
+                        sendThemeToDock(iframeRef.current, dockOrigin);
+                    }}
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
                 />
             </GroupBox>
