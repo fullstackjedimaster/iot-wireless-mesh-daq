@@ -83,7 +83,7 @@ body {
 
 .fieldset-section{
     border-width: thick;
-    font-size: 10px;
+    font-size: 12px;
     border-style: ridge;
     font-weight: bold;
 }
@@ -104,7 +104,7 @@ body {
 }
 
 .fault-legend header{
-    font-size: 9px;
+    font-size: 8px;
 }
 
 
