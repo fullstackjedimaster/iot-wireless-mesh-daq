@@ -70,7 +70,7 @@ body {
         #fff 80%,    /* Lightest highlight */
         #999 95%     /* Dark silver */
     );
-    border-radius: 4px; /* Optional: adds rounded corners to the form */
+    border-radius: 2px; /* Optional: adds rounded corners to the form */
     width: 100%;
     height: 100%;
 
@@ -83,7 +83,7 @@ body {
 
 .fieldset-section{
     border-width: thick;
-    font-size: 14px;
+    font-size: 3px;
     border-style: ridge;
     font-weight: bold;
 }
@@ -115,7 +115,7 @@ body {
 
 .header{
     font-weight: bold;
-    font-size: 16px;
+    font-size: 10px;
     text-align: center;
 }
 
