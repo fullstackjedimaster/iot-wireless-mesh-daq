@@ -83,7 +83,7 @@ body {
 
 .fieldset-section{
     border-width: thick;
-    font-size: 3px;
+    font-size: 8px;
     border-style: ridge;
     font-weight: bold;
 }
@@ -115,7 +115,7 @@ body {
 
 .header{
     font-weight: bold;
-    font-size: 10px;
+    font-size: 12px;
     text-align: center;
 }
 
