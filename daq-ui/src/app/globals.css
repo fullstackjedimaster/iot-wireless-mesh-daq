@@ -90,7 +90,7 @@ body {
 
 .panel-section{
     background: white;
-    padding: 3px;
+    padding: 2px;
     border-style: inset;
     border-width: thick;
 
@@ -99,8 +99,11 @@ body {
 
 .fault-legend{
     font-size: 8px;
+    column-count: 2;
+    column-fill: balance;
     flex: auto;
     align-content: flex-start;
+    justify-self: left;
 
 }
 

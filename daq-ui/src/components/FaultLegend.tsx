@@ -8,7 +8,7 @@ export const FaultLegend = () => {
         <ul className="fault-legend">
           {Object.entries(FAULTS_METADATA).map(([key, meta]) => (
               <li key={key} className="fault-legend">
-                <span className="text-xs" style={{ color: meta.color || "white" }}>⬤</span>
+                <span style={{ color: meta.color || "white" }}>⬤</span>
                 <span>{meta.label}</span>
               </li>
           ))}
