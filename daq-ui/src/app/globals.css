@@ -100,11 +100,12 @@ body {
 .fault-legend{
     font-size: 8px;
     flex: auto;
+    align-content: flex-start;
 
 }
 
-.fault-legend header{
-    font-size: 8px;
+.fault-legend-header{
+    font-size: 9px;
 }
 
 
