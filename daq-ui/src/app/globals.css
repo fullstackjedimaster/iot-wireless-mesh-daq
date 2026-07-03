@@ -100,7 +100,7 @@ body {
 .fault-legend{
     font-size: 8px;
     column-count: 2;
-   
+
     flex: auto;
     align-content: flex-start;
     justify-self: left;
