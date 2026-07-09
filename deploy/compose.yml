@@ -64,7 +64,12 @@ services:
 
   cloud:
     image: iot-wireless-mesh-daq/cloud:local
-    command: ["python", "-u", "run_catcher.py"]
+    command:
+      - sh
+      - -lc
+      - |
+        mkdir -p /logs
+        python -u run_catcher.py 2>&1 | tee -a /logs/cloud.log
     env_file:
       - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/cloud.env
@@ -76,6 +81,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    volumes:
+      - daq-logs:/logs
 
   cloud-api:
     build:
@@ -108,6 +115,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
 
+
   mesh:
     build:
       context: .
@@ -124,7 +132,12 @@ services:
         condition: service_healthy
       cloud-api:
         condition: service_started
-    command: ["sh", "-lc", "python -u rundaq.py"]
+    command:
+      - sh
+      - -lc
+      - |
+        mkdir -p /logs
+        python -u rundaq.py 2>&1 | tee -a /logs/mesh.log
     restart: unless-stopped
     pids_limit: 256
     security_opt:
@@ -133,6 +146,8 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - daq-logs:/logs
 
   daq-ui:
     build:
@@ -159,6 +174,8 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - daq-logs:/logs ro
 
   bootstrap-health:
     image: iot-wireless-mesh-daq/bootstrap:local
@@ -210,7 +227,12 @@ services:
         condition: service_healthy
       cloud-api:
         condition: service_started
-    command: ["sh", "-lc", "python -u emulator.py"]
+    command:
+      - sh
+      - -lc
+      - |
+        mkdir -p /logs
+        python -u emulator.py 2>&1 | tee -a /logs/mesh.log
     restart: unless-stopped
     pids_limit: 256
     security_opt:
@@ -219,7 +241,10 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - daq-logs:/logs
 
 volumes:
   iot-wireless-mesh-daq-pgdata: {}
   redis_data:
+  daq-logs:

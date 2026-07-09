@@ -10,6 +10,7 @@ import PanelMapOverlay, { type PanelTelemetry } from "@/components/PanelMapOverl
 import { BlinkyThing } from "@/components/BlinkyThing";
 import { getLayout } from "@/lib/api";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
+import LogPanel from "@/components/LogPanel";
 import type { Attrs } from "@/lib/dock/selection";
 
 type LayoutItem = { x: number; y: number; mac: string };
@@ -141,6 +142,13 @@ export default function HomePage() {
     return (
         <main className="w-full overflow-hidden pb-4">
             <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
+
+            <GroupBox title="Logs">
+                <div className="daq-log-grid">
+                    <LogPanel title="Mesh Logs" source="mesh" />
+                        <LogPanel title="Cloud Logs" source="cloud" />
+                </div>
+            </GroupBox>
 
             <GroupBox title="Nodes">
                 <PanelMapOverlay

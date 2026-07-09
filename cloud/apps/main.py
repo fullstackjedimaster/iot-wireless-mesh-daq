@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .routes import router as main_router
+from .logs import logs
 
 # Keep for per-route protection (do NOT wire globally here)
 # (Routes import require_embed_token and apply to POST routes only.)
@@ -61,7 +62,7 @@ app.add_middleware(
 
 # Main API
 app.include_router(main_router, prefix="/api")
-
+app.include_router(logs)
 # install_portfolio_lock(
 #     app,
 #     expected_aud="iot-wireless-mesh-daq",
