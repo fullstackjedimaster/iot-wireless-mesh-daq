@@ -197,3 +197,39 @@ html, body {
 html, body, #__next { min-height: 0 !important; height: auto !important; }
 main.main-section { min-height: auto !important; }
 img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
+
+.daq-log-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.daq-log-panel {
+    border: 1px solid #22304a;
+    background: #05070a;
+    color: #d6f7ff;
+    font-size: 10px;
+    padding: 6px;
+    min-height: 120px;
+}
+
+.daq-log-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #ffffff;
+}
+
+.daq-log-body {
+    margin: 0;
+    max-height: 150px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-family: monospace;
+    line-height: 1.35;
+}
+
+.daq-log-error {
+    color: #ff6b6b;
+    font-size: 10px;
+}
