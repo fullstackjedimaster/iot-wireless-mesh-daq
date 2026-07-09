@@ -96,22 +96,21 @@ body {
 
 
 }
-
-.fault-legend{
+.fault-legend {
+    display: grid;
+    grid-template-columns: 90px 90px;
+    column-gap: 16px;
     font-size: 8px;
-    column-count: 2;
-
-    flex: auto;
-    align-content: flex-start;
-    justify-self: left;
-
 }
 
 .fault-legend-header{
     font-size: 9px;
 }
 
-
+.fault-legend li,
+.fault-legend span {
+    white-space: nowrap;
+}
 
 .control-section{
     border-radius: 4px;
