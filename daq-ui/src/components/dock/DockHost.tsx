@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import GroupBox from "@/components/GroupBox";
+// import GroupBox from "@/components/GroupBox";
 import type { Attrs } from "@/lib/dock/selection";
 import { settings } from "@/lib/settings";
 
@@ -331,7 +331,7 @@ export default function DockHost() {
         <>
             <br />
 
-            <GroupBox title="AI Explanation">
+            {/*<GroupBox title="AI Explanation">*/}
                 {lastError ? (
                     <div className="mb-2 text-xs text-red-700">{lastError}</div>
                 ) : null}
@@ -350,7 +350,7 @@ export default function DockHost() {
                     onLoad={() => setIframeLoaded(true)}
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
                 />
-            </GroupBox>
+            {/*</GroupBox>*/}
         </>
     );
 }
