@@ -56,7 +56,8 @@ def setup_logging() -> None:
     # Avoid duplicate handlers if called multiple times
     if not any(isinstance(h, logging.StreamHandler) for h in root.handlers):
         sh = logging.StreamHandler(sys.stdout)
-        sh.setFormatter(logging.Formatter("%(name)s|%(asctime)s: %(levelname)s: %(message)s"))
+        sh.setFormatter(logging.Formatter("%(message)s"))
+        # sh.setFormatter(logging.Formatter("%(name)s|%(asctime)s: %(levelname)s: %(message)s"))
         sh.setLevel(_level)
         root.addHandler(sh)
 
@@ -72,8 +73,8 @@ def make_logger(name: str, printlogger: bool = False) -> logging.Logger:
         return logger
     logger._configured = True  # type: ignore[attr-defined]
 
-    formatter = logging.Formatter("%(name)s|%(asctime)s: %(levelname)s: %(message)s")
-
+    formatter = logging.Formatter("%(message)s")
+    # formatter = logging.Formatter("%(name)s|%(asctime)s: %(levelname)s: %(message)s")
     # Only add syslog if explicitly enabled AND socket exists
     _add_syslog_if_available(logger)
 
