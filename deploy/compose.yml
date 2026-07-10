@@ -65,7 +65,7 @@ services:
   cloud:
     image: iot-wireless-mesh-daq/cloud:local
     command:
-      - /app/scripts/run-with-log.sh
+      - /deploy/scripts/run-with-log.sh
       - /logs/cloud.log
       - python
       - -u
@@ -134,7 +134,7 @@ services:
       cloud-api:
         condition: service_started
     command:
-      - /app/scripts/run-with-log.sh
+      - /deploy/scripts/run-with-log.sh
       - /logs/mesh.log
       - python
       - -u
@@ -229,7 +229,7 @@ services:
       cloud-api:
         condition: service_started
     command:
-      - /app/scripts/run-with-log.sh
+      - /deploy/scripts/run-with-log.sh
       - /logs/emulator.log
       - python
       - -u
