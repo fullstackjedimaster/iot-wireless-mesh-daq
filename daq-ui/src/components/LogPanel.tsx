@@ -72,14 +72,7 @@ export default function LogPanel({ title, source }: LogPanelProps) {
                 <pre
                     ref={bodyRef}
                     className="daq-log-body"
-                    style={{
-                        width: "100%",
-                        maxWidth: "100%",
-                        overflowX: "auto",
-                        overflowY: "auto",
-                        whiteSpace: "pre",
-                        boxSizing: "border-box",
-                    }}
+
                 >
                     {lines.length > 0 ? lines.join("\n") : "No log output yet."}
                 </pre>

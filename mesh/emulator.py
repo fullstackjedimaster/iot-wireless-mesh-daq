@@ -216,7 +216,7 @@ class AsyncEmulator:
         self.writer.write(message)
         await self.writer.drain()
 
-        print(f"[MESH] Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f}")
+        print(f"Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f}")
 
     async def run(self):
         # -----------------------------

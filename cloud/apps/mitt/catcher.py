@@ -148,7 +148,7 @@ class Cloud:
         try:
             self.redis_conn.hset(redis_key, mapping=values)
             logger.info(
-                "[Cloud] %s V=%.2f I=%.2f P=%.2f T=%.2f status=%s",
+                "%s V=%.2f I=%.2f P=%.2f T=%.2f %s",
                 normalized_mac,
                 voltage,
                 current,
