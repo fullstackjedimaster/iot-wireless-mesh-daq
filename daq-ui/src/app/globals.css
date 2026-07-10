@@ -222,11 +222,20 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
 
 .daq-log-body {
     margin: 0;
-    max-height: 150px;
-    overflow: auto;
-    white-space: pre-wrap;
+    padding: 0;
+
     font-family: monospace;
-    line-height: 1.35;
+    font-size: 8px;
+    line-height: 1;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    white-space: pre-wrap;      /* Preserve newlines, wrap long lines */
+    word-break: break-word;     /* Break long words if necessary */
+    overflow-wrap: anywhere;    /* Break long tokens like MAC addresses */
+
+    max-height: 180px;
 }
 
 .daq-log-error {
