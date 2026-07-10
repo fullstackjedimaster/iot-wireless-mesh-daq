@@ -65,11 +65,11 @@ services:
   cloud:
     image: iot-wireless-mesh-daq/cloud:local
     command:
-      - sh
-      - -lc
-      - |
-        mkdir -p /logs
-        python -u run_catcher.py 2>&1 | tee -a /logs/cloud.log
+      - /app/scripts/run-with-log.sh
+      - /logs/cloud.log
+      - python
+      - -u
+      - run_catcher.py
     env_file:
       - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/cloud.env
@@ -114,7 +114,8 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
-
+    volumes:
+      - daq-logs:/logs:ro
 
   mesh:
     build:
@@ -133,11 +134,11 @@ services:
       cloud-api:
         condition: service_started
     command:
-      - sh
-      - -lc
-      - |
-        mkdir -p /logs
-        python -u rundaq.py 2>&1 | tee -a /logs/mesh.log
+      - /app/scripts/run-with-log.sh
+      - /logs/mesh.log
+      - python
+      - -u
+      - rundaq.py
     restart: unless-stopped
     pids_limit: 256
     security_opt:
@@ -228,11 +229,11 @@ services:
       cloud-api:
         condition: service_started
     command:
-      - sh
-      - -lc
-      - |
-        mkdir -p /logs
-        python -u emulator.py 2>&1 | tee -a /logs/mesh.log
+      - /app/scripts/run-with-log.sh
+      - /logs/emulator.log
+      - python
+      - -u
+      - emulator.py
     restart: unless-stopped
     pids_limit: 256
     security_opt:
