@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
-router = APIRouter(prefix="/api/logs", tags=["logs"])
+router = APIRouter()
 
 ALLOWED_LOGS = {
     "mesh": Path("/logs/mesh.log"),

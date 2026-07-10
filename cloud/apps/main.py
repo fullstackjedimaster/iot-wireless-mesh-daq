@@ -62,7 +62,7 @@ app.add_middleware(
 
 # Main API
 app.include_router(main_router, prefix="/api")
-app.include_router(logs_router)
+app.include_router(logs_router, prefix="/api/logs")
 # install_portfolio_lock(
 #     app,
 #     expected_aud="iot-wireless-mesh-daq",
