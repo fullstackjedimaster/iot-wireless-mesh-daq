@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends tini ca-certificates \
+ && apt-get install -y --no-install-recommends tini ca-certificates bash\
  && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 -s /usr/sbin/nologin appuser
