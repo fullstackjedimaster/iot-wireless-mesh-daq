@@ -8,10 +8,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <html lang="en">
             <body>
                 <SelectedPanelProvider>
-
+                    <DockHost />
                     {children}
                     <EmbedHeightReporter />
-                     <DockHost />
+
                 </SelectedPanelProvider>
             </body>
         </html>
