@@ -15,28 +15,6 @@ import type { Attrs } from "@/lib/dock/selection";
 
 type LayoutItem = { x: number; y: number; mac: string };
 
-function postHostHeight() {
-    if (typeof window === "undefined") return;
-
-    const visibleElements = Array.from(document.body.children).filter((el) => {
-        const style = window.getComputedStyle(el);
-        return style.display !== "none" && style.visibility !== "hidden";
-    });
-
-    const bottom = visibleElements.reduce((max, el) => {
-        const rect = el.getBoundingClientRect();
-        return Math.max(max, rect.bottom);
-    }, 0);
-
-    window.parent.postMessage(
-        {
-            type: "HOST_APP_HEIGHT",
-            height: Math.ceil(bottom + 24),
-        },
-        "*"
-    );
-}
-
 export default function HomePage() {
     const { setSelectedTarget } = useSelectedTarget();
 
@@ -117,36 +95,24 @@ export default function HomePage() {
         );
     }, [selectedMac, attrs, setSelectedTarget]);
 
-    useEffect(() => {
-        postHostHeight();
-
-        const observer = new ResizeObserver(() => {
-            postHostHeight();
-        });
-
-        observer.observe(document.body);
-
-        window.addEventListener("load", postHostHeight);
-        window.addEventListener("resize", postHostHeight);
-
-        const timer = window.setInterval(postHostHeight, 500);
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener("load", postHostHeight);
-            window.removeEventListener("resize", postHostHeight);
-            window.clearInterval(timer);
-        };
-    }, []);
 
     return (
-        <main className="w-full overflow-hidden pb-4">
+        <main className="w-full overflow-x-hidden pb-4" style={{ width: "100%", maxWidth: "100%" }}>
             <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
 
             <GroupBox title="Logs">
-                <div className="daq-log-grid">
+                <div
+                    className="daq-log-grid"
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr)",
+                        gap: "8px",
+                        width: "100%",
+                        minWidth: 0,
+                    }}
+                >
                     <LogPanel title="Mesh Logs" source="mesh" />
-                        <LogPanel title="Cloud Logs" source="cloud" />
+                    <LogPanel title="Cloud Logs" source="cloud" />
                 </div>
             </GroupBox>
 

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LogSource = "mesh" | "cloud";
 
 type LogResponse = {
     name: string;
-    path: string;
+    path?: string;
+    files?: string[];
     lines: string[];
 };
 
@@ -18,6 +19,7 @@ type LogPanelProps = {
 export default function LogPanel({ title, source }: LogPanelProps) {
     const [lines, setLines] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const bodyRef = useRef<HTMLPreElement>(null);
 
     useEffect(() => {
         let alive = true;
@@ -35,7 +37,7 @@ export default function LogPanel({ title, source }: LogPanelProps) {
                 const data = (await res.json()) as LogResponse;
 
                 if (alive) {
-                    setLines(data.lines ?? []);
+                    setLines(Array.isArray(data.lines) ? data.lines : []);
                     setError(null);
                 }
             } catch (err) {
@@ -46,10 +48,7 @@ export default function LogPanel({ title, source }: LogPanelProps) {
         }
 
         void loadLogs();
-
-        const intervalId = window.setInterval(() => {
-            void loadLogs();
-        }, 3000);
+        const intervalId = window.setInterval(() => void loadLogs(), 3000);
 
         return () => {
             alive = false;
@@ -57,14 +56,31 @@ export default function LogPanel({ title, source }: LogPanelProps) {
         };
     }, [source]);
 
+    useEffect(() => {
+        const body = bodyRef.current;
+        if (!body) return;
+        body.scrollTop = body.scrollHeight;
+    }, [lines]);
+
     return (
-        <section className="daq-log-panel">
+        <section className="daq-log-panel" style={{ width: "100%", minWidth: 0 }}>
             <div className="daq-log-title">{title}</div>
 
             {error ? (
                 <div className="daq-log-error">{error}</div>
             ) : (
-                <pre className="daq-log-body">
+                <pre
+                    ref={bodyRef}
+                    className="daq-log-body"
+                    style={{
+                        width: "100%",
+                        maxWidth: "100%",
+                        overflowX: "auto",
+                        overflowY: "auto",
+                        whiteSpace: "pre",
+                        boxSizing: "border-box",
+                    }}
+                >
                     {lines.length > 0 ? lines.join("\n") : "No log output yet."}
                 </pre>
             )}

@@ -1,168 +1,195 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import asyncio
 import bz2
-import signal
+from typing import Any
+
 from bson import BSON, InvalidBSON
-import httpx  # ✅ added for microservice call
-from ..util.config import load_config, get_redis_conn, get_topic
-from ..util.logger import make_logger, setup_logging
-from ..util.redis.access import GraphManager
+
+from ..util.config import get_redis_conn, get_topic, load_config
 from ..util.daemon import Daemon
-from ..util.managers.nats_manager import nats_manager  # Centralized NATSManager
-
-# ✅ fallback AI status logic
 from ..util.faults import compute_status_from_metrics
-
+from ..util.logger import make_logger, setup_logging
+from ..util.managers.nats_manager import nats_manager
+from ..util.redis.access import GraphManager
 
 setup_logging()
 logger = make_logger("Catcher")
-
 config = load_config()
-
 DATA_TOPIC = get_topic("publish")
 nats_manager.set_server(config["nats"]["server"])
 
-shutdown_event = asyncio.Event()
-
-def handle_signal(sig):
-    logger.warning(f"[catcher] Received signal: {sig}. Initiating shutdown...")
-    shutdown_event.set()
-
-
-# Try to import get_ai_status dynamically if available
 try:
     from ..util.faults_ai import get_ai_status
+
     AI_STATUS_ENABLED = True
 except ImportError:
     AI_STATUS_ENABLED = False
-    async def get_ai_status(macaddr, voltage, current):
-        # fallback inline
+
+    async def get_ai_status(macaddr: str, voltage: float, current: float) -> str:
+        del macaddr
         return compute_status_from_metrics(voltage, current)
 
+
+def _as_float(value: Any) -> float:
+    try:
+        return float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _normalize_mac(raw: Any) -> str | None:
+    if raw is None:
+        return None
+
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+
+    text = str(raw).strip().lower().replace(":", "").replace("-", "")
+    if not text:
+        return None
+
+    try:
+        value = int(text, 16)
+    except ValueError:
+        return None
+
+    hex_string = f"{value:012x}"[-12:]
+    return ":".join(hex_string[i : i + 2] for i in range(0, 12, 2))
+
+
 class MITTHandler:
-    def __init__(self, redis_conn):
-        self.throttle_delay = config.get("daq", {}).get("throttle_delay", 0.01)
-        self.backpressure_threshold = config.get("daq", {}).get("backpressure_qsize", 10)
+    def __init__(self, redis_conn: Any) -> None:
         self.redis_conn = redis_conn
+        self.subscription = None
+        self.message_count = 0
 
-    async def start(self):
+    async def start(self) -> None:
         await nats_manager.connect()
-        await nats_manager.nats.subscribe(DATA_TOPIC, cb=self.process_message)
-        logger.info(f"[MITTHandler] Subscribed to topic: {DATA_TOPIC}")
+        self.subscription = await nats_manager.nats.subscribe(
+            DATA_TOPIC,
+            cb=self.process_message,
+        )
+        logger.info(
+            "[MITTHandler] Subscribed to NATS topic %s (AI status: %s)",
+            DATA_TOPIC,
+            "enabled" if AI_STATUS_ENABLED else "fallback",
+        )
 
-    async def stop(self):
-        logger.info("[MITTHandler] Stopping...")
+    async def stop(self) -> None:
+        logger.info("[MITTHandler] Stopping after %d messages", self.message_count)
+        if self.subscription is not None:
+            try:
+                await self.subscription.unsubscribe()
+            except Exception:
+                logger.exception("[MITTHandler] Failed to unsubscribe")
         await nats_manager.disconnect()
 
-    async def process_message(self, msg):
+    async def process_message(self, msg: Any) -> None:
+        self.message_count += 1
+        logger.info(
+            "[MITTHandler] Received message #%d on %s (%d bytes)",
+            self.message_count,
+            getattr(msg, "subject", DATA_TOPIC),
+            len(msg.data),
+        )
+
         try:
             decompressed = bz2.decompress(msg.data)
             data = BSON(decompressed).decode()
-        except (InvalidBSON, OSError, ValueError) as e:
-            logger.error(f"[MITTHandler] Invalid BSON: {e}")
+        except (InvalidBSON, OSError, ValueError) as exc:
+            logger.error("[MITTHandler] Invalid compressed BSON: %s", exc)
             return
 
-        if isinstance(data, dict) and "cache" in data:
-            for item in data["cache"]:
-                if isinstance(item, bytes):
-                    try:
-                        item = BSON(item).decode()
-                    except Exception as e:
-                        logger.warning(f"[MITTHandler] Skipping cached item: {e}")
-                        continue
-                await self.process_one_record(item)
+        if isinstance(data, dict) and isinstance(data.get("cache"), list):
+            records = data["cache"]
+            logger.info("[MITTHandler] Processing batch of %d record(s)", len(records))
         elif isinstance(data, dict):
-            await self.process_one_record(data)
+            records = [data]
         else:
-            logger.warning("[MITTHandler] Dropping unknown message format")
+            logger.warning("[MITTHandler] Dropping unsupported payload type: %s", type(data).__name__)
+            return
 
-    async def process_one_record(self, payload: dict):
+        for item in records:
+            if isinstance(item, bytes):
+                try:
+                    item = BSON(item).decode()
+                except Exception as exc:
+                    logger.warning("[MITTHandler] Skipping cached item: %s", exc)
+                    continue
+            await self.process_one_record(item)
+
+    async def process_one_record(self, payload: Any) -> None:
         if not isinstance(payload, dict):
+            logger.warning("[MITTHandler] Skipping non-dict record")
             return
 
-        raw_mac = payload.get("macaddr") or payload.get("monitor_mac")
-        if isinstance(raw_mac, bytes):
-            macaddr = raw_mac.decode("utf-8")
-        else:
-            macaddr = str(raw_mac)
-
-        if not macaddr:
-            logger.warning("[MITTHandler] No macaddr in payload")
+        normalized_mac = _normalize_mac(payload.get("macaddr") or payload.get("monitor_mac"))
+        if normalized_mac is None:
+            logger.warning("[MITTHandler] Record has no valid MAC address")
             return
 
-        def normalize_mac(raw):
-            try:
-                value = int(raw, 16)
-                hex_str = f"{value:012x}"
-                return ":".join(hex_str[i:i + 2] for i in range(0, 12, 2))
-            except ValueError:
-                return "invalid"
+        voltage = _as_float(payload.get("Vi"))
+        current = _as_float(payload.get("Ii"))
+        power = _as_float(payload.get("Pi"))
+        temperature = _as_float(payload.get("temperature"))
+        status = await get_ai_status(normalized_mac, voltage, current)
 
-        normalized_mac = normalize_mac(macaddr)
         redis_key = f"sitearray:monitor:{normalized_mac}"
+        values = {
+            "voltage": str(voltage),
+            "current": str(current),
+            "power": str(power),
+            "temperature": str(temperature),
+            "status": str(status),
+        }
 
         try:
-            voltage = payload.get("Vi") or 0.0
-            current = payload.get("Ii") or 0.0
-            power = payload.get("Pi") or 0.0
-            temperature = payload.get("temperature") or 0.0
+            self.redis_conn.hset(redis_key, mapping=values)
+            logger.info(
+                "[MITTHandler] %s V=%.2f I=%.2f P=%.2f T=%.2f status=%s",
+                normalized_mac,
+                voltage,
+                current,
+                power,
+                temperature,
+                status,
+            )
+        except Exception:
+            logger.exception("[MITTHandler] Failed to write Redis key %s", redis_key)
 
-            # ✅ get status via AI microservice (or fallback)
-            status = await get_ai_status(macaddr, voltage, current)
-
-            values = {
-                "voltage": voltage,
-                "current": current,
-                "power": power,
-                "temperature": temperature,
-                "status": status
-            }
-
-            cleaned = {k: str(v) for k, v in values.items() if isinstance(v, (str, int, float, bytes))}
-            self.redis_conn.hset(redis_key, mapping=cleaned)
-            logger.info(f"[MITTHandler] Updated Redis key {redis_key}")
-        except Exception as e:
-            logger.error(f"[MITTHandler] Failed to write Redis key {redis_key}: {e}")
 
 class Catcher:
-    def __init__(self, site="TEST", db=3):
+    def __init__(self, site: str = "TEST", db: int = 3) -> None:
         self.site = site
         self.db = db
         self.redis_conn = get_redis_conn(db=self.db)
         self.graph_mgr = GraphManager(client=self.redis_conn)
         self.handler = MITTHandler(redis_conn=self.redis_conn)
 
-    async def start(self):
-        logger.info(f"[Catcher] Registering site '{self.site}' in Redis db {self.db}")
+    async def start(self) -> None:
+        logger.info("[Catcher] Registering site %r in Redis db %d", self.site, self.db)
         await self.handler.start()
 
-    async def stop(self):
+    async def stop(self) -> None:
         await self.handler.stop()
 
-async def run_catcher(site="TEST", db=3):
+
+async def run_catcher(site: str = "TEST", db: int = 3) -> None:
     catcher = Catcher(site, db)
     await catcher.start()
-
-    loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, lambda: handle_signal("SIGTERM"))
-    loop.add_signal_handler(signal.SIGINT, lambda: handle_signal("SIGINT"))
-
     try:
-        logger.info("[Catcher] Running...")
-        await shutdown_event.wait()
-    except asyncio.CancelledError:
-        logger.info("[Catcher] Cancelled")
+        await asyncio.Event().wait()
     finally:
-        logger.info("[Catcher] Shutting down...")
         await catcher.stop()
 
+
 class CatcherDaemon(Daemon):
-    def run(self):
+    def run(self) -> None:
         logger.info("[CatcherDaemon] Starting")
         asyncio.run(run_catcher())
 
-if __name__ == '__main__':
-    try:
-        asyncio.run(run_catcher())
-    except Exception as e:
-        logger.exception(f"[Catcher] Fatal error: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(run_catcher())
