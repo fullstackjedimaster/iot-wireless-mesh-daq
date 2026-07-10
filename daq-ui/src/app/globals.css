@@ -225,7 +225,7 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
     padding: 0;
 
     font-family: monospace;
-    font-size: 8px;
+    font-size: 4px;
     line-height: 1;
 
     overflow-y: auto;
@@ -235,7 +235,7 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
     word-break: break-word;     /* Break long words if necessary */
     overflow-wrap: anywhere;    /* Break long tokens like MAC addresses */
 
-    max-height: 180px;
+    max-height: 80px;
 }
 
 .daq-log-error {

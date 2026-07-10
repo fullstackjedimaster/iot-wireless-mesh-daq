@@ -88,7 +88,7 @@ class DataIndication(CommandBase):
         self._parsed = False
         self.op_stat = 0
         self.reg_stat = 0
-        print(f"[DEBUG] DataIndication registered as: {command_mapper.get('DD')}")
+        # print(f"[DEBUG] DataIndication registered as: {command_mapper.get('DD')}")
 
     def parse(self, raw=None):
         if raw is not None:

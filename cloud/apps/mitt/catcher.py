@@ -15,7 +15,7 @@ from ..util.managers.nats_manager import nats_manager
 from ..util.redis.access import GraphManager
 
 setup_logging()
-logger = make_logger("Catcher")
+logger = make_logger("Cloud")
 config = load_config()
 DATA_TOPIC = get_topic("publish")
 nats_manager.set_server(config["nats"]["server"])
@@ -59,7 +59,7 @@ def _normalize_mac(raw: Any) -> str | None:
     return ":".join(hex_string[i : i + 2] for i in range(0, 12, 2))
 
 
-class MITTHandler:
+class Cloud:
     def __init__(self, redis_conn: Any) -> None:
         self.redis_conn = redis_conn
         self.subscription = None
@@ -72,24 +72,24 @@ class MITTHandler:
             cb=self.process_message,
         )
         logger.info(
-            "[MITTHandler] Subscribed to NATS topic %s (AI status: %s)",
+            "[Cloud] Subscribed to NATS topic %s (AI status: %s)",
             DATA_TOPIC,
             "enabled" if AI_STATUS_ENABLED else "fallback",
         )
 
     async def stop(self) -> None:
-        logger.info("[MITTHandler] Stopping after %d messages", self.message_count)
+        logger.info("[Cloud] Stopping after %d messages", self.message_count)
         if self.subscription is not None:
             try:
                 await self.subscription.unsubscribe()
             except Exception:
-                logger.exception("[MITTHandler] Failed to unsubscribe")
+                logger.exception("[Cloud] Failed to unsubscribe")
         await nats_manager.disconnect()
 
     async def process_message(self, msg: Any) -> None:
         self.message_count += 1
         logger.info(
-            "[MITTHandler] Received message #%d on %s (%d bytes)",
+            "[Cloud] Received message #%d on %s (%d bytes)",
             self.message_count,
             getattr(msg, "subject", DATA_TOPIC),
             len(msg.data),
@@ -99,16 +99,16 @@ class MITTHandler:
             decompressed = bz2.decompress(msg.data)
             data = BSON(decompressed).decode()
         except (InvalidBSON, OSError, ValueError) as exc:
-            logger.error("[MITTHandler] Invalid compressed BSON: %s", exc)
+            logger.error("[Cloud] Invalid compressed BSON: %s", exc)
             return
 
         if isinstance(data, dict) and isinstance(data.get("cache"), list):
             records = data["cache"]
-            logger.info("[MITTHandler] Processing batch of %d record(s)", len(records))
+            logger.info("[Cloud] Processing batch of %d record(s)", len(records))
         elif isinstance(data, dict):
             records = [data]
         else:
-            logger.warning("[MITTHandler] Dropping unsupported payload type: %s", type(data).__name__)
+            logger.warning("[Cloud] Dropping unsupported payload type: %s", type(data).__name__)
             return
 
         for item in records:
@@ -116,18 +116,18 @@ class MITTHandler:
                 try:
                     item = BSON(item).decode()
                 except Exception as exc:
-                    logger.warning("[MITTHandler] Skipping cached item: %s", exc)
+                    logger.warning("[Cloud] Skipping cached item: %s", exc)
                     continue
             await self.process_one_record(item)
 
     async def process_one_record(self, payload: Any) -> None:
         if not isinstance(payload, dict):
-            logger.warning("[MITTHandler] Skipping non-dict record")
+            logger.warning("[Cloud] Skipping non-dict record")
             return
 
         normalized_mac = _normalize_mac(payload.get("macaddr") or payload.get("monitor_mac"))
         if normalized_mac is None:
-            logger.warning("[MITTHandler] Record has no valid MAC address")
+            logger.warning("[Cloud] Record has no valid MAC address")
             return
 
         voltage = _as_float(payload.get("Vi"))
@@ -148,7 +148,7 @@ class MITTHandler:
         try:
             self.redis_conn.hset(redis_key, mapping=values)
             logger.info(
-                "[MITTHandler] %s V=%.2f I=%.2f P=%.2f T=%.2f status=%s",
+                "[Cloud] %s V=%.2f I=%.2f P=%.2f T=%.2f status=%s",
                 normalized_mac,
                 voltage,
                 current,
@@ -157,7 +157,7 @@ class MITTHandler:
                 status,
             )
         except Exception:
-            logger.exception("[MITTHandler] Failed to write Redis key %s", redis_key)
+            logger.exception("[Cloud] Failed to write Redis key %s", redis_key)
 
 
 class Catcher:
@@ -166,7 +166,7 @@ class Catcher:
         self.db = db
         self.redis_conn = get_redis_conn(db=self.db)
         self.graph_mgr = GraphManager(client=self.redis_conn)
-        self.handler = MITTHandler(redis_conn=self.redis_conn)
+        self.handler = Cloud(redis_conn=self.redis_conn)
 
     async def start(self) -> None:
         logger.info("[Catcher] Registering site %r in Redis db %d", self.site, self.db)

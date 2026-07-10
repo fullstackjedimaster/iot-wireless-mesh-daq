@@ -216,15 +216,8 @@ class AsyncEmulator:
         self.writer.write(message)
         await self.writer.drain()
 
-        print(
-            f"""[EMULATOR]
-          MAC: {mac_clean}
-          V:   {Vi:.2f}
-          I:   {Ii:.2f}
-          P:   {Pi:.2f}
-        """,
-            flush=True,
-        )
+        print(f"[MESH] Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f}")
+
     async def run(self):
         # -----------------------------
         # Option A: Docker/direct mode
