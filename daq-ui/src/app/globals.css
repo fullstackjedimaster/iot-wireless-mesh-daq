@@ -209,9 +209,9 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
     border: 1px solid #22304a;
     background: #05070a;
     color: #d6f7ff;
-    font-size: 4px;
+    font-size: 8px;
     padding: 2px;
-    min-height: 60px;
+    min-height: 40px;
 }
 
 .daq-log-title {
@@ -225,7 +225,7 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
     padding: 0;
 
     font-family: monospace;
-    font-size: 4px;
+    font-size: 8px;
     line-height: 1;
 
     overflow-y: auto;
@@ -235,10 +235,10 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
     word-break: break-word;     /* Break long words if necessary */
     overflow-wrap: anywhere;    /* Break long tokens like MAC addresses */
 
-    max-height: 80px;
+    max-height: 40px;
 }
 
 .daq-log-error {
     color: #ff6b6b;
-    font-size: 4px;
+    font-size: 8px;
 }
