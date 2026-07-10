@@ -1,20 +1,32 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-LOG_FILE="${1:?Missing log file path}"
+usage() {
+    echo "Usage: run-with-log.sh LOG_FILE COMMAND [ARG ...]" >&2
+    exit 64
+}
+
+[[ $# -ge 2 ]] || usage
+
+LOG_FILE="$1"
 shift
 
-mkdir -p "$(dirname "$LOG_FILE")"
-touch "$LOG_FILE"
+LOG_DIR="$(dirname -- "$LOG_FILE")"
+mkdir -p -- "$LOG_DIR"
+touch -- "$LOG_FILE"
 
-printf '[%s] starting:' "$(date -Is)" | tee -a "$LOG_FILE"
+{
+    printf '[%s] starting:' "$(date -Is)"
+    printf ' %q' "$@"
+    printf '\n'
+} | tee -a -- "$LOG_FILE"
 
-for arg in "$@"; do
-    printf ' %q' "$arg" | tee -a "$LOG_FILE"
-done
+set +e
+"$@" 2>&1 | tee -a -- "$LOG_FILE"
+command_status=${PIPESTATUS[0]}
+set -e
 
-printf '\n' | tee -a "$LOG_FILE"
+printf '[%s] exited with status %s\n' "$(date -Is)" "$command_status" \
+    | tee -a -- "$LOG_FILE"
 
-"$@" 2>&1 | tee -a "$LOG_FILE"
-
-exit "${PIPESTATUS[0]}"
+exit "$command_status"

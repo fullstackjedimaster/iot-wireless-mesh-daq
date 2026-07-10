@@ -41,6 +41,32 @@ services:
       timeout: 3s
       retries: 60
 
+  logs-bootstrap:
+    image: iot-wireless-mesh-daq/bootstrap:local
+    build:
+      context: .
+      dockerfile: docker/bootstrap/Dockerfile
+    user: "0:0"
+    command:
+      - sh
+      - -lc
+      - |
+        set -eux
+        mkdir -p /logs
+        chown -R 1001:1001 /logs
+        chmod 0775 /logs
+    volumes:
+      - daq-logs:/logs
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+
   cloud-bootstrap:
     build:
       context: .
@@ -54,33 +80,46 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      sh -lc "
-        set -eux;
-        /deploy/scripts/init-postgres.sh;
-        /deploy/scripts/seed-redis.sh
-      "
-    restart: "no"
-
-  cloud:
-    image: iot-wireless-mesh-daq/cloud:local
     command:
       - sh
       - -lc
       - |
-        mkdir -p /logs
-        python -u run_catcher.py 2>&1 | tee -a /logs/cloud.log
+        set -eux
+        /deploy/scripts/init-postgres.sh
+        /deploy/scripts/seed-redis.sh
+    restart: "no"
+
+  cloud:
+    build:
+      context: .
+      dockerfile: docker/cloud/Dockerfile
+      additional_contexts:
+        repo: ..
+    image: iot-wireless-mesh-daq/cloud:local
+    command:
+      - /usr/local/bin/run-with-log.sh
+      - /logs/cloud.log
+      - python
+      - -u
+      - run_catcher.py
     env_file:
       - /opt/stacks/portfolio/deploy/shared/env/embed.env
       - ./env/cloud.env
     depends_on:
+      logs-bootstrap:
+        condition: service_completed_successfully
       nats:
         condition: service_started
       redis:
         condition: service_healthy
     restart: unless-stopped
+    pids_limit: 256
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
     volumes:
       - daq-logs:/logs
 
@@ -97,6 +136,8 @@ services:
     depends_on:
       cloud-bootstrap:
         condition: service_completed_successfully
+      logs-bootstrap:
+        condition: service_completed_successfully
       nats:
         condition: service_started
       redis:
@@ -105,7 +146,7 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
-    command: uvicorn apps.main:app --host 0.0.0.0 --port 8000
+    command: ["uvicorn", "apps.main:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
     pids_limit: 256
     security_opt:
@@ -127,6 +168,8 @@ services:
     env_file:
       - ./env/mesh.env
     depends_on:
+      logs-bootstrap:
+        condition: service_completed_successfully
       nats:
         condition: service_started
       redis:
@@ -134,11 +177,41 @@ services:
       cloud-api:
         condition: service_started
     command:
-      - sh
-      - -lc
-      - |
-        mkdir -p /logs
-        python -u rundaq.py 2>&1 | tee -a /logs/mesh.log
+      - /usr/local/bin/run-with-log.sh
+      - /logs/mesh.log
+      - python
+      - -u
+      - rundaq.py
+    restart: unless-stopped
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    volumes:
+      - daq-logs:/logs
+
+  mesh-emulator:
+    image: iot-wireless-mesh-daq/mesh:local
+    env_file:
+      - ./env/mesh.env
+    depends_on:
+      logs-bootstrap:
+        condition: service_completed_successfully
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      cloud-api:
+        condition: service_started
+    command:
+      - /usr/local/bin/run-with-log.sh
+      - /logs/emulator.log
+      - python
+      - -u
+      - emulator.py
     restart: unless-stopped
     pids_limit: 256
     security_opt:
@@ -175,8 +248,6 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
-    volumes:
-      - daq-logs:/logs ro
 
   bootstrap-health:
     image: iot-wireless-mesh-daq/bootstrap:local
@@ -202,7 +273,8 @@ services:
                 else:
                     self.send_response(404)
                     self.end_headers()
-            def log_message(self, *a):
+
+            def log_message(self, *args):
                 pass
 
         HTTPServer(("0.0.0.0", 8011), H).serve_forever()
@@ -217,35 +289,7 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
 
-  mesh-emulator:
-    image: iot-wireless-mesh-daq/mesh:local
-    env_file:
-      - ./env/mesh.env
-    depends_on:
-      nats:
-        condition: service_started
-      redis:
-        condition: service_healthy
-      cloud-api:
-        condition: service_started
-    command:
-      - sh
-      - -lc
-      - |
-        mkdir -p /logs
-        python -u emulator.py 2>&1 | tee -a /logs/emulator.log
-    restart: unless-stopped
-    pids_limit: 256
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=128m
-    volumes:
-      - daq-logs:/logs
-
 volumes:
   iot-wireless-mesh-daq-pgdata: {}
-  redis_data:
-  daq-logs:
+  redis_data: {}
+  daq-logs: {}
