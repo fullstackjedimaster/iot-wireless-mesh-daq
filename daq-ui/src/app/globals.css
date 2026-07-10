@@ -201,22 +201,22 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
 .daq-log-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 2px;
+    margin-top: 2px;
 }
 
 .daq-log-panel {
     border: 1px solid #22304a;
     background: #05070a;
     color: #d6f7ff;
-    font-size: 10px;
-    padding: 6px;
-    min-height: 120px;
+    font-size: 4px;
+    padding: 2px;
+    min-height: 60px;
 }
 
 .daq-log-title {
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     color: #ffffff;
 }
 
@@ -240,5 +240,5 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
 
 .daq-log-error {
     color: #ff6b6b;
-    font-size: 10px;
+    font-size: 4px;
 }
