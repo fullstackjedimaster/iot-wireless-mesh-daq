@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type LogSource = "mesh" | "cloud";
 
@@ -16,65 +16,101 @@ type LogPanelProps = {
     source: LogSource;
 };
 
-export default function LogPanel({ title, source }: LogPanelProps) {
+const MAX_LINES = 7;
+const POLL_INTERVAL_MS = 3000;
+
+function getRecentLines(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter((line): line is string => typeof line === "string")
+        .slice(-MAX_LINES);
+}
+
+export default function LogPanel({
+    title,
+    source,
+}: LogPanelProps) {
     const [lines, setLines] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const bodyRef = useRef<HTMLPreElement>(null);
 
     useEffect(() => {
-        let alive = true;
+        const controller = new AbortController();
+        let intervalId: number | undefined;
 
-        async function loadLogs() {
+        async function loadLogs(): Promise<void> {
             try {
-                const res = await fetch(`/api/logs/${source}?lines=120`, {
-                    cache: "no-store",
-                });
+                const response = await fetch(
+                    `/api/logs/${source}?lines=${MAX_LINES}`,
+                    {
+                        cache: "no-store",
+                        signal: controller.signal,
+                    },
+                );
 
-                if (!res.ok) {
-                    throw new Error(`Log request failed: ${res.status}`);
+                if (!response.ok) {
+                    throw new Error(
+                        `Log request failed: ${response.status}`,
+                    );
                 }
 
-                const data = (await res.json()) as LogResponse;
+                const data = (await response.json()) as LogResponse;
 
-                if (alive) {
-                    setLines(Array.isArray(data.lines) ? data.lines : []);
-                    setError(null);
+                setLines(getRecentLines(data.lines));
+                setError(null);
+            } catch (caughtError) {
+                if (controller.signal.aborted) {
+                    return;
                 }
-            } catch (err) {
-                if (alive) {
-                    setError(err instanceof Error ? err.message : "Failed to load logs");
-                }
+
+                setError(
+                    caughtError instanceof Error
+                        ? caughtError.message
+                        : "Failed to load logs",
+                );
             }
         }
 
         void loadLogs();
-        const intervalId = window.setInterval(() => void loadLogs(), 3000);
+
+        intervalId = window.setInterval(() => {
+            void loadLogs();
+        }, POLL_INTERVAL_MS);
 
         return () => {
-            alive = false;
-            window.clearInterval(intervalId);
+            controller.abort();
+
+            if (intervalId !== undefined) {
+                window.clearInterval(intervalId);
+            }
         };
     }, [source]);
 
-    useEffect(() => {
-        const body = bodyRef.current;
-        if (!body) return;
-        body.scrollTop = body.scrollHeight;
-    }, [lines]);
-
     return (
-        <section className="daq-log-panel" style={{ width: "100%", minWidth: 0 }}>
+        <section
+            className="daq-log-panel"
+            aria-label={`${title} log`}
+        >
             <div className="daq-log-title">{title}</div>
 
             {error ? (
-                <div className="daq-log-error">{error}</div>
+                <div
+                    className="daq-log-error"
+                    role="alert"
+                >
+                    {error}
+                </div>
             ) : (
                 <pre
-                    ref={bodyRef}
                     className="daq-log-body"
-
+                    aria-live="polite"
+                    aria-atomic="true"
                 >
-                    {lines.length > 0 ? lines.join("\n") : "No log output yet."}
+                    {lines.length > 0
+                        ? lines.join("\n")
+                        : "No log output yet."}
                 </pre>
             )}
         </section>

@@ -198,47 +198,69 @@ html, body, #__next { min-height: 0 !important; height: auto !important; }
 main.main-section { min-height: auto !important; }
 img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
 
-.daq-log-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    margin-top: 2px;
-}
-
 .daq-log-panel {
-    border: 1px solid #22304a;
-    background: #05070a;
-    color: #d6f7ff;
-    font-size: 8px;
-    padding: 2px;
-    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .daq-log-title {
-    font-weight: 700;
-    margin-bottom: 2px;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 1px 4px;
+    overflow: hidden;
     color: #ffffff;
+    background: #111827;
+    font-size: 10px;
+    line-height: 1.15;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .daq-log-body {
+    display: block;
+    width: 100%;
+    height: calc(7 * 1.15em + 4px);
+    min-height: calc(7 * 1.15em + 4px);
+    max-height: calc(7 * 1.15em + 4px);
     margin: 0;
-    padding: 0;
-
-    font-family: monospace;
+    padding: 2px 4px;
+    overflow: hidden;
+    border: 0;
+    color: #ffffff;
+    background: #030712;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
     font-size: 8px;
-    line-height: 1;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    white-space: pre-wrap;      /* Preserve newlines, wrap long lines */
-    word-break: break-word;     /* Break long words if necessary */
-    overflow-wrap: anywhere;    /* Break long tokens like MAC addresses */
-
-    max-height: 40px;
+    line-height: 1.15;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
 .daq-log-error {
-    color: #ff6b6b;
-    font-size: 8px;
+    min-height: calc(7 * 1.15em + 4px);
+    padding: 4px;
+    overflow: hidden;
+    color: #fecaca;
+    background: #450a0a;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace;
+    font-size: 9px;
+    line-height: 1.2;
 }
