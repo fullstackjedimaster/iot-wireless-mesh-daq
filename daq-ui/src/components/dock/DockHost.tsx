@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-// import GroupBox from "@/components/GroupBox";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+
 import type { Attrs } from "@/lib/dock/selection";
 import { settings } from "@/lib/settings";
 
 const RAG_API_BASE = settings.RAG_API_BASE;
 const DOCK_ORIGIN = settings.DOCK_ORIGIN;
-const FRAME_ID = settings.DOCK_FRAME_ID ?? "daq-dock";
+const FRAME_ID =
+    settings.DOCK_FRAME_ID ?? "daq-dock";
+
+const DEFAULT_DOCK_HEIGHT = 600;
+const MIN_DOCK_HEIGHT = 240;
+const MAX_DOCK_HEIGHT = 5000;
+const DOCK_HEIGHT_CHANGE_THRESHOLD = 4;
+const DOCK_HEIGHT_PADDING = 4;
 
 type RagSessionMessage = {
     type: "RAG_SESSION";
@@ -36,6 +48,11 @@ type RagDockDisconnectMessage = {
     ragClientId?: string;
 };
 
+type RagDockResizeMessage = {
+    type: "RAG_DOCK_RESIZE";
+    height: number;
+};
+
 type RagClientRow = {
     id: string;
     name: string;
@@ -49,308 +66,697 @@ type PanelSelectedDetail = {
     source?: string;
 };
 
-function safeTrimSlash(s: string) {
-    return s.replace(/\/+$/, "");
+function safeTrimSlash(value: string): string {
+    return value.replace(/\/+$/, "");
 }
 
-function isObject(v: unknown): v is Record<string, unknown> {
-    return Boolean(v) && typeof v === "object" && !Array.isArray(v);
+function isObject(
+    value: unknown,
+): value is Record<string, unknown> {
+    return (
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value)
+    );
+}
+
+function getOrigin(value: string): string {
+    try {
+        return new URL(value).origin;
+    } catch {
+        return "";
+    }
 }
 
 function getInitialRagClientIdFromUrl(): string | null {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+        return null;
+    }
 
-    const params = new URLSearchParams(window.location.search);
-    const ragClientId = params.get("ragClientId") ?? params.get("ragclientid");
+    const params = new URLSearchParams(
+        window.location.search,
+    );
 
-    return ragClientId && ragClientId.trim() ? ragClientId.trim() : null;
+    const ragClientId =
+        params.get("ragClientId") ??
+        params.get("ragclientid");
+
+    return ragClientId?.trim() || null;
 }
 
-function parseConnectMessage(data: unknown): RagDockConnectMessage | null {
-    if (!isObject(data)) return null;
-    if (data.type !== "RAG_DOCK_CONNECT") return null;
+function parseConnectMessage(
+    data: unknown,
+): RagDockConnectMessage | null {
+    if (!isObject(data)) {
+        return null;
+    }
+
+    if (data.type !== "RAG_DOCK_CONNECT") {
+        return null;
+    }
 
     const ragClientId = data.ragClientId;
     const dockUrl = data.dockUrl;
 
-    if (typeof ragClientId !== "string" || !ragClientId.trim()) return null;
-    if (typeof dockUrl !== "string" || !dockUrl.trim()) return null;
+    if (
+        typeof ragClientId !== "string" ||
+        !ragClientId.trim()
+    ) {
+        return null;
+    }
+
+    if (
+        typeof dockUrl !== "string" ||
+        !dockUrl.trim()
+    ) {
+        return null;
+    }
 
     return {
         type: "RAG_DOCK_CONNECT",
         ragClientId: ragClientId.trim(),
         dockUrl: dockUrl.trim(),
-        label: typeof data.label === "string" ? data.label : undefined,
-        hostUrl: typeof data.hostUrl === "string" ? data.hostUrl : undefined,
-    };
-}
-
-function parseDisconnectMessage(data: unknown): RagDockDisconnectMessage | null {
-    if (!isObject(data)) return null;
-    if (data.type !== "RAG_DOCK_DISCONNECT") return null;
-
-    return {
-        type: "RAG_DOCK_DISCONNECT",
-        ragClientId:
-            typeof data.ragClientId === "string" && data.ragClientId.trim()
-                ? data.ragClientId.trim()
+        label:
+            typeof data.label === "string"
+                ? data.label
+                : undefined,
+        hostUrl:
+            typeof data.hostUrl === "string"
+                ? data.hostUrl
                 : undefined,
     };
 }
 
-function clampDockHeight(height:number){
-    return Math.max(
-        220,
-        Math.min(height,420)
+function parseDisconnectMessage(
+    data: unknown,
+): RagDockDisconnectMessage | null {
+    if (!isObject(data)) {
+        return null;
+    }
+
+    if (data.type !== "RAG_DOCK_DISCONNECT") {
+        return null;
+    }
+
+    const rawRagClientId = data.ragClientId;
+
+    return {
+        type: "RAG_DOCK_DISCONNECT",
+        ragClientId:
+            typeof rawRagClientId === "string" &&
+            rawRagClientId.trim()
+                ? rawRagClientId.trim()
+                : undefined,
+    };
+}
+
+function parseResizeMessage(
+    data: unknown,
+): RagDockResizeMessage | null {
+    if (!isObject(data)) {
+        return null;
+    }
+
+    if (data.type !== "RAG_DOCK_RESIZE") {
+        return null;
+    }
+
+    if (
+        typeof data.height !== "number" ||
+        !Number.isFinite(data.height)
+    ) {
+        return null;
+    }
+
+    return {
+        type: "RAG_DOCK_RESIZE",
+        height: data.height,
+    };
+}
+
+function clampDockHeight(height: number): number {
+    const paddedHeight = Math.ceil(
+        height + DOCK_HEIGHT_PADDING,
+    );
+
+    return Math.min(
+        MAX_DOCK_HEIGHT,
+        Math.max(
+            MIN_DOCK_HEIGHT,
+            paddedHeight,
+        ),
     );
 }
 
 export default function DockHost() {
-    const iframeRef = useRef<HTMLIFrameElement | null>(null);
+    const iframeRef =
+        useRef<HTMLIFrameElement | null>(null);
 
-    const [configured, setConfigured] = useState(false);
-    const [attached, setAttached] = useState(false);
+    const [attached, setAttached] =
+        useState(false);
 
-    const [ragClientId, setRagClientId] = useState<string | null>(null);
-    const [dockUrl, setDockUrl] = useState<string | null>(null);
-    const [ragClient, setRagClient] = useState<RagClientRow | null>(null);
+    const [ragClientId, setRagClientId] =
+        useState<string | null>(null);
 
-    const [sessionToken, setSessionToken] = useState<string>("");
-    const [sessionExp, setSessionExp] = useState<number | null>(null);
+    const [dockUrl, setDockUrl] =
+        useState<string | null>(null);
 
-    const [iframeLoaded, setIframeLoaded] = useState(false);
-    const [iframeHeight, setIframeHeight] = useState(520);
-    const [lastError, setLastError] = useState<string>("");
+    const [ragClient, setRagClient] =
+        useState<RagClientRow | null>(null);
 
-    const dockOrigin = useMemo(() => {
-        return DOCK_ORIGIN ? safeTrimSlash(DOCK_ORIGIN) : "";
+    const [sessionToken, setSessionToken] =
+        useState("");
+
+    const [sessionExp, setSessionExp] =
+        useState<number | null>(null);
+
+    const [iframeLoaded, setIframeLoaded] =
+        useState(false);
+
+    const [iframeHeight, setIframeHeight] =
+        useState(DEFAULT_DOCK_HEIGHT);
+
+    const [lastError, setLastError] =
+        useState("");
+
+    const dockBaseUrl = useMemo(() => {
+        return DOCK_ORIGIN
+            ? safeTrimSlash(DOCK_ORIGIN)
+            : "";
     }, []);
+
+    const expectedDockOrigin = useMemo(() => {
+        return dockBaseUrl
+            ? getOrigin(dockBaseUrl)
+            : "";
+    }, [dockBaseUrl]);
 
     const ragBase = useMemo(() => {
-        return RAG_API_BASE ? safeTrimSlash(RAG_API_BASE) : "";
+        return RAG_API_BASE
+            ? safeTrimSlash(RAG_API_BASE)
+            : "";
     }, []);
 
+    const configured = Boolean(
+        ragBase &&
+        dockBaseUrl &&
+        expectedDockOrigin,
+    );
+
+    function resetDockRuntime(): void {
+        setSessionToken("");
+        setSessionExp(null);
+        setIframeLoaded(false);
+        setIframeHeight(DEFAULT_DOCK_HEIGHT);
+        setRagClient(null);
+    }
+
     useEffect(() => {
-        if (!ragBase || !dockOrigin) {
-            setConfigured(false);
+        if (!configured) {
             return;
         }
 
-        setConfigured(true);
-    }, [ragBase, dockOrigin]);
+        const initialRagClientId =
+            getInitialRagClientIdFromUrl();
 
-    useEffect(() => {
-        if (!configured) return;
+        if (!initialRagClientId) {
+            return;
+        }
 
-        const initialRagClientId = getInitialRagClientIdFromUrl();
+        const url = new URL(
+            "/dock",
+            dockBaseUrl,
+        );
 
-        if (!initialRagClientId) return;
+        url.searchParams.set(
+            "ragClientId",
+            initialRagClientId,
+        );
 
-        const url = new URL("/dock", dockOrigin);
-        url.searchParams.set("ragClientId", initialRagClientId);
-
+        setIframeLoaded(false);
+        setIframeHeight(DEFAULT_DOCK_HEIGHT);
         setAttached(true);
         setRagClientId(initialRagClientId);
         setDockUrl(url.toString());
-    }, [configured, dockOrigin]);
+    }, [
+        configured,
+        dockBaseUrl,
+    ]);
 
     useEffect(() => {
-        if (!configured) return;
-
-        function onMessage(ev: MessageEvent<unknown>) {
-            if (dockOrigin && ev.origin !== dockOrigin) {
-                return;
-            }
-
-            const data = ev.data;
-
-            if (
-                data &&
-                typeof data === "object" &&
-                "type" in data &&
-                data.type === "RAG_DOCK_RESIZE" &&
-                "height" in data &&
-                typeof data.height === "number"
-            ) {
-                setIframeHeight(clampDockHeight(data.height));
-                return;
-            }
-
-            const connectMsg = parseConnectMessage(ev.data);
-
-            if (connectMsg) {
-                setLastError("");
-                setSessionToken("");
-                setSessionExp(null);
-                setIframeLoaded(false);
-                setRagClient(null);
-                setRagClientId(connectMsg.ragClientId);
-                setDockUrl(connectMsg.dockUrl);
-                setAttached(true);
-                return;
-            }
-
-            const disconnectMsg = parseDisconnectMessage(ev.data);
-
-            if (disconnectMsg) {
-                setLastError("");
-                setSessionToken("");
-                setSessionExp(null);
-                setIframeLoaded(false);
-                setRagClient(null);
-
-                if (!disconnectMsg.ragClientId || disconnectMsg.ragClientId === ragClientId) {
-                    setAttached(false);
-                    setDockUrl(null);
-                    setRagClientId(null);
-                }
-            }
+        if (!configured) {
+            return;
         }
 
-        window.addEventListener("message", onMessage);
+        function onMessage(
+            event: MessageEvent<unknown>,
+        ): void {
+            const resizeMessage =
+                parseResizeMessage(event.data);
+
+            if (resizeMessage) {
+                const iframe = iframeRef.current;
+
+                if (
+                    !iframe ||
+                    event.source !==
+                        iframe.contentWindow
+                ) {
+                    return;
+                }
+
+                if (
+                    event.origin !==
+                    expectedDockOrigin
+                ) {
+                    return;
+                }
+
+                const nextHeight =
+                    clampDockHeight(
+                        resizeMessage.height,
+                    );
+
+                setIframeHeight(
+                    (currentHeight) => {
+                        const difference =
+                            Math.abs(
+                                currentHeight -
+                                    nextHeight,
+                            );
+
+                        return difference >=
+                            DOCK_HEIGHT_CHANGE_THRESHOLD
+                            ? nextHeight
+                            : currentHeight;
+                    },
+                );
+
+                return;
+            }
+
+            /*
+             * Connect and disconnect commands are expected
+             * from the outer host, not from the dock iframe.
+             */
+            if (
+                event.source !== window.parent &&
+                event.source !== window
+            ) {
+                return;
+            }
+
+            const connectMessage =
+                parseConnectMessage(event.data);
+
+            if (connectMessage) {
+                let resolvedDockUrl: URL;
+
+                try {
+                    resolvedDockUrl = new URL(
+                        connectMessage.dockUrl,
+                    );
+                } catch {
+                    setLastError(
+                        "RAG dock connection supplied an invalid dock URL.",
+                    );
+                    return;
+                }
+
+                if (
+                    resolvedDockUrl.origin !==
+                    expectedDockOrigin
+                ) {
+                    setLastError(
+                        `Rejected dock URL from unexpected origin: ${resolvedDockUrl.origin}`,
+                    );
+                    return;
+                }
+
+                setLastError("");
+                resetDockRuntime();
+
+                setRagClientId(
+                    connectMessage.ragClientId,
+                );
+                setDockUrl(
+                    resolvedDockUrl.toString(),
+                );
+                setAttached(true);
+
+                return;
+            }
+
+            const disconnectMessage =
+                parseDisconnectMessage(
+                    event.data,
+                );
+
+            if (!disconnectMessage) {
+                return;
+            }
+
+            if (
+                disconnectMessage.ragClientId &&
+                disconnectMessage.ragClientId !==
+                    ragClientId
+            ) {
+                return;
+            }
+
+            setLastError("");
+            resetDockRuntime();
+
+            setAttached(false);
+            setDockUrl(null);
+            setRagClientId(null);
+        }
+
+        window.addEventListener(
+            "message",
+            onMessage,
+        );
 
         return () => {
-            window.removeEventListener("message", onMessage);
+            window.removeEventListener(
+                "message",
+                onMessage,
+            );
         };
-    }, [configured, dockOrigin, ragClientId]);
+    }, [
+        configured,
+        expectedDockOrigin,
+        ragClientId,
+    ]);
 
     useEffect(() => {
-        if (!configured || !attached || !ragClientId) return;
+        if (
+            !configured ||
+            !attached ||
+            !ragClientId
+        ) {
+            return;
+        }
 
-        let cancelled = false;
+        /*
+         * Capture the narrowed value before entering the
+         * nested async function. This keeps clientId typed
+         * as string rather than string | null.
+         */
+        const clientId = ragClientId;
+        const controller =
+            new AbortController();
 
-        async function resolveClientById() {
+        async function resolveClientById(): Promise<void> {
             try {
                 setLastError("");
 
-                const res = await fetch(`${ragBase}/api/rag-clients/${ragClientId}`, {
-                    cache: "no-store",
-                });
+                const response = await fetch(
+                    `${ragBase}/api/rag-clients/${encodeURIComponent(
+                        clientId,
+                    )}`,
+                    {
+                        cache: "no-store",
+                        signal:
+                            controller.signal,
+                    },
+                );
 
-                if (!res.ok) {
-                    const txt = await res.text().catch(() => "");
+                if (!response.ok) {
+                    const responseText =
+                        await response
+                            .text()
+                            .catch(() => "");
+
                     throw new Error(
-                        `resolveClient: ${res.status} ${res.statusText}${txt ? ` — ${txt}` : ""}`
+                        `resolveClient: ${
+                            response.status
+                        } ${
+                            response.statusText
+                        }${
+                            responseText
+                                ? ` — ${responseText}`
+                                : ""
+                        }`,
                     );
                 }
 
-                const client = (await res.json()) as RagClientRow;
+                const client =
+                    (await response.json()) as RagClientRow;
 
                 if (!client?.id) {
-                    throw new Error(`resolveClient: missing id for rag_client ${ragClientId}`);
+                    throw new Error(
+                        `resolveClient: missing id for rag_client ${clientId}`,
+                    );
                 }
 
-                if (!cancelled) {
-                    setRagClient(client);
+                if (client.id !== clientId) {
+                    throw new Error(
+                        `resolveClient: requested ${clientId}, received ${client.id}`,
+                    );
                 }
-            } catch (err) {
-                if (!cancelled) {
-                    setRagClient(null);
-                    setLastError(err instanceof Error ? err.message : String(err));
+
+                setRagClient(client);
+            } catch (caughtError) {
+                if (
+                    controller.signal.aborted
+                ) {
+                    return;
                 }
+
+                setRagClient(null);
+
+                setLastError(
+                    caughtError instanceof Error
+                        ? caughtError.message
+                        : String(caughtError),
+                );
             }
         }
 
         void resolveClientById();
 
         return () => {
-            cancelled = true;
+            controller.abort();
         };
-    }, [configured, attached, ragClientId, ragBase]);
+    }, [
+        configured,
+        attached,
+        ragClientId,
+        ragBase,
+    ]);
 
     useEffect(() => {
-        if (!configured || !attached || !ragClientId || !ragClient) return;
+        if (
+            !configured ||
+            !attached ||
+            !ragClientId ||
+            !ragClient
+        ) {
+            return;
+        }
 
+        /*
+         * Portfolio lock is currently disabled for this
+         * internal development path.
+         */
         setSessionToken("debug-disabled");
         setSessionExp(null);
-    }, [configured, attached, ragClientId, ragClient]);
+    }, [
+        configured,
+        attached,
+        ragClientId,
+        ragClient,
+    ]);
 
     useEffect(() => {
-        if (!configured) return;
-        if (!attached) return;
-        if (!iframeLoaded) return;
-        if (!sessionToken) return;
-        if (!iframeRef.current?.contentWindow) return;
+        if (
+            !configured ||
+            !attached ||
+            !iframeLoaded ||
+            !sessionToken
+        ) {
+            return;
+        }
 
-        const msg: RagSessionMessage = {
+        const dockWindow =
+            iframeRef.current?.contentWindow;
+
+        if (!dockWindow) {
+            return;
+        }
+
+        const message: RagSessionMessage = {
             type: "RAG_SESSION",
             token: sessionToken,
         };
 
-        if (typeof sessionExp === "number") {
-            msg.exp = sessionExp;
+        if (
+            typeof sessionExp === "number"
+        ) {
+            message.exp = sessionExp;
         }
 
-        iframeRef.current.contentWindow.postMessage(msg, dockOrigin);
-    }, [configured, attached, iframeLoaded, sessionToken, sessionExp, dockOrigin]);
+        dockWindow.postMessage(
+            message,
+            expectedDockOrigin,
+        );
+    }, [
+        configured,
+        attached,
+        iframeLoaded,
+        sessionToken,
+        sessionExp,
+        expectedDockOrigin,
+    ]);
 
     useEffect(() => {
-        if (!configured) return;
-        if (!attached) return;
+        if (
+            !configured ||
+            !attached
+        ) {
+            return;
+        }
 
-        function onPanelSelected(ev: Event) {
-            const customEvent = ev as CustomEvent<PanelSelectedDetail>;
+        function onPanelSelected(
+            event: Event,
+        ): void {
+            const customEvent =
+                event as CustomEvent<PanelSelectedDetail>;
 
-            const id = customEvent.detail?.id ?? customEvent.detail?.mac;
+            const id =
+                customEvent.detail?.id ??
+                customEvent.detail?.mac;
 
-            if (!id) return;
+            if (!id) {
+                return;
+            }
 
-            const msg: TargetSelectedMessage = {
+            const message: TargetSelectedMessage = {
                 type: "TARGET_SELECTED",
                 id: String(id),
                 subject_id: String(id),
-                attrs: customEvent.detail?.attrs ?? undefined,
-                source: customEvent.detail?.source ?? "daq-ui",
+                attrs:
+                    customEvent.detail?.attrs ??
+                    undefined,
+                source:
+                    customEvent.detail?.source ??
+                    "daq-ui",
             };
 
-            iframeRef.current?.contentWindow?.postMessage(msg, dockOrigin);
+            iframeRef.current
+                ?.contentWindow
+                ?.postMessage(
+                    message,
+                    expectedDockOrigin,
+                );
         }
 
-        window.addEventListener("panel-selected", onPanelSelected as EventListener);
+        window.addEventListener(
+            "panel-selected",
+            onPanelSelected as EventListener,
+        );
 
         return () => {
-            window.removeEventListener("panel-selected", onPanelSelected as EventListener);
+            window.removeEventListener(
+                "panel-selected",
+                onPanelSelected as EventListener,
+            );
         };
-    }, [configured, attached, dockOrigin]);
+    }, [
+        configured,
+        attached,
+        expectedDockOrigin,
+    ]);
 
     const iframeSrc = useMemo(() => {
-        if (dockUrl) return dockUrl;
+        if (dockUrl) {
+            return dockUrl;
+        }
 
-        const base = `${dockOrigin}/dock`;
+        const base = `${dockBaseUrl}/dock`;
+        const clientId = ragClientId;
 
-        if (!ragClientId) return base;
+        if (!clientId) {
+            return base;
+        }
 
-        return `${base}?ragClientId=${encodeURIComponent(ragClientId)}`;
-    }, [dockOrigin, dockUrl, ragClientId]);
+        const url = new URL(base);
 
-    if (!configured || !attached) {
+        /*
+         * URLSearchParams performs the required encoding.
+         * Do not call encodeURIComponent here.
+         */
+        url.searchParams.set(
+            "ragClientId",
+            clientId,
+        );
+
+        return url.toString();
+    }, [
+        dockBaseUrl,
+        dockUrl,
+        ragClientId,
+    ]);
+
+    if (!configured) {
+        return (
+            <div className="text-xs text-red-700">
+                RAG dock configuration is incomplete.
+            </div>
+        );
+    }
+
+    if (!attached) {
         return null;
     }
 
     return (
-        <>
-            <br />
+        <div
+            className="rag-dock-host"
+            style={{
+                width: "100%",
+                height: "auto",
+                minHeight: 0,
+                maxHeight: "none",
+                overflow: "hidden",
+            }}
+        >
+            {lastError ? (
+                <div
+                    className="mb-2 text-xs text-red-700"
+                    role="alert"
+                >
+                    {lastError}
+                </div>
+            ) : null}
 
-            {/*<GroupBox title="AI Explanation">*/}
-                {lastError ? (
-                    <div className="mb-2 text-xs text-red-700">{lastError}</div>
-                ) : null}
-
-                <iframe
-                    key={ragClientId ?? "no-rag-client"}
-                    ref={iframeRef}
-                    id={FRAME_ID}
-                    src={iframeSrc}
-
-                    className="block w-full border-0 overflow-hidden"
-                    style={{
-                        height: `${iframeHeight}px`,
-                        overflow: "hidden",
-                    }}
-                    onLoad={() => setIframeLoaded(true)}
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-                />
-            {/*</GroupBox>*/}
-        </>
+            <iframe
+                key={
+                    ragClientId ??
+                    "no-rag-client"
+                }
+                ref={iframeRef}
+                id={FRAME_ID}
+                src={iframeSrc}
+                title="AI explanation dock"
+                scrolling="no"
+                className="block w-full border-0"
+                style={{
+                    display: "block",
+                    width: "100%",
+                    height: `${iframeHeight}px`,
+                    minHeight: 0,
+                    maxHeight: "none",
+                    border: 0,
+                    overflow: "hidden",
+                    background: "transparent",
+                }}
+                onLoad={() => {
+                    setIframeLoaded(true);
+                }}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+            />
+        </div>
     );
 }
