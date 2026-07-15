@@ -18,8 +18,7 @@ const FRAME_ID =
 const DEFAULT_DOCK_HEIGHT = 600;
 const MIN_DOCK_HEIGHT = 240;
 const MAX_DOCK_HEIGHT = 5000;
-const DOCK_HEIGHT_CHANGE_THRESHOLD = 4;
-const DOCK_HEIGHT_PADDING = 4;
+const DOCK_HEIGHT_CHANGE_THRESHOLD = 8;
 
 type RagSessionMessage = {
     type: "RAG_SESSION";
@@ -107,9 +106,7 @@ function getInitialRagClientIdFromUrl(): string | null {
         window.location.search,
     );
 
-    const ragClientId =
-        params.get("ragClientId") ??
-        params.get("ragclientid");
+    const ragClientId = params.get("ragClientId");
 
     return ragClientId?.trim() || null;
 }
@@ -230,15 +227,11 @@ function parseResizeMessage(
 function clampDockHeight(
     height: number,
 ): number {
-    const paddedHeight = Math.ceil(
-        height + DOCK_HEIGHT_PADDING,
-    );
-
     return Math.min(
         MAX_DOCK_HEIGHT,
         Math.max(
             MIN_DOCK_HEIGHT,
-            paddedHeight,
+            Math.ceil(height),
         ),
     );
 }
@@ -582,35 +575,35 @@ export default function DockHost() {
                             .text()
                             .catch(() => "");
 
-                    throw new Error(
-                        `resolveClient: ${
-                            response.status
-                        } ${
-                            response.statusText
-                        }${
-                            responseText
-                                ? ` — ${responseText}`
-                                : ""
+                    setRagClient(null);
+                    setLastError(
+                        `resolveClient: ${response.status} ${response.statusText}${
+                            responseText ? ` — ${responseText}` : ""
                         }`,
                     );
+                    return;
                 }
 
                 const client =
                     (await response.json()) as RagClientRow;
 
                 if (!client?.id) {
-                    throw new Error(
+                    setRagClient(null);
+                    setLastError(
                         `resolveClient: missing id for rag_client ${clientId}`,
                     );
+                    return;
                 }
 
                 if (
                     client.id !==
                     clientId
                 ) {
-                    throw new Error(
+                    setRagClient(null);
+                    setLastError(
                         `resolveClient: requested ${clientId}, received ${client.id}`,
                     );
+                    return;
                 }
 
                 setRagClient(client);
@@ -870,7 +863,6 @@ export default function DockHost() {
                 id={FRAME_ID}
                 src={iframeSrc}
                 title="AI explanation dock"
-                scrolling="no"
                 className="block w-full border-0"
                 style={{
                     display: "block",

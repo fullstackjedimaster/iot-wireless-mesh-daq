@@ -5,10 +5,8 @@ import { useEffect } from "react";
 
 const CONTENT_ROOT_ID = "daq-embed-content";
 
-const SNAP = 4;
 const MAX_HEIGHT = 5000;
 const CHANGE_THRESHOLD = 2;
-const POLL_INTERVAL_MS = 1000;
 
 const SETTLE_DELAYS_MS = [
     0,
@@ -26,10 +24,10 @@ function getFrameId(): string {
     );
 }
 
-function snapHeight(height: number): number {
+function clampHeight(height: number): number {
     return Math.min(
         MAX_HEIGHT,
-        Math.ceil(height / SNAP) * SNAP,
+        Math.max(1, Math.ceil(height)),
     );
 }
 
@@ -55,7 +53,7 @@ function measureContentHeight(
         root.offsetHeight,
     );
 
-    return snapHeight(rawHeight);
+    return clampHeight(rawHeight);
 }
 
 export default function EmbedHeightReporter() {
@@ -231,16 +229,6 @@ export default function EmbedHeightReporter() {
             true,
         );
 
-        /*
-         * Slow fallback only. ResizeObserver and MutationObserver
-         * should handle normal updates.
-         */
-        const intervalId =
-            window.setInterval(
-                postMeasuredHeight,
-                POLL_INTERVAL_MS,
-            );
-
         return () => {
             disposed = true;
 
@@ -284,9 +272,6 @@ export default function EmbedHeightReporter() {
                 true,
             );
 
-            window.clearInterval(
-                intervalId,
-            );
         };
     }, []);
 
