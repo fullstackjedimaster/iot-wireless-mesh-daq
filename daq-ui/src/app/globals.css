@@ -1,101 +1,227 @@
+/* ==========================================================================
+   Fonts
+   ========================================================================== */
+
 @font-face {
-  font-family: "Orbitron";
-  src: url("/fonts/Orbitron-Regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
+    font-family: "Orbitron";
+    src: url("/fonts/Orbitron-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
-  font-family: "Orbitron";
-  src: url("/fonts/Orbitron-Medium.ttf") format("truetype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
+    font-family: "Orbitron";
+    src: url("/fonts/Orbitron-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
 }
 
-  @font-face {
+@font-face {
     font-family: "Orbitron";
     src: url("/fonts/Orbitron-SemiBold.ttf") format("truetype");
     font-weight: 600;
     font-style: normal;
     font-display: swap;
-  }
+}
 
-  @font-face {
+@font-face {
     font-family: "Orbitron";
     src: url("/fonts/Orbitron-Bold.ttf") format("truetype");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
-  }
+}
 
-  @font-face {
+@font-face {
     font-family: "Orbitron";
     src: url("/fonts/Orbitron-ExtraBold.ttf") format("truetype");
     font-weight: 800;
     font-style: normal;
     font-display: swap;
-  }
+}
 
-  @font-face {
+@font-face {
     font-family: "Orbitron";
     src: url("/fonts/Orbitron-Black.ttf") format("truetype");
     font-weight: 900;
     font-style: normal;
     font-display: swap;
-  }
+}
 
-  /* Optional: Include variable font fallback if needed */
-  @font-face {
+/*
+ * Optional variable-font family.
+ * Use font-family: "OrbitronVariable" explicitly where needed.
+ */
+@font-face {
     font-family: "OrbitronVariable";
     src: url("/fonts/Orbitron-VariableFont_wght.ttf") format("truetype");
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
-  }
+}
 
 
+/* ==========================================================================
+   Global reset and embedded-document sizing
+   ========================================================================== */
+
+:root {
+    font-family: "Orbitron", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+
+    /*
+     * The portfolio iframe expands to match #daq-embed-content.
+     * The DAQ document itself should therefore never own an outer scrollbar.
+     */
+    overflow-x: hidden;
+    overflow-y: hidden;
+
+    /* Prevent browser scroll anchoring from shifting the dashboard. */
+    overflow-anchor: none;
+}
 
 body {
-    margin: 0; /* Remove default body margin */
-    font-family: 'Orbitron', system-ui, sans-serif;
-    background: linear-gradient(
-        45deg,
-        #999 5%,    /* Dark silver */
-        #fff 10%,    /* Lightest highlight */
-        #ccc 30%,    /* Medium silver */
-        #ddd 50%,    /* Lighter silver */
-        #ccc 70%,    /* Medium silver */
-        #fff 80%,    /* Lightest highlight */
-        #999 95%     /* Dark silver */
-    );
-    border-radius: 2px; /* Optional: adds rounded corners to the form */
+    color: #000000;
+    font-family: "Orbitron", system-ui, sans-serif;
+
+    background:
+        linear-gradient(
+            45deg,
+            #999999 5%,
+            #ffffff 10%,
+            #cccccc 30%,
+            #dddddd 50%,
+            #cccccc 70%,
+            #ffffff 80%,
+            #999999 95%
+        );
+}
+
+/*
+ * Next.js App Router normally does not emit #__next, but retaining this
+ * harmless rule supports any older Pages Router rendering path.
+ */
+#__next {
+    height: auto;
+    min-height: 0;
+}
+
+
+/* ==========================================================================
+   Explicit embed measurement root
+   ========================================================================== */
+
+#daq-embed-content {
+    display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    padding: 0;
 
+    /*
+     * Content must be allowed to establish its natural height so that
+     * EmbedHeightReporter can measure this element accurately.
+     */
+    overflow: visible;
 }
 
-.main-section{
-   width: 100%;
+
+/* ==========================================================================
+   Responsive media
+   ========================================================================== */
+
+img,
+canvas,
+svg,
+video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+
+/* ==========================================================================
+   Main dashboard structure
+   ========================================================================== */
+
+.main-section {
+    width: 100%;
     max-width: 334px;
+    min-height: 0;
 }
 
-.fieldset-section{
+main.main-section {
+    height: auto;
+    min-height: 0;
+}
+
+.header {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+
+/* ==========================================================================
+   Legacy-style fieldsets and panels
+   ========================================================================== */
+
+.fieldset-section {
+    min-width: 0;
     border-width: thick;
-    font-size: 12px;
     border-style: ridge;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 700;
 }
 
-.panel-section{
-    background: white;
+.panel-section {
+    min-width: 0;
     padding: 2px;
-    border-style: inset;
     border-width: thick;
-
-
+    border-style: inset;
+    background: #ffffff;
 }
+
+.control-section {
+    width: auto;
+    min-width: 0;
+    padding: 3px;
+    border-style: inset;
+    border-radius: 4px;
+    align-content: center;
+    justify-items: center;
+}
+
+.panel {
+    font-size: 4px;
+    font-weight: 700;
+    text-anchor: middle;
+    alignment-baseline: middle;
+}
+
+
+/* ==========================================================================
+   Fault legend
+   ========================================================================== */
+
 .fault-legend {
     display: grid;
     grid-template-columns: 90px 90px;
@@ -103,7 +229,7 @@ body {
     font-size: 8px;
 }
 
-.fault-legend-header{
+.fault-legend-header {
     font-size: 9px;
 }
 
@@ -112,127 +238,104 @@ body {
     white-space: nowrap;
 }
 
-.control-section{
-    border-radius: 4px;
-    padding: 3px;
-    border-style: inset;
-    width: auto;
-    justify-items: center;
-    align-content:  center;
-}
 
-.panel{
-    font-weight: bold;
-    font-size: 4px;
-    text-anchor: middle;
-    alignment-baseline:  middle;
-}
-
-.header{
-    font-weight: bold;
-    font-size: 14px;
-    text-align: center;
-}
+/* ==========================================================================
+   Fault injection controls
+   ========================================================================== */
 
 .fault-injection-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.5rem;
+
+    width: 100%;
     max-width: 300px;
     margin: 0 auto;
     padding: 0.5rem;
-    box-sizing: border-box;
 }
 
 .fault-injection-controls select,
 .fault-injection-controls button {
     width: 100%;
+    min-width: 0;
     padding: 0.25rem 0.5rem;
     font-size: 0.9rem;
 }
 
-/* Disable Chrome's scroll anchoring (prevents jitter) */
-html, body {
-    overflow-anchor: none;
-    margin: 0;
-    padding: 0;
-    height: auto !important;
-    min-height: 0 !important;
-    overflow-y: auto;   /* allow scrolling if content taller than viewport */
-}
 
-/* Kill Tailwind's h-screen / min-h-screen locks inside iframe */
-[class*="min-h-0"],
-[class*="h-auto"] {
-    height: auto !important;
-    min-height: 0 !important;
-}
+/* ==========================================================================
+   Dynamically resized RAG dock
+   ========================================================================== */
 
-/* Defensive: don't let flex/grid children force artificial heights */
-* {
+.rag-dock-host {
+    display: block;
+    width: 100%;
+    height: auto;
     min-height: 0;
+    max-height: none;
+    overflow: hidden;
 }
 
-html, body { margin:0; padding:0; overflow-x:hidden; }
-*, *::before, *::after { box-sizing:border-box; }
-
-/* Prevent inner iframes from having their own vertical scrollbar */
-:root, html, body {
-    height: auto !important;
-    min-height: 0 !important;
-    overflow-y: visible !important;
+.rag-dock-host iframe {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    overflow: hidden;
 }
 
-/* globals.css */
-html, body {
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-}
-#__next, body, html {
-    min-height: 0 !important; /* don’t force screen height */
-}
 
-/* /daq-ui/src/apps/globals.css (safe clamps for iframe embedding) */
-html, body, #__next { min-height: 0 !important; height: auto !important; }
-main.main-section { min-height: auto !important; }
-img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
+/* ==========================================================================
+   Fixed seven-line DAQ logs
+   ========================================================================== */
 
 .daq-log-panel {
     display: flex;
     flex-direction: column;
+
     width: 100%;
     min-width: 0;
     max-width: 100%;
+
     overflow: hidden;
 }
 
 .daq-log-title {
     flex: 0 0 auto;
+
     margin: 0;
     padding: 1px 4px;
+
     overflow: hidden;
+
     color: #ffffff;
     background: #111827;
+
     font-size: 10px;
     line-height: 1.15;
     font-weight: 800;
+
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .daq-log-body {
     display: block;
+
     width: 100%;
     height: calc(7 * 1.15em + 4px);
     min-height: calc(7 * 1.15em + 4px);
     max-height: calc(7 * 1.15em + 4px);
+
     margin: 0;
     padding: 2px 4px;
+
     overflow: hidden;
     border: 0;
+
     color: #ffffff;
     background: #030712;
+
     font-family:
         ui-monospace,
         SFMono-Regular,
@@ -241,26 +344,35 @@ img, canvas, svg, video { max-width: 100%; height: auto; display: block; }
         Consolas,
         "Liberation Mono",
         monospace;
+
     font-size: 8px;
     line-height: 1.15;
+
     white-space: pre;
     word-break: normal;
     overflow-wrap: normal;
 }
 
 .daq-log-error {
+    width: 100%;
     min-height: calc(7 * 1.15em + 4px);
+    max-height: calc(7 * 1.15em + 4px);
+
     padding: 4px;
     overflow: hidden;
+
     color: #fecaca;
     background: #450a0a;
+
     font-family:
         ui-monospace,
         SFMono-Regular,
         Menlo,
         Monaco,
         Consolas,
+        "Liberation Mono",
         monospace;
+
     font-size: 9px;
     line-height: 1.2;
 }
