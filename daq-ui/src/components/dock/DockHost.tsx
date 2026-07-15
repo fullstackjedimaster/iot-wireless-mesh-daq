@@ -48,8 +48,14 @@ type RagDockDisconnectMessage = {
     ragClientId?: string;
 };
 
+type RagDockReadyMessage = {
+    type: "RAG_DOCK_READY";
+    frameId?: string;
+};
+
 type RagDockResizeMessage = {
     type: "RAG_DOCK_RESIZE";
+    frameId?: string;
     height: number;
 };
 
@@ -66,7 +72,9 @@ type PanelSelectedDetail = {
     source?: string;
 };
 
-function safeTrimSlash(value: string): string {
+function safeTrimSlash(
+    value: string,
+): string {
     return value.replace(/\/+$/, "");
 }
 
@@ -80,7 +88,9 @@ function isObject(
     );
 }
 
-function getOrigin(value: string): string {
+function getOrigin(
+    value: string,
+): string {
     try {
         return new URL(value).origin;
     } catch {
@@ -107,11 +117,10 @@ function getInitialRagClientIdFromUrl(): string | null {
 function parseConnectMessage(
     data: unknown,
 ): RagDockConnectMessage | null {
-    if (!isObject(data)) {
-        return null;
-    }
-
-    if (data.type !== "RAG_DOCK_CONNECT") {
+    if (
+        !isObject(data) ||
+        data.type !== "RAG_DOCK_CONNECT"
+    ) {
         return null;
     }
 
@@ -134,7 +143,8 @@ function parseConnectMessage(
 
     return {
         type: "RAG_DOCK_CONNECT",
-        ragClientId: ragClientId.trim(),
+        ragClientId:
+            ragClientId.trim(),
         dockUrl: dockUrl.trim(),
         label:
             typeof data.label === "string"
@@ -150,22 +160,42 @@ function parseConnectMessage(
 function parseDisconnectMessage(
     data: unknown,
 ): RagDockDisconnectMessage | null {
-    if (!isObject(data)) {
+    if (
+        !isObject(data) ||
+        data.type !== "RAG_DOCK_DISCONNECT"
+    ) {
         return null;
     }
 
-    if (data.type !== "RAG_DOCK_DISCONNECT") {
-        return null;
-    }
-
-    const rawRagClientId = data.ragClientId;
+    const rawRagClientId =
+        data.ragClientId;
 
     return {
         type: "RAG_DOCK_DISCONNECT",
         ragClientId:
-            typeof rawRagClientId === "string" &&
+            typeof rawRagClientId ===
+                "string" &&
             rawRagClientId.trim()
                 ? rawRagClientId.trim()
+                : undefined,
+    };
+}
+
+function parseReadyMessage(
+    data: unknown,
+): RagDockReadyMessage | null {
+    if (
+        !isObject(data) ||
+        data.type !== "RAG_DOCK_READY"
+    ) {
+        return null;
+    }
+
+    return {
+        type: "RAG_DOCK_READY",
+        frameId:
+            typeof data.frameId === "string"
+                ? data.frameId
                 : undefined,
     };
 }
@@ -173,11 +203,10 @@ function parseDisconnectMessage(
 function parseResizeMessage(
     data: unknown,
 ): RagDockResizeMessage | null {
-    if (!isObject(data)) {
-        return null;
-    }
-
-    if (data.type !== "RAG_DOCK_RESIZE") {
+    if (
+        !isObject(data) ||
+        data.type !== "RAG_DOCK_RESIZE"
+    ) {
         return null;
     }
 
@@ -190,11 +219,17 @@ function parseResizeMessage(
 
     return {
         type: "RAG_DOCK_RESIZE",
+        frameId:
+            typeof data.frameId === "string"
+                ? data.frameId
+                : undefined,
         height: data.height,
     };
 }
 
-function clampDockHeight(height: number): number {
+function clampDockHeight(
+    height: number,
+): number {
     const paddedHeight = Math.ceil(
         height + DOCK_HEIGHT_PADDING,
     );
@@ -210,7 +245,9 @@ function clampDockHeight(height: number): number {
 
 export default function DockHost() {
     const iframeRef =
-        useRef<HTMLIFrameElement | null>(null);
+        useRef<HTMLIFrameElement | null>(
+            null,
+        );
 
     const [attached, setAttached] =
         useState(false);
@@ -222,7 +259,9 @@ export default function DockHost() {
         useState<string | null>(null);
 
     const [ragClient, setRagClient] =
-        useState<RagClientRow | null>(null);
+        useState<RagClientRow | null>(
+            null,
+        );
 
     const [sessionToken, setSessionToken] =
         useState("");
@@ -230,7 +269,7 @@ export default function DockHost() {
     const [sessionExp, setSessionExp] =
         useState<number | null>(null);
 
-    const [iframeLoaded, setIframeLoaded] =
+    const [dockReady, setDockReady] =
         useState(false);
 
     const [iframeHeight, setIframeHeight] =
@@ -245,29 +284,34 @@ export default function DockHost() {
             : "";
     }, []);
 
-    const expectedDockOrigin = useMemo(() => {
-        return dockBaseUrl
-            ? getOrigin(dockBaseUrl)
-            : "";
-    }, [dockBaseUrl]);
+    const expectedDockOrigin =
+        useMemo(() => {
+            return dockBaseUrl
+                ? getOrigin(dockBaseUrl)
+                : "";
+        }, [dockBaseUrl]);
 
     const ragBase = useMemo(() => {
         return RAG_API_BASE
-            ? safeTrimSlash(RAG_API_BASE)
+            ? safeTrimSlash(
+                  RAG_API_BASE,
+              )
             : "";
     }, []);
 
     const configured = Boolean(
         ragBase &&
-        dockBaseUrl &&
-        expectedDockOrigin,
+            dockBaseUrl &&
+            expectedDockOrigin,
     );
 
     function resetDockRuntime(): void {
         setSessionToken("");
         setSessionExp(null);
-        setIframeLoaded(false);
-        setIframeHeight(DEFAULT_DOCK_HEIGHT);
+        setDockReady(false);
+        setIframeHeight(
+            DEFAULT_DOCK_HEIGHT,
+        );
         setRagClient(null);
     }
 
@@ -293,10 +337,14 @@ export default function DockHost() {
             initialRagClientId,
         );
 
-        setIframeLoaded(false);
-        setIframeHeight(DEFAULT_DOCK_HEIGHT);
+        setDockReady(false);
+        setIframeHeight(
+            DEFAULT_DOCK_HEIGHT,
+        );
         setAttached(true);
-        setRagClientId(initialRagClientId);
+        setRagClientId(
+            initialRagClientId,
+        );
         setDockUrl(url.toString());
     }, [
         configured,
@@ -311,12 +359,15 @@ export default function DockHost() {
         function onMessage(
             event: MessageEvent<unknown>,
         ): void {
-            const resizeMessage =
-                parseResizeMessage(event.data);
+            const iframe =
+                iframeRef.current;
 
-            if (resizeMessage) {
-                const iframe = iframeRef.current;
+            const readyMessage =
+                parseReadyMessage(
+                    event.data,
+                );
 
+            if (readyMessage) {
                 if (
                     !iframe ||
                     event.source !==
@@ -328,6 +379,47 @@ export default function DockHost() {
                 if (
                     event.origin !==
                     expectedDockOrigin
+                ) {
+                    return;
+                }
+
+                if (
+                    readyMessage.frameId &&
+                    readyMessage.frameId !==
+                        FRAME_ID
+                ) {
+                    return;
+                }
+
+                setDockReady(true);
+                return;
+            }
+
+            const resizeMessage =
+                parseResizeMessage(
+                    event.data,
+                );
+
+            if (resizeMessage) {
+                if (
+                    !iframe ||
+                    event.source !==
+                        iframe.contentWindow
+                ) {
+                    return;
+                }
+
+                if (
+                    event.origin !==
+                    expectedDockOrigin
+                ) {
+                    return;
+                }
+
+                if (
+                    resizeMessage.frameId &&
+                    resizeMessage.frameId !==
+                        FRAME_ID
                 ) {
                     return;
                 }
@@ -356,26 +448,30 @@ export default function DockHost() {
             }
 
             /*
-             * Connect and disconnect commands are expected
-             * from the outer host, not from the dock iframe.
+             * Connect/disconnect commands come from the host,
+             * not from the nested RAG iframe.
              */
             if (
-                event.source !== window.parent &&
+                event.source !==
+                    window.parent &&
                 event.source !== window
             ) {
                 return;
             }
 
             const connectMessage =
-                parseConnectMessage(event.data);
+                parseConnectMessage(
+                    event.data,
+                );
 
             if (connectMessage) {
                 let resolvedDockUrl: URL;
 
                 try {
-                    resolvedDockUrl = new URL(
-                        connectMessage.dockUrl,
-                    );
+                    resolvedDockUrl =
+                        new URL(
+                            connectMessage.dockUrl,
+                        );
                 } catch {
                     setLastError(
                         "RAG dock connection supplied an invalid dock URL.",
@@ -399,11 +495,12 @@ export default function DockHost() {
                 setRagClientId(
                     connectMessage.ragClientId,
                 );
+
                 setDockUrl(
                     resolvedDockUrl.toString(),
                 );
-                setAttached(true);
 
+                setAttached(true);
                 return;
             }
 
@@ -458,11 +555,6 @@ export default function DockHost() {
             return;
         }
 
-        /*
-         * Capture the narrowed value before entering the
-         * nested async function. This keeps clientId typed
-         * as string rather than string | null.
-         */
         const clientId = ragClientId;
         const controller =
             new AbortController();
@@ -471,16 +563,18 @@ export default function DockHost() {
             try {
                 setLastError("");
 
-                const response = await fetch(
-                    `${ragBase}/api/rag-clients/${encodeURIComponent(
-                        clientId,
-                    )}`,
-                    {
-                        cache: "no-store",
-                        signal:
-                            controller.signal,
-                    },
-                );
+                const response =
+                    await fetch(
+                        `${ragBase}/api/rag-clients/${encodeURIComponent(
+                            clientId,
+                        )}`,
+                        {
+                            cache:
+                                "no-store",
+                            signal:
+                                controller.signal,
+                        },
+                    );
 
                 if (!response.ok) {
                     const responseText =
@@ -510,14 +604,17 @@ export default function DockHost() {
                     );
                 }
 
-                if (client.id !== clientId) {
+                if (
+                    client.id !==
+                    clientId
+                ) {
                     throw new Error(
                         `resolveClient: requested ${clientId}, received ${client.id}`,
                     );
                 }
 
                 setRagClient(client);
-            } catch (caughtError) {
+            } catch (error: unknown) {
                 if (
                     controller.signal.aborted
                 ) {
@@ -527,9 +624,9 @@ export default function DockHost() {
                 setRagClient(null);
 
                 setLastError(
-                    caughtError instanceof Error
-                        ? caughtError.message
-                        : String(caughtError),
+                    error instanceof Error
+                        ? error.message
+                        : String(error),
                 );
             }
         }
@@ -560,7 +657,9 @@ export default function DockHost() {
          * Portfolio lock is currently disabled for this
          * internal development path.
          */
-        setSessionToken("debug-disabled");
+        setSessionToken(
+            "debug-disabled",
+        );
         setSessionExp(null);
     }, [
         configured,
@@ -573,30 +672,37 @@ export default function DockHost() {
         if (
             !configured ||
             !attached ||
-            !iframeLoaded ||
+            !dockReady ||
             !sessionToken
         ) {
             return;
         }
 
         const dockWindow =
-            iframeRef.current?.contentWindow;
+            iframeRef.current
+                ?.contentWindow;
 
         if (!dockWindow) {
             return;
         }
 
-        const message: RagSessionMessage = {
-            type: "RAG_SESSION",
-            token: sessionToken,
-        };
+        const message:
+            RagSessionMessage = {
+                type: "RAG_SESSION",
+                token: sessionToken,
+            };
 
         if (
-            typeof sessionExp === "number"
+            typeof sessionExp ===
+            "number"
         ) {
             message.exp = sessionExp;
         }
 
+        /*
+         * Safe now: RAG_DOCK_READY proved that the iframe
+         * is running at expectedDockOrigin.
+         */
         dockWindow.postMessage(
             message,
             expectedDockOrigin,
@@ -604,7 +710,7 @@ export default function DockHost() {
     }, [
         configured,
         attached,
-        iframeLoaded,
+        dockReady,
         sessionToken,
         sessionExp,
         expectedDockOrigin,
@@ -632,17 +738,30 @@ export default function DockHost() {
                 return;
             }
 
-            const message: TargetSelectedMessage = {
-                type: "TARGET_SELECTED",
-                id: String(id),
-                subject_id: String(id),
-                attrs:
-                    customEvent.detail?.attrs ??
-                    undefined,
-                source:
-                    customEvent.detail?.source ??
-                    "daq-ui",
-            };
+            const message:
+                TargetSelectedMessage = {
+                    type:
+                        "TARGET_SELECTED",
+                    id: String(id),
+                    subject_id:
+                        String(id),
+                    attrs:
+                        customEvent.detail
+                            ?.attrs ??
+                        undefined,
+                    source:
+                        customEvent.detail
+                            ?.source ??
+                        "daq-ui",
+                };
+
+            /*
+             * Target selections should also wait until the real
+             * RAG document has announced readiness.
+             */
+            if (!dockReady) {
+                return;
+            }
 
             iframeRef.current
                 ?.contentWindow
@@ -666,6 +785,7 @@ export default function DockHost() {
     }, [
         configured,
         attached,
+        dockReady,
         expectedDockOrigin,
     ]);
 
@@ -674,22 +794,31 @@ export default function DockHost() {
             return dockUrl;
         }
 
-        const base = `${dockBaseUrl}/dock`;
-        const clientId = ragClientId;
+        const base =
+            `${dockBaseUrl}/dock`;
+
+        const clientId =
+            ragClientId;
 
         if (!clientId) {
             return base;
         }
 
-        const url = new URL(base);
+        const url =
+            new URL(base);
 
-        /*
-         * URLSearchParams performs the required encoding.
-         * Do not call encodeURIComponent here.
-         */
         url.searchParams.set(
             "ragClientId",
             clientId,
+        );
+
+        /*
+         * Allows the nested dock to identify its host frame
+         * in readiness and resize messages.
+         */
+        url.searchParams.set(
+            "frameId",
+            FRAME_ID,
         );
 
         return url.toString();
@@ -702,7 +831,8 @@ export default function DockHost() {
     if (!configured) {
         return (
             <div className="text-xs text-red-700">
-                RAG dock configuration is incomplete.
+                RAG dock configuration is
+                incomplete.
             </div>
         );
     }
@@ -745,15 +875,22 @@ export default function DockHost() {
                 style={{
                     display: "block",
                     width: "100%",
-                    height: `${iframeHeight}px`,
+                    height:
+                        `${iframeHeight}px`,
                     minHeight: 0,
                     maxHeight: "none",
                     border: 0,
                     overflow: "hidden",
-                    background: "transparent",
+                    background:
+                        "transparent",
                 }}
                 onLoad={() => {
-                    setIframeLoaded(true);
+                    /*
+                     * A navigation invalidates the previous handshake.
+                     * The newly loaded RAG document must announce
+                     * RAG_DOCK_READY again.
+                     */
+                    setDockReady(false);
                 }}
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
             />
