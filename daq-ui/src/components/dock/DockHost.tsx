@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -20,6 +21,12 @@ const MIN_DOCK_HEIGHT = 240;
 const MAX_DOCK_HEIGHT = 5000;
 const DOCK_HEIGHT_CHANGE_THRESHOLD = 8;
 
+const HOST_APP_ID =
+    "iot-wireless-mesh-daq";
+
+const HOST_DEFAULT_DENSITY =
+    "compact";
+
 type RagSessionMessage = {
     type: "RAG_SESSION";
     token: string;
@@ -32,6 +39,22 @@ type TargetSelectedMessage = {
     subject_id: string;
     attrs?: Attrs;
     source?: string;
+};
+
+type HostCssVars = Record<string, string>;
+
+type HostThemeMetadata = {
+    app: string;
+    mode?: string;
+    density?: string;
+    theme?: string;
+};
+
+type HostCssVarsMessage = {
+    type: "HOST_CSS_VARS";
+    frameId?: string;
+    vars: HostCssVars;
+    host: HostThemeMetadata;
 };
 
 type RagDockConnectMessage = {
@@ -106,7 +129,8 @@ function getInitialRagClientIdFromUrl(): string | null {
         window.location.search,
     );
 
-    const ragClientId = params.get("ragClientId");
+    const ragClientId =
+        params.get("ragClientId");
 
     return ragClientId?.trim() || null;
 }
@@ -121,8 +145,11 @@ function parseConnectMessage(
         return null;
     }
 
-    const ragClientId = data.ragClientId;
-    const dockUrl = data.dockUrl;
+    const ragClientId =
+        data.ragClientId;
+
+    const dockUrl =
+        data.dockUrl;
 
     if (
         typeof ragClientId !== "string" ||
@@ -142,7 +169,8 @@ function parseConnectMessage(
         type: "RAG_DOCK_CONNECT",
         ragClientId:
             ragClientId.trim(),
-        dockUrl: dockUrl.trim(),
+        dockUrl:
+            dockUrl.trim(),
         label:
             typeof data.label === "string"
                 ? data.label
@@ -220,7 +248,8 @@ function parseResizeMessage(
             typeof data.frameId === "string"
                 ? data.frameId
                 : undefined,
-        height: data.height,
+        height:
+            data.height,
     };
 }
 
@@ -236,11 +265,160 @@ function clampDockHeight(
     );
 }
 
+function collectCssCustomProperties(
+    element: Element | null,
+): HostCssVars {
+    if (!element) {
+        return {};
+    }
+
+    const styles =
+        window.getComputedStyle(element);
+
+    const vars: HostCssVars = {};
+
+    for (
+        let index = 0;
+        index < styles.length;
+        index += 1
+    ) {
+        const propertyName =
+            styles.item(index);
+
+        if (
+            !propertyName.startsWith("--")
+        ) {
+            continue;
+        }
+
+        const value =
+            styles
+                .getPropertyValue(
+                    propertyName,
+                )
+                .trim();
+
+        if (!value) {
+            continue;
+        }
+
+        vars[propertyName] =
+            value;
+    }
+
+    return vars;
+}
+
+function mergeCssCustomProperties(
+    ...sources: Array<
+        Element | null | undefined
+    >
+): HostCssVars {
+    const merged: HostCssVars = {};
+
+    for (const source of sources) {
+        Object.assign(
+            merged,
+            collectCssCustomProperties(
+                source ?? null,
+            ),
+        );
+    }
+
+    return merged;
+}
+
+function readHostThemeMetadata(
+    hostElement?: Element | null,
+): HostThemeMetadata {
+    const html =
+        document.documentElement;
+
+    const body =
+        document.body;
+
+    const theme =
+        hostElement?.getAttribute(
+            "data-theme",
+        ) ||
+        body?.getAttribute(
+            "data-theme",
+        ) ||
+        html.getAttribute(
+            "data-theme",
+        ) ||
+        (
+            html.classList.contains(
+                "dark",
+            )
+                ? "dark"
+                : html.classList.contains(
+                      "light",
+                  )
+                  ? "light"
+                  : undefined
+        );
+
+    const mode =
+        hostElement?.getAttribute(
+            "data-mode",
+        ) ||
+        body?.getAttribute(
+            "data-mode",
+        ) ||
+        html.getAttribute(
+            "data-mode",
+        ) ||
+        undefined;
+
+    const density =
+        hostElement?.getAttribute(
+            "data-density",
+        ) ||
+        body?.getAttribute(
+            "data-density",
+        ) ||
+        html.getAttribute(
+            "data-density",
+        ) ||
+        HOST_DEFAULT_DENSITY;
+
+    return {
+        app: HOST_APP_ID,
+        mode,
+        density,
+        theme,
+    };
+}
+
+function normalizeDockUrl(
+    rawDockUrl: string,
+    ragClientId: string,
+): URL {
+    const url =
+        new URL(rawDockUrl);
+
+    url.searchParams.set(
+        "ragClientId",
+        ragClientId,
+    );
+
+    url.searchParams.set(
+        "frameId",
+        FRAME_ID,
+    );
+
+    return url;
+}
+
 export default function DockHost() {
     const iframeRef =
         useRef<HTMLIFrameElement | null>(
             null,
         );
+
+    const themePublishFrameRef =
+        useRef<number | null>(null);
 
     const [attached, setAttached] =
         useState(false);
@@ -298,13 +476,99 @@ export default function DockHost() {
             expectedDockOrigin,
     );
 
+    const publishHostCssVars =
+        useCallback((): void => {
+            const iframe =
+                iframeRef.current;
+
+            const dockWindow =
+                iframe?.contentWindow;
+
+            if (
+                !iframe ||
+                !dockWindow ||
+                !expectedDockOrigin
+            ) {
+                return;
+            }
+
+            const hostElement =
+                iframe.parentElement;
+
+            /*
+             * Later sources override earlier sources.
+             *
+             * This means:
+             *   :root variables
+             *       ↓
+             *   body-level overrides
+             *       ↓
+             *   .rag-dock-host overrides
+             *
+             * The dock therefore receives the variables that are
+             * actually effective at its mounting location.
+             */
+            const vars =
+                mergeCssCustomProperties(
+                    document.documentElement,
+                    document.body,
+                    hostElement,
+                );
+
+            const message:
+                HostCssVarsMessage = {
+                    type:
+                        "HOST_CSS_VARS",
+                    frameId:
+                        FRAME_ID,
+                    vars,
+                    host:
+                        readHostThemeMetadata(
+                            hostElement,
+                        ),
+                };
+
+            dockWindow.postMessage(
+                message,
+                expectedDockOrigin,
+            );
+        }, [
+            expectedDockOrigin,
+        ]);
+
+    const scheduleHostCssVarsPublish =
+        useCallback((): void => {
+            if (
+                themePublishFrameRef.current !==
+                null
+            ) {
+                window.cancelAnimationFrame(
+                    themePublishFrameRef.current,
+                );
+            }
+
+            themePublishFrameRef.current =
+                window.requestAnimationFrame(
+                    () => {
+                        themePublishFrameRef.current =
+                            null;
+
+                        publishHostCssVars();
+                    },
+                );
+        }, [
+            publishHostCssVars,
+        ]);
+
     function resetDockRuntime(): void {
         setSessionToken("");
         setSessionExp(null);
         setDockReady(false);
+
         setIframeHeight(
             DEFAULT_DOCK_HEIGHT,
         );
+
         setRagClient(null);
     }
 
@@ -320,25 +584,37 @@ export default function DockHost() {
             return;
         }
 
-        const url = new URL(
-            "/dock",
-            dockBaseUrl,
-        );
+        const url =
+            new URL(
+                "/dock",
+                dockBaseUrl,
+            );
 
         url.searchParams.set(
             "ragClientId",
             initialRagClientId,
         );
 
+        url.searchParams.set(
+            "frameId",
+            FRAME_ID,
+        );
+
         setDockReady(false);
+
         setIframeHeight(
             DEFAULT_DOCK_HEIGHT,
         );
+
         setAttached(true);
+
         setRagClientId(
             initialRagClientId,
         );
-        setDockUrl(url.toString());
+
+        setDockUrl(
+            url.toString(),
+        );
     }, [
         configured,
         dockBaseUrl,
@@ -385,6 +661,12 @@ export default function DockHost() {
                 }
 
                 setDockReady(true);
+
+                /*
+                 * Publish immediately during the handshake rather
+                 * than waiting for the dockReady state update.
+                 */
+                scheduleHostCssVarsPublish();
                 return;
             }
 
@@ -462,13 +744,15 @@ export default function DockHost() {
 
                 try {
                     resolvedDockUrl =
-                        new URL(
+                        normalizeDockUrl(
                             connectMessage.dockUrl,
+                            connectMessage.ragClientId,
                         );
                 } catch {
                     setLastError(
                         "RAG dock connection supplied an invalid dock URL.",
                     );
+
                     return;
                 }
 
@@ -479,6 +763,7 @@ export default function DockHost() {
                     setLastError(
                         `Rejected dock URL from unexpected origin: ${resolvedDockUrl.origin}`,
                     );
+
                     return;
                 }
 
@@ -537,6 +822,7 @@ export default function DockHost() {
         configured,
         expectedDockOrigin,
         ragClientId,
+        scheduleHostCssVarsPublish,
     ]);
 
     useEffect(() => {
@@ -548,7 +834,9 @@ export default function DockHost() {
             return;
         }
 
-        const clientId = ragClientId;
+        const clientId =
+            ragClientId;
+
         const controller =
             new AbortController();
 
@@ -573,14 +861,20 @@ export default function DockHost() {
                     const responseText =
                         await response
                             .text()
-                            .catch(() => "");
+                            .catch(
+                                () => "",
+                            );
 
                     setRagClient(null);
+
                     setLastError(
                         `resolveClient: ${response.status} ${response.statusText}${
-                            responseText ? ` — ${responseText}` : ""
+                            responseText
+                                ? ` — ${responseText}`
+                                : ""
                         }`,
                     );
+
                     return;
                 }
 
@@ -589,9 +883,11 @@ export default function DockHost() {
 
                 if (!client?.id) {
                     setRagClient(null);
+
                     setLastError(
                         `resolveClient: missing id for rag_client ${clientId}`,
                     );
+
                     return;
                 }
 
@@ -600,9 +896,11 @@ export default function DockHost() {
                     clientId
                 ) {
                     setRagClient(null);
+
                     setLastError(
                         `resolveClient: requested ${clientId}, received ${client.id}`,
                     );
+
                     return;
                 }
 
@@ -653,6 +951,7 @@ export default function DockHost() {
         setSessionToken(
             "debug-disabled",
         );
+
         setSessionExp(null);
     }, [
         configured,
@@ -681,21 +980,20 @@ export default function DockHost() {
 
         const message:
             RagSessionMessage = {
-                type: "RAG_SESSION",
-                token: sessionToken,
+                type:
+                    "RAG_SESSION",
+                token:
+                    sessionToken,
             };
 
         if (
             typeof sessionExp ===
             "number"
         ) {
-            message.exp = sessionExp;
+            message.exp =
+                sessionExp;
         }
 
-        /*
-         * Safe now: RAG_DOCK_READY proved that the iframe
-         * is running at expectedDockOrigin.
-         */
         dockWindow.postMessage(
             message,
             expectedDockOrigin,
@@ -708,6 +1006,148 @@ export default function DockHost() {
         sessionExp,
         expectedDockOrigin,
     ]);
+
+    useEffect(() => {
+        if (
+            !configured ||
+            !attached ||
+            !dockReady
+        ) {
+            return;
+        }
+
+        scheduleHostCssVarsPublish();
+    }, [
+        configured,
+        attached,
+        dockReady,
+        scheduleHostCssVarsPublish,
+    ]);
+
+    useEffect(() => {
+        if (
+            !configured ||
+            !attached
+        ) {
+            return;
+        }
+
+        const iframe =
+            iframeRef.current;
+
+        const hostElement =
+            iframe?.parentElement ??
+            null;
+
+        const observedElements: HTMLElement[] = [
+            document.documentElement,
+            document.body,
+            hostElement,
+        ].filter(
+            (
+                element,
+            ): element is HTMLElement =>
+                element instanceof HTMLElement,
+        );
+
+        const observer =
+            new MutationObserver(
+                () => {
+                    if (!dockReady) {
+                        return;
+                    }
+
+                    scheduleHostCssVarsPublish();
+                },
+            );
+
+        for (
+            const element of
+            observedElements
+        ) {
+            observer.observe(
+                element,
+                {
+                    attributes: true,
+                    attributeFilter: [
+                        "class",
+                        "style",
+                        "data-theme",
+                        "data-mode",
+                        "data-density",
+                    ],
+                },
+            );
+        }
+
+        const darkModeQuery =
+            window.matchMedia(
+                "(prefers-color-scheme: dark)",
+            );
+
+        const onColorSchemeChange =
+            (): void => {
+                if (!dockReady) {
+                    return;
+                }
+
+                scheduleHostCssVarsPublish();
+            };
+
+        darkModeQuery.addEventListener(
+            "change",
+            onColorSchemeChange,
+        );
+
+        const onWindowResize =
+            (): void => {
+                if (!dockReady) {
+                    return;
+                }
+
+                scheduleHostCssVarsPublish();
+            };
+
+        window.addEventListener(
+            "resize",
+            onWindowResize,
+        );
+
+        return () => {
+            observer.disconnect();
+
+            darkModeQuery.removeEventListener(
+                "change",
+                onColorSchemeChange,
+            );
+
+            window.removeEventListener(
+                "resize",
+                onWindowResize,
+            );
+        };
+    }, [
+        configured,
+        attached,
+        dockReady,
+        scheduleHostCssVarsPublish,
+    ]);
+
+    useEffect(() => {
+        return () => {
+            if (
+                themePublishFrameRef.current !==
+                null
+            ) {
+                window.cancelAnimationFrame(
+                    themePublishFrameRef.current,
+                );
+
+                themePublishFrameRef.current =
+                    null;
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (
@@ -735,7 +1175,8 @@ export default function DockHost() {
                 TargetSelectedMessage = {
                     type:
                         "TARGET_SELECTED",
-                    id: String(id),
+                    id:
+                        String(id),
                     subject_id:
                         String(id),
                     attrs:
@@ -749,8 +1190,8 @@ export default function DockHost() {
                 };
 
             /*
-             * Target selections should also wait until the real
-             * RAG document has announced readiness.
+             * Target selections wait until the real RAG document
+             * has announced readiness.
              */
             if (!dockReady) {
                 return;
@@ -784,7 +1225,26 @@ export default function DockHost() {
 
     const iframeSrc = useMemo(() => {
         if (dockUrl) {
-            return dockUrl;
+            try {
+                const normalized =
+                    new URL(dockUrl);
+
+                if (ragClientId) {
+                    normalized.searchParams.set(
+                        "ragClientId",
+                        ragClientId,
+                    );
+                }
+
+                normalized.searchParams.set(
+                    "frameId",
+                    FRAME_ID,
+                );
+
+                return normalized.toString();
+            } catch {
+                return dockUrl;
+            }
         }
 
         const base =
@@ -793,21 +1253,19 @@ export default function DockHost() {
         const clientId =
             ragClientId;
 
-        if (!clientId) {
-            return base;
-        }
-
         const url =
             new URL(base);
 
-        url.searchParams.set(
-            "ragClientId",
-            clientId,
-        );
+        if (clientId) {
+            url.searchParams.set(
+                "ragClientId",
+                clientId,
+            );
+        }
 
         /*
          * Allows the nested dock to identify its host frame
-         * in readiness and resize messages.
+         * in readiness, theme, and resize messages.
          */
         url.searchParams.set(
             "frameId",
@@ -837,6 +1295,10 @@ export default function DockHost() {
     return (
         <div
             className="rag-dock-host"
+            data-app={HOST_APP_ID}
+            data-density={
+                HOST_DEFAULT_DENSITY
+            }
             style={{
                 width: "100%",
                 height: "auto",

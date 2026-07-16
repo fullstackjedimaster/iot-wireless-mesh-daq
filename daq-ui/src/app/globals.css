@@ -68,7 +68,96 @@
    ========================================================================== */
 
 :root {
-    font-family: "Orbitron", system-ui, sans-serif;
+    /* ----------------------------------------------------------------------
+       Shared host-theme contract
+
+       DockHost collects these computed custom properties and sends them to
+       the embedded Mod RAG dock. Keep reusable visual decisions here rather
+       than burying them as literal values inside component selectors.
+       ---------------------------------------------------------------------- */
+
+    /* Core surfaces and text */
+    --bg: #d5d5d5;
+    --card: #ffffff;
+    --card-soft: #eeeeee;
+    --surface-inset: #f3f3f3;
+    --border: #808080;
+    --border-strong: #333333;
+    --text: #000000;
+    --muted: #4b5563;
+    --muted-soft: #6b7280;
+
+    /* Semantic colors */
+    --accent: #003b78;
+    --accent-hover: #001f4d;
+    --accent-soft: #dbeafe;
+    --ok: #15803d;
+    --warn: #b45309;
+    --err: #b91c1c;
+    --violet: #6d28d9;
+
+    /* Typography */
+    --font-family: "Orbitron", system-ui, sans-serif;
+    --sans: "Orbitron", system-ui, sans-serif;
+    --mono:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    /* Shared group-box contract */
+    --groupbox-bg: #ffffff;
+    --groupbox-bg-flash: #f5f5f5;
+    --groupbox-border: #808080;
+    --groupbox-border-strong: #4b5563;
+    --groupbox-border-width: 4px;
+    --groupbox-border-style: ridge;
+    --groupbox-radius: 0;
+    --groupbox-padding: 3px;
+    --groupbox-shadow: none;
+    --groupbox-legend-color: #000000;
+    --groupbox-legend-size: 10px;
+    --groupbox-legend-weight: 700;
+    --groupbox-legend-transform: none;
+    --groupbox-legend-tracking: 0;
+
+    /* Shared button contract */
+    --button-bg: #d4d4d4;
+    --button-bg-hover: #eeeeee;
+    --button-bg-active: #b8b8b8;
+    --button-border: #555555;
+    --button-border-width: 1px;
+    --button-border-style: solid;
+    --button-text: #000000;
+    --button-radius: 2px;
+    --button-padding-y: 3px;
+    --button-padding-x: 7px;
+    --button-font-size: 10px;
+    --button-font-weight: 700;
+    --button-text-decoration: none;
+
+    /* Shared form-control contract */
+    --control-bg: #ffffff;
+    --control-border: #777777;
+    --control-text: #000000;
+    --control-radius: 0;
+    --control-padding-y: 3px;
+    --control-padding-x: 5px;
+    --control-font-size: 11px;
+    --control-focus: #003b78;
+    --control-focus-ring: rgba(0, 59, 120, 0.2);
+
+    /* Explainer-specific sizing transferred to Mod RAG */
+    --explainer-max-width: 100%;
+    --explainer-padding: 3px;
+    --explainer-gap: 5px;
+    --answer-pane-height: 190px;
+    --heatmap-pane-height: 360px;
+
+    font-family: var(--font-family);
 }
 
 *,
@@ -97,8 +186,8 @@ body {
 }
 
 body {
-    color: #000000;
-    font-family: "Orbitron", system-ui, sans-serif;
+    color: var(--text);
+    font-family: var(--font-family);
 
     background:
         linear-gradient(
@@ -186,26 +275,50 @@ main.main-section {
 
 .fieldset-section {
     min-width: 0;
-    border-width: thick;
-    border-style: ridge;
+    margin: 0;
+    padding:
+        0
+        var(--groupbox-padding)
+        var(--groupbox-padding);
+    border-width: var(--groupbox-border-width);
+    border-style: var(--groupbox-border-style);
+    border-color: var(--groupbox-border);
+    border-radius: var(--groupbox-radius);
+    background: var(--groupbox-bg);
+    box-shadow: var(--groupbox-shadow);
+    color: var(--text);
     font-size: 12px;
     font-weight: 700;
+}
+
+.fieldset-section legend {
+    padding: 0 4px;
+    color: var(--groupbox-legend-color);
+    font-size: var(--groupbox-legend-size);
+    font-weight: var(--groupbox-legend-weight);
+    text-transform: var(--groupbox-legend-transform);
+    letter-spacing: var(--groupbox-legend-tracking);
 }
 
 .panel-section {
     min-width: 0;
     padding: 2px;
-    border-width: thick;
+    border-width: var(--groupbox-border-width);
     border-style: inset;
-    background: #ffffff;
+    border-color: var(--groupbox-border);
+    background: var(--card);
+    color: var(--text);
 }
 
 .control-section {
     width: auto;
     min-width: 0;
-    padding: 3px;
+    padding: var(--groupbox-padding);
     border-style: inset;
+    border-color: var(--groupbox-border);
     border-radius: 4px;
+    background: var(--card-soft);
+    color: var(--text);
     align-content: center;
     justify-items: center;
 }
@@ -240,6 +353,70 @@ main.main-section {
 
 
 /* ==========================================================================
+   Shared buttons and form controls
+   ========================================================================== */
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button {
+    border-width: var(--button-border-width);
+    border-style: var(--button-border-style);
+    border-color: var(--button-border);
+    border-radius: var(--button-radius);
+    background: var(--button-bg);
+    color: var(--button-text);
+    padding:
+        var(--button-padding-y)
+        var(--button-padding-x);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+    text-decoration: var(--button-text-decoration);
+    cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+    background: var(--button-bg-hover);
+}
+
+button:active:not(:disabled) {
+    background: var(--button-bg-active);
+}
+
+button:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid var(--control-border);
+    border-radius: var(--control-radius);
+    background: var(--control-bg);
+    color: var(--control-text);
+    padding:
+        var(--control-padding-y)
+        var(--control-padding-x);
+    font-size: var(--control-font-size);
+    outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--control-focus);
+    box-shadow: 0 0 0 2px var(--control-focus-ring);
+}
+
+
+/* ==========================================================================
    Fault injection controls
    ========================================================================== */
 
@@ -258,8 +435,10 @@ main.main-section {
 .fault-injection-controls button {
     width: 100%;
     min-width: 0;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.9rem;
+    padding:
+        var(--control-padding-y)
+        var(--control-padding-x);
+    font-size: var(--control-font-size);
 }
 
 
