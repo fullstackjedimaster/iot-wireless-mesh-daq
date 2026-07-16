@@ -77,7 +77,16 @@
        ---------------------------------------------------------------------- */
 
     /* Core surfaces and text */
-    --bg: #d5d5d5;
+    --bg: linear-gradient(
+            45deg,
+            #999999 5%,
+            #ffffff 10%,
+            #cccccc 30%,
+            #dddddd 50%,
+            #cccccc 70%,
+            #ffffff 80%,
+            #999999 95%
+        );
     --card: #ffffff;
     --card-soft: #eeeeee;
     --surface-inset: #f3f3f3;
@@ -157,7 +166,7 @@
     --answer-pane-height: 190px;
     --heatmap-pane-height: 360px;
 
-    font-family: var(--font-family);
+    font-family: var(--font-family), serif;
 }
 
 *,
@@ -187,19 +196,10 @@ body {
 
 body {
     color: var(--text);
-    font-family: var(--font-family);
+    font-family: var(--font-family), serif;
 
-    background:
-        linear-gradient(
-            45deg,
-            #999999 5%,
-            #ffffff 10%,
-            #cccccc 30%,
-            #dddddd 50%,
-            #cccccc 70%,
-            #ffffff 80%,
-            #999999 95%
-        );
+    background: var(--bg);
+
 }
 
 /*
