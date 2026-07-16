@@ -87,8 +87,26 @@
             #ffffff 80%,
             #999999 95%
         );
-    --card: #ffffff;
-    --card-soft: #eeeeee;
+    --card: linear-gradient(
+            45deg,
+            #999999 5%,
+            #ffffff 10%,
+            #cccccc 30%,
+            #dddddd 50%,
+            #cccccc 70%,
+            #ffffff 80%,
+            #999999 95%
+        );
+    --card-soft: linear-gradient(
+            45deg,
+            #999999 5%,
+            #ffffff 10%,
+            #cccccc 30%,
+            #dddddd 50%,
+            #cccccc 70%,
+            #ffffff 80%,
+            #999999 95%
+        );
     --surface-inset: #f3f3f3;
     --border: #808080;
     --border-strong: #333333;
@@ -118,7 +136,16 @@
         monospace;
 
     /* Shared group-box contract */
-    --groupbox-bg: #ffffff;
+    --groupbox-bg: linear-gradient(
+            45deg,
+            #999999 5%,
+            #ffffff 10%,
+            #cccccc 30%,
+            #dddddd 50%,
+            #cccccc 70%,
+            #ffffff 80%,
+            #999999 95%
+        );
     --groupbox-bg-flash: #f5f5f5;
     --groupbox-border: #808080;
     --groupbox-border-strong: #4b5563;
