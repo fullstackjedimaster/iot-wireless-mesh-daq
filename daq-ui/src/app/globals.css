@@ -76,37 +76,44 @@
        than burying them as literal values inside component selectors.
        ---------------------------------------------------------------------- */
 
-    /* Core surfaces and text */
-    --bg: linear-gradient(
-            45deg,
-            #999999 5%,
-            #ffffff 10%,
-            #cccccc 30%,
-            #dddddd 50%,
-            #cccccc 70%,
-            #ffffff 80%,
-            #999999 95%
-        );
-    --card: linear-gradient(
-            45deg,
-            #999999 5%,
-            #ffffff 10%,
-            #cccccc 30%,
-            #dddddd 50%,
-            #cccccc 70%,
-            #ffffff 80%,
-            #999999 95%
-        );
-    --card-soft: linear-gradient(
-            45deg,
-            #999999 5%,
-            #ffffff 10%,
-            #cccccc 30%,
-            #dddddd 50%,
-            #cccccc 70%,
-            #ffffff 80%,
-            #999999 95%
-        );
+    /* Decorative chrome and core surfaces */
+    --chrome: linear-gradient(
+        45deg,
+        #999999 5%,
+        #ffffff 10%,
+        #cccccc 30%,
+        #dddddd 50%,
+        #cccccc 70%,
+        #ffffff 80%,
+        #999999 95%
+    );
+    --chrome-light: linear-gradient(
+        45deg,
+        #b8b8b8 5%,
+        #ffffff 12%,
+        #e5e5e5 32%,
+        #f5f5f5 50%,
+        #dedede 70%,
+        #ffffff 82%,
+        #a8a8a8 95%
+    );
+    --chrome-dark: linear-gradient(
+        45deg,
+        #6f6f6f 5%,
+        #d7d7d7 12%,
+        #a9a9a9 32%,
+        #c8c8c8 50%,
+        #a3a3a3 70%,
+        #dedede 82%,
+        #666666 95%
+    );
+    --panel-highlight: rgba(255, 255, 255, 0.78);
+    --panel-shadow: rgba(0, 0, 0, 0.24);
+    --panel-shadow-soft: rgba(0, 0, 0, 0.12);
+
+    --bg: var(--chrome);
+    --card: #ffffff;
+    --card-soft: #eeeeee;
     --surface-inset: #f3f3f3;
     --border: #808080;
     --border-strong: #333333;
@@ -136,24 +143,17 @@
         monospace;
 
     /* Shared group-box contract */
-    --groupbox-bg: linear-gradient(
-            45deg,
-            #999999 5%,
-            #ffffff 10%,
-            #cccccc 30%,
-            #dddddd 50%,
-            #cccccc 70%,
-            #ffffff 80%,
-            #999999 95%
-        );
-    --groupbox-bg-flash: #f5f5f5;
+    --groupbox-bg: var(--chrome-light);
+    --groupbox-bg-flash: var(--chrome);
     --groupbox-border: #808080;
     --groupbox-border-strong: #4b5563;
     --groupbox-border-width: 4px;
     --groupbox-border-style: ridge;
     --groupbox-radius: 0;
     --groupbox-padding: 3px;
-    --groupbox-shadow: none;
+    --groupbox-shadow:
+        inset 1px 1px 0 var(--panel-highlight),
+        0 2px 5px var(--panel-shadow-soft);
     --groupbox-legend-color: #000000;
     --groupbox-legend-size: 10px;
     --groupbox-legend-weight: 700;
@@ -161,9 +161,9 @@
     --groupbox-legend-tracking: 0;
 
     /* Shared button contract */
-    --button-bg: #d4d4d4;
-    --button-bg-hover: #eeeeee;
-    --button-bg-active: #b8b8b8;
+    --button-bg: var(--chrome);
+    --button-bg-hover: var(--chrome-light);
+    --button-bg-active: var(--chrome-dark);
     --button-border: #555555;
     --button-border-width: 1px;
     --button-border-style: solid;
@@ -174,6 +174,11 @@
     --button-font-size: 10px;
     --button-font-weight: 700;
     --button-text-decoration: none;
+    --button-shadow:
+        inset 1px 1px 0 var(--panel-highlight),
+        0 1px 2px var(--panel-shadow-soft);
+    --button-shadow-active:
+        inset 1px 1px 3px var(--panel-shadow);
 
     /* Shared form-control contract */
     --control-bg: #ffffff;
@@ -193,7 +198,7 @@
     --answer-pane-height: 190px;
     --heatmap-pane-height: 360px;
 
-    font-family: var(--font-family), serif;
+    font-family: var(--font-family);
 }
 
 *,
@@ -223,10 +228,8 @@ body {
 
 body {
     color: var(--text);
-    font-family: var(--font-family), serif;
-
+    font-family: var(--font-family);
     background: var(--bg);
-
 }
 
 /*
@@ -403,6 +406,7 @@ button {
     font-size: var(--button-font-size);
     font-weight: var(--button-font-weight);
     text-decoration: var(--button-text-decoration);
+    box-shadow: var(--button-shadow);
     cursor: pointer;
 }
 
@@ -412,6 +416,7 @@ button:hover:not(:disabled) {
 
 button:active:not(:disabled) {
     background: var(--button-bg-active);
+    box-shadow: var(--button-shadow-active);
 }
 
 button:disabled {
