@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import GroupBox from "@/components/GroupBox";
+
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
 import { FaultLegend } from "@/components/FaultLegend";
@@ -99,8 +99,10 @@ export default function HomePage() {
     return (
         <main className="w-full overflow-x-hidden pb-4" style={{ width: "100%", maxWidth: "100%" }}>
             <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
-
-            <GroupBox title="Logs">
+            <fieldset className="fieldset-section">
+                <legend>
+                    Logs
+                </legend>
                 <div
                     className="daq-log-grid"
                     style={{
@@ -114,9 +116,11 @@ export default function HomePage() {
                     <LogPanel title="Mesh Logs" source="mesh" />
                     <LogPanel title="Cloud Logs" source="cloud" />
                 </div>
-            </GroupBox>
-
-            <GroupBox title="Nodes">
+            </fieldset>
+            <fieldset className="fieldset-section">
+                <legend>
+                    Nodes
+                </legend>
                 <PanelMapOverlay
                     selectedMac={selectedMac}
                     onPanelClick={handlePanelClick}
@@ -124,20 +128,19 @@ export default function HomePage() {
                 />
 
                 <FaultLegend />
-            </GroupBox>
-
-            <br />
-
-            <GroupBox title={`DAQ:  ${selectedMac || "—"}`}>
+            </fieldset>
+            <fieldset className="fieldset-section">
+                <legend>
+                    {`DAQ:  ${selectedMac || "—"}`}
+                </legend>
                 <ChartPanel selectedMac={selectedMac} />
-            </GroupBox>
-
-            <br />
-
-            <GroupBox title="Fault Injection">
+            </fieldset>
+            <fieldset className="fieldset-section">
+                <legend>
+                    Fault Injection
+                </legend>
                 <ControlPanel />
-            </GroupBox>
-
+            </fieldset>
 
             <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
                 <BlinkyThing
