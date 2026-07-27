@@ -19,8 +19,9 @@ export default function RootLayout({
             <body>
                 <SelectedPanelProvider>
                     <div id="daq-embed-content">
+                         <DockHost />
                         {children}
-                        <DockHost />
+                       
                     </div>
 
                     <EmbedHeightReporter />
