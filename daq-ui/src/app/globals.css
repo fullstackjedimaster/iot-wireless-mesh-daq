@@ -71,7 +71,7 @@
     /* ----------------------------------------------------------------------
        Shared host-theme contract
 
-       DockHost collects these computed custom properties and sends them to
+       dock-host.js reads these computed custom properties and sends them to
        the embedded Mod RAG dock. Keep reusable visual decisions here rather
        than burying them as literal values inside component selectors.
        ---------------------------------------------------------------------- */
@@ -478,7 +478,8 @@ textarea:focus {
    Dynamically resized RAG dock
    ========================================================================== */
 
-.rag-dock-host {
+.rag-dock-host,
+#rag-dock {
     display: block;
     width: 100%;
     height: auto;
@@ -487,12 +488,13 @@ textarea:focus {
     overflow: hidden;
 }
 
-.rag-dock-host iframe {
+.rag-dock-host iframe,
+#rag-dock iframe {
     display: block;
     width: 100%;
-    min-height: 0;
     border: 0;
     overflow: hidden;
+    background: transparent;
 }
 
 

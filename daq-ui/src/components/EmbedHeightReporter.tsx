@@ -170,7 +170,7 @@ export default function EmbedHeightReporter() {
 
         /*
          * ResizeObserver is the primary mechanism. It fires when
-         * DockHost changes height after the RAG evaluation appears.
+         * The dock adapter changes height after the RAG evaluation appears.
          */
         const resizeObserver =
             new ResizeObserver(() => {

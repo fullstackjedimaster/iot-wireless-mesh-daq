@@ -75,24 +75,11 @@ export default function HomePage() {
     useEffect(() => {
         if (!selectedMac) return;
 
-        const selectedTarget = {
+        setSelectedTarget({
             id: selectedMac,
             attrs,
-            source: "daq-ui",
-        };
-
-        setSelectedTarget(selectedTarget);
-
-        window.dispatchEvent(
-            new CustomEvent("panel-selected", {
-                detail: {
-                    mac: selectedMac,
-                    id: selectedMac,
-                    attrs,
-                    source: "daq-ui",
-                },
-            })
-        );
+            source: "iot-wireless-mesh-daq",
+        });
     }, [selectedMac, attrs, setSelectedTarget]);
 
 

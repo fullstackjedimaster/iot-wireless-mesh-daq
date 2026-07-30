@@ -8,14 +8,7 @@ import React, {
     useState,
 } from "react";
 
-export type AttrValue = string | number | boolean | null | undefined;
-export type Attrs = Record<string, AttrValue>;
-
-export type SelectedTarget = {
-    id: string;
-    attrs?: Attrs;
-    source?: string;
-};
+import { broadcastSelectedTarget, type SelectedTarget } from "@/lib/dock/selection";
 
 type SelectedPanelContextValue = {
     selectedPanel: string | null;
@@ -41,40 +34,22 @@ export const SelectedPanelProvider = ({ children }: { children: React.ReactNode 
         setSelectedPanelState(panel);
         setSelectedTargetState((prev) => ({
             id: panel,
-            attrs: prev?.id === panel ? prev.attrs : undefined,
-            source: "daq-ui",
+            attrs: prev?.id === panel ? prev.attrs : {},
+            source: "iot-wireless-mesh-daq",
         }));
 
-        if (typeof window !== "undefined") {
-            window.dispatchEvent(
-                new CustomEvent("panel-selected", {
-                    detail: {
-                        mac: panel,
-                        id: panel,
-                        attrs: undefined,
-                        source: "daq-ui",
-                    },
-                })
-            );
-        }
+        broadcastSelectedTarget({
+            id: panel,
+            attrs: {},
+            source: "iot-wireless-mesh-daq",
+        });
     }, []);
 
     const setSelectedTarget = useCallback((target: SelectedTarget) => {
         setSelectedTargetState(target);
         setSelectedPanelState(target.id);
 
-        if (typeof window !== "undefined") {
-            window.dispatchEvent(
-                new CustomEvent("panel-selected", {
-                    detail: {
-                        mac: target.id,
-                        id: target.id,
-                        attrs: target.attrs,
-                        source: target.source ?? "daq-ui",
-                    },
-                })
-            );
-        }
+        broadcastSelectedTarget(target);
     }, []);
 
     const value = useMemo<SelectedPanelContextValue>(

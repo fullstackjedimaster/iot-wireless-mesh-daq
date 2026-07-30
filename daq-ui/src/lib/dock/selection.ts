@@ -2,73 +2,47 @@
 
 import { useEffect } from "react";
 
-export type AttrValue = string | number | boolean | null | undefined;
-export type Attrs = Record<string, AttrValue>;
+import type { Attrs, TargetSelectedMessage } from "@/lib/dock/messages";
 
 export type SelectedTarget = {
     id: string;
-    attrs?: Attrs | null;
-    source?: string;
-};
-
-export type TargetSelectedMsg = {
-    type: "TARGET_SELECTED";
-    id: string;
-    subject_id: string;
     attrs: Attrs;
     source: string;
 };
 
-export function assertNonEmptyString(v: unknown, msg: string): asserts v is string {
-    if (typeof v !== "string" || v.trim().length === 0) {
-        throw new Error(msg);
-    }
-}
-
-function normalizeAttrs(attrs?: Attrs | null): Attrs {
-    const out: Attrs = { ...(attrs ?? {}) };
-
-    const voltage = Number(out.voltage);
-    const current = Number(out.current);
+function withComputedPower(attrs: Attrs): Attrs {
+    const next = { ...attrs };
+    const voltage = Number(next.voltage);
+    const current = Number(next.current);
 
     if (
-        out.power === undefined &&
+        next.power === undefined &&
         Number.isFinite(voltage) &&
         Number.isFinite(current)
     ) {
-        out.power = Number((voltage * current).toFixed(3));
+        next.power = Number((voltage * current).toFixed(3));
     }
 
-    return out;
+    return next;
 }
 
-export function toTargetSelectedMsg(t: SelectedTarget): TargetSelectedMsg {
-    assertNonEmptyString(t?.id, "[selection] SelectedTarget.id must be non-empty");
-
+export function createTargetSelectedMessage(
+    target: SelectedTarget,
+): TargetSelectedMessage {
     return {
         type: "TARGET_SELECTED",
-        id: t.id,
-        subject_id: t.id,
-        attrs: normalizeAttrs(t.attrs),
-        source: t.source ?? "daq-ui",
+        id: target.id,
+        attrs: withComputedPower(target.attrs),
+        source: target.source,
     };
 }
 
-export function useBroadcastSelectedTarget(
-    id: string,
-    attrs?: Attrs | null,
-    source = "daq-ui"
-) {
-    useEffect(() => {
-        if (!id) return;
+export function broadcastSelectedTarget(target: SelectedTarget): void {
+    window.postMessage(createTargetSelectedMessage(target), window.location.origin);
+}
 
-        window.postMessage(
-            toTargetSelectedMsg({
-                id,
-                attrs,
-                source,
-            }),
-            "*"
-        );
-    }, [id, attrs, source]);
+export function useBroadcastSelectedTarget(target: SelectedTarget): void {
+    useEffect(() => {
+        broadcastSelectedTarget(target);
+    }, [target]);
 }

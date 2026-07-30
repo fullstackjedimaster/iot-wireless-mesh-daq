@@ -229,6 +229,13 @@ services:
       dockerfile: docker/daq-ui/Dockerfile
       additional_contexts:
         repo: ..
+      args:
+        NEXT_PUBLIC_CLOUD_API_BASE: ${NEXT_PUBLIC_CLOUD_API_BASE}
+        NEXT_PUBLIC_BOOTSTRAP_HEALTH: ${NEXT_PUBLIC_BOOTSTRAP_HEALTH}
+        NEXT_PUBLIC_RAG_DOCK_SCRIPT_URL: ${NEXT_PUBLIC_RAG_DOCK_SCRIPT_URL}
+        NEXT_PUBLIC_HOST_APP_ID: ${NEXT_PUBLIC_HOST_APP_ID}
+        NEXT_PUBLIC_HOST_DENSITY: ${NEXT_PUBLIC_HOST_DENSITY}
+        NEXT_PUBLIC_EMBED_LOCK_ENABLED: ${NEXT_PUBLIC_EMBED_LOCK_ENABLED}
     image: iot-wireless-mesh-daq/daq-ui:local
     env_file:
       - ./env/daq-ui.env

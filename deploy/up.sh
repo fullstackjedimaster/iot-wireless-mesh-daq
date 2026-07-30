@@ -18,6 +18,10 @@ docker compose \
 echo "[up] Generating env + secrets"
 bash "$DEPLOY_DIR/scripts/init-env.sh"
 
+set -a
+source "$DEPLOY_DIR/env/daq-ui.env"
+set +a
+
 echo "[up] Building + starting IoT stack"
 docker compose \
   -p "$COMPOSE_PROJECT_NAME" \
