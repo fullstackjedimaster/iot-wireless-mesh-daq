@@ -11,7 +11,7 @@ import { BlinkyThing } from "@/components/BlinkyThing";
 import { getLayout } from "@/lib/api";
 import { useSelectedTarget } from "@/contexts/SelectedPanelContext";
 import LogPanel from "@/components/LogPanel";
-import type { Attrs } from "@/lib/dock/selection";
+import type { Attrs } from "@/lib/dock/messages";
 
 type LayoutItem = { x: number; y: number; mac: string };
 
