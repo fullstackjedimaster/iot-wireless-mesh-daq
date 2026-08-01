@@ -7,6 +7,8 @@ import EmbedHeightReporter from "@/components/EmbedHeightReporter";
 import { SelectedPanelProvider } from "@/contexts/SelectedPanelContext";
 import { settings } from "@/lib/settings";
 
+
+
 type RootLayoutProps = {
     children: ReactNode;
 };
@@ -22,7 +24,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                     </div>
 
                     <script
-                        src={settings.RAG_DOCK_SCRIPT_URL}
+                        src={settings.DOCK_SCRIPT_URL}
                         data-target="#rag-dock"
                         data-app={settings.HOST_APP_ID}
                         data-density={settings.HOST_DENSITY}

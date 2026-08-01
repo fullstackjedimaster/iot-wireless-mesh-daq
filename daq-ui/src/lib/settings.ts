@@ -7,18 +7,15 @@ function required(name: string, value: string | undefined): string {
 }
 
 export const settings = {
-    RAG_DOCK_SCRIPT_URL: required(
-        "NEXT_PUBLIC_RAG_DOCK_SCRIPT_URL",
-        process.env.NEXT_PUBLIC_RAG_DOCK_SCRIPT_URL,
-    ),
-    HOST_APP_ID: required(
-        "NEXT_PUBLIC_HOST_APP_ID",
-        process.env.NEXT_PUBLIC_HOST_APP_ID,
-    ),
-    HOST_DENSITY: required(
-        "NEXT_PUBLIC_HOST_DENSITY",
-        process.env.NEXT_PUBLIC_HOST_DENSITY,
-    ),
+    DOCK_SCRIPT_URL:
+        'https://rag.fullstackjedi.dev/dock-host.js',
+
+    HOST_APP_ID:
+         'iot-wireless-mesh-daq',
+
+    HOST_DENSITY:
+        'compact',
+
     CLOUD_API_BASE: process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "",
     BOOTSTRAP_HEALTH: required(
         "NEXT_PUBLIC_BOOTSTRAP_HEALTH",
