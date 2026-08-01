@@ -1,10 +1,3 @@
-function required(name: string, value: string | undefined): string {
-    if (!value) {
-        throw new Error(`Missing required environment variable: ${name}`);
-    }
-
-    return value;
-}
 
 export const settings = {
     DOCK_SCRIPT_URL:
@@ -17,10 +10,7 @@ export const settings = {
         'compact',
 
     CLOUD_API_BASE: process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "",
-    BOOTSTRAP_HEALTH: required(
-        "NEXT_PUBLIC_BOOTSTRAP_HEALTH",
-        process.env.NEXT_PUBLIC_BOOTSTRAP_HEALTH,
-    ),
+    BOOTSTRAP_HEALTH: "/health",
     EMBED_LOCK_ENABLED:
         process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED,
 } as const;
