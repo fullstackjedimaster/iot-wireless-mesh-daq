@@ -20,9 +20,9 @@ SKEW_SECONDS = 30
 MIN_SECRET_LENGTH = 32
 
 
-def portfolio_lock_enabled() -> bool:
+def embed_lock_enabled() -> bool:
     return (
-            os.getenv("PORTFOLIO_LOCK_ENABLED", "false").lower() == "true"
+            os.getenv("EMBED_LOCK_ENABLED", "false").lower() == "true"
             or os.getenv("EMBED_LOCK_ENABLED", "false").lower() == "true"
     )
 
@@ -103,7 +103,7 @@ def verify_embed_token(
 
 def require_embed_token(audience: str) -> Callable[[Request], bool]:
     async def _dep(request: Request) -> bool:
-        if not portfolio_lock_enabled():
+        if not embed_lock_enabled():
             return True
 
         header_token = (request.headers.get(HEADER_TOKEN) or "").strip()

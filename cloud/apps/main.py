@@ -8,7 +8,7 @@ from .logs import router as logs_router
 
 # Keep for per-route protection (do NOT wire globally here)
 # (Routes import require_embed_token and apply to POST routes only.)
-# from apps.security.portfolio_lock import install_portfolio_lock
+# from apps.security.embed_lock import install_embed_lock
 
 
 # Domains we trust as callers / embedders
@@ -63,7 +63,7 @@ app.add_middleware(
 # Main API
 app.include_router(main_router, prefix="/api")
 app.include_router(logs_router)
-# install_portfolio_lock(
+# install_embed_lock(
 #     app,
 #     expected_aud="iot-wireless-mesh-daq",
 # )
