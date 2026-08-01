@@ -12,7 +12,7 @@ export const settings = {
     CLOUD_API_BASE: process.env.NEXT_PUBLIC_CLOUD_API_BASE ?? "",
     BOOTSTRAP_HEALTH: "/health",
     EMBED_LOCK_ENABLED:
-        process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED,
+        process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED === "false",
 } as const;
 
 export default settings;
