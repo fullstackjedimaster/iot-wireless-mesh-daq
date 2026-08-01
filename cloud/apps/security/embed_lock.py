@@ -12,7 +12,7 @@ from .embed_token import (
 )
 
 EMBED_LOCK_ENABLED = (
-    os.getenv("EMBED_LOCK_ENABLED", "false").lower() == "true"
+    os.getenv("EMBED_LOCK_ENABLED", "false").lower()
 )
 
 ALLOWED_PATHS = {

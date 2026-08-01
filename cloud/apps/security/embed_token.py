@@ -22,8 +22,7 @@ MIN_SECRET_LENGTH = 32
 
 def embed_lock_enabled() -> bool:
     return (
-            os.getenv("EMBED_LOCK_ENABLED", "false").lower() == "true"
-            or os.getenv("EMBED_LOCK_ENABLED", "false").lower() == "true"
+            os.getenv("EMBED_LOCK_ENABLED", "false").lower()
     )
 
 

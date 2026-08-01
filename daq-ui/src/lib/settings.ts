@@ -22,7 +22,7 @@ export const settings = {
         process.env.NEXT_PUBLIC_BOOTSTRAP_HEALTH,
     ),
     EMBED_LOCK_ENABLED:
-        process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED === "true",
+        process.env.NEXT_PUBLIC_EMBED_LOCK_ENABLED,
 } as const;
 
 export default settings;
