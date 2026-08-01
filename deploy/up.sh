@@ -22,11 +22,20 @@ set -a
 source "$DEPLOY_DIR/env/daq-ui.env"
 set +a
 
-echo "[up] Building + starting IoT stack"
+echo "[up] Building + starting entity-client stack"
 docker compose \
   -p "$COMPOSE_PROJECT_NAME" \
   -f "$DEPLOY_DIR"/compose.yml \
-  up -d --build --force-recreate
+  build --no-orphans
+
+echo "[up] Building + starting entity-client stack"
+docker compose \
+  -p "$COMPOSE_PROJECT_NAME" \
+  -f "$DEPLOY_DIR"/compose.yml \
+  up -d
+
+echo "[up] Done"
+
 
 echo "[up] Done"
 
