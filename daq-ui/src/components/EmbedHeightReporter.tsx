@@ -1,279 +1,141 @@
-// ui-daq/src/components/EmbedHeightReporter.tsx
 "use client";
 
 import { useEffect } from "react";
 
-const CONTENT_ROOT_ID = "daq-embed-content";
+type EmbedHeightReporterProps = {
+    contentRootId: string;
+};
 
 const MAX_HEIGHT = 5000;
 const CHANGE_THRESHOLD = 2;
+const SETTLE_DELAYS_MS = [0, 50, 150, 350];
+const DOCK_RESIZE_EVENT = "rag-dock-resize";
 
-const SETTLE_DELAYS_MS = [
-    0,
-    50,
-    150,
-    350,
-    750,
-];
-
-function getFrameId(): string {
-    return (
-        new URLSearchParams(
-            window.location.search,
-        ).get("frameId") || ""
+function parentOrigin(): string {
+    const configured = new URLSearchParams(window.location.search).get(
+        "embedParentOrigin",
     );
+
+    if (configured) {
+        try {
+            return new URL(configured).origin;
+        } catch {
+            // Fall through to document.referrer.
+        }
+    }
+
+    if (document.referrer) {
+        try {
+            return new URL(document.referrer).origin;
+        } catch {
+            // Fall through to wildcard for local development.
+        }
+    }
+
+    return "*";
 }
 
-function clampHeight(height: number): number {
+function measure(root: HTMLElement): number {
+    const rect = root.getBoundingClientRect();
+
     return Math.min(
         MAX_HEIGHT,
-        Math.max(1, Math.ceil(height)),
+        Math.max(1, Math.ceil(Math.max(rect.height, root.offsetHeight))),
     );
 }
 
-function measureContentHeight(
-    root: HTMLElement,
-): number {
-    const rootRect =
-        root.getBoundingClientRect();
-
-    /*
-     * Measure the explicit DAQ content root only.
-     *
-     * Do not use:
-     *   document.body.scrollHeight
-     *   document.documentElement.scrollHeight
-     *   document.scrollingElement.scrollHeight
-     *
-     * Those values may incorporate the iframe viewport and can
-     * create a resize feedback loop on mobile.
-     */
-    const rawHeight = Math.max(
-        rootRect.height,
-        root.offsetHeight,
-    );
-
-    return clampHeight(rawHeight);
-}
-
-export default function EmbedHeightReporter() {
+export default function EmbedHeightReporter({
+    contentRootId,
+}: EmbedHeightReporterProps) {
     useEffect(() => {
-        const root =
-            document.getElementById(
-                CONTENT_ROOT_ID,
-            );
-
-        if (!root) {
-            console.warn(
-                `[EmbedHeightReporter] Missing #${CONTENT_ROOT_ID}; height reporting is disabled.`,
-            );
-
+        if (window.parent === window) {
             return;
         }
 
-        const frameId = getFrameId();
+        const root = document.getElementById(contentRootId);
 
-        let animationFrameId = 0;
+        if (!(root instanceof HTMLElement)) {
+            console.warn(
+                `[EmbedHeightReporter] Missing #${contentRootId}; height reporting disabled.`,
+            );
+            return;
+        }
+
+        const targetOrigin = parentOrigin();
+        let frame = 0;
         let lastHeight = 0;
         let disposed = false;
+        const timers = new Set<number>();
 
-        const settleTimers =
-            new Set<number>();
+        function report(): void {
+            if (disposed) return;
 
-        const rootElement = root;
+            window.cancelAnimationFrame(frame);
+            frame = window.requestAnimationFrame(() => {
+                if (disposed) return;
 
-        function postMeasuredHeight(): void {
-            if (disposed) {
-                return;
-            }
+                const height = measure(root);
+                if (
+                    lastHeight > 0 &&
+                    Math.abs(height - lastHeight) < CHANGE_THRESHOLD
+                ) {
+                    return;
+                }
 
-            window.cancelAnimationFrame(
-                animationFrameId,
-            );
-
-            animationFrameId =
-                window.requestAnimationFrame(
-                    () => {
-                        if (disposed) {
-                            return;
-                        }
-
-                        const height =
-                            measureContentHeight(
-                                rootElement,
-                            );
-
-                        if (height <= 0) {
-                            return;
-                        }
-
-                        if (
-                            lastHeight > 0 &&
-                            Math.abs(
-                                height -
-                                    lastHeight,
-                            ) <
-                                CHANGE_THRESHOLD
-                        ) {
-                            return;
-                        }
-
-                        lastHeight = height;
-
-                        window.parent.postMessage(
-                            {
-                                type: "EMBED_HEIGHT",
-                                frameId,
-                                height,
-                            },
-                            "*",
-                        );
-                    },
+                lastHeight = height;
+                window.parent.postMessage(
+                    { type: "EMBED_HEIGHT", height },
+                    targetOrigin,
                 );
+            });
         }
 
-        function scheduleSettledMeasurements(): void {
-            for (
-                const delay of
-                SETTLE_DELAYS_MS
-            ) {
-                const timerId =
-                    window.setTimeout(() => {
-                        settleTimers.delete(
-                            timerId,
-                        );
-
-                        postMeasuredHeight();
-                    }, delay);
-
-                settleTimers.add(timerId);
+        function schedule(): void {
+            for (const delay of SETTLE_DELAYS_MS) {
+                const timer = window.setTimeout(() => {
+                    timers.delete(timer);
+                    report();
+                }, delay);
+                timers.add(timer);
             }
         }
 
-        /*
-         * The outer DAQ iframe should not own a scrollbar.
-         * Its parent resizes it to match #daq-embed-content.
-         */
-        document.documentElement.style.overflowX =
-            "hidden";
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.overflow = "hidden";
 
-        document.documentElement.style.overflowY =
-            "hidden";
-
-        document.body.style.overflowX =
-            "hidden";
-
-        document.body.style.overflowY =
-            "hidden";
-
-        scheduleSettledMeasurements();
-
-        /*
-         * ResizeObserver is the primary mechanism. It fires when
-         * The dock adapter changes height after the RAG evaluation appears.
-         */
-        const resizeObserver =
-            new ResizeObserver(() => {
-                scheduleSettledMeasurements();
-            });
-
+        const resizeObserver = new ResizeObserver(schedule);
         resizeObserver.observe(root);
 
-        /*
-         * MutationObserver catches content being inserted, removed,
-         * or changed before ResizeObserver finishes reporting layout.
-         */
-        const mutationObserver =
-            new MutationObserver(() => {
-                scheduleSettledMeasurements();
-            });
-
+        // The dock adapter changes a descendant iframe's inline height.
+        // Attribute observation and the explicit event make that resize
+        // propagate through any number of nested embedding layers.
+        const mutationObserver = new MutationObserver(schedule);
         mutationObserver.observe(root, {
             childList: true,
             subtree: true,
             characterData: true,
+            attributes: true,
+            attributeFilter: ["class", "style"],
         });
 
-        const onLoad = (): void => {
-            scheduleSettledMeasurements();
-        };
+        window.addEventListener("resize", schedule);
+        window.addEventListener(DOCK_RESIZE_EVENT, schedule);
+        window.addEventListener("load", schedule);
 
-        const onResize = (): void => {
-            scheduleSettledMeasurements();
-        };
-
-        const onLayoutAnimationEnd =
-            (): void => {
-                scheduleSettledMeasurements();
-            };
-
-        window.addEventListener(
-            "load",
-            onLoad,
-        );
-
-        window.addEventListener(
-            "resize",
-            onResize,
-        );
-
-        document.addEventListener(
-            "transitionend",
-            onLayoutAnimationEnd,
-            true,
-        );
-
-        document.addEventListener(
-            "animationend",
-            onLayoutAnimationEnd,
-            true,
-        );
+        schedule();
 
         return () => {
             disposed = true;
-
-            window.cancelAnimationFrame(
-                animationFrameId,
-            );
-
-            for (
-                const timerId of
-                settleTimers
-            ) {
-                window.clearTimeout(
-                    timerId,
-                );
-            }
-
-            settleTimers.clear();
-
+            window.cancelAnimationFrame(frame);
+            for (const timer of timers) window.clearTimeout(timer);
+            timers.clear();
             resizeObserver.disconnect();
             mutationObserver.disconnect();
-
-            window.removeEventListener(
-                "load",
-                onLoad,
-            );
-
-            window.removeEventListener(
-                "resize",
-                onResize,
-            );
-
-            document.removeEventListener(
-                "transitionend",
-                onLayoutAnimationEnd,
-                true,
-            );
-
-            document.removeEventListener(
-                "animationend",
-                onLayoutAnimationEnd,
-                true,
-            );
-
+            window.removeEventListener("resize", schedule);
+            window.removeEventListener(DOCK_RESIZE_EVENT, schedule);
+            window.removeEventListener("load", schedule);
         };
-    }, []);
+    }, [contentRootId]);
 
     return null;
 }
