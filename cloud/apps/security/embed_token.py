@@ -21,9 +21,7 @@ MIN_SECRET_LENGTH = 32
 
 
 def embed_lock_enabled() -> bool:
-    return (
-            os.getenv("EMBED_LOCK_ENABLED", "false").lower()
-    )
+    return os.getenv("EMBED_LOCK_ENABLED", "false").strip().lower() == "true"
 
 
 def _b64url_decode(value: str) -> bytes:
@@ -77,7 +75,11 @@ def verify_embed_token(
     if not hmac.compare_digest(expected_sig, actual_sig):
         raise HTTPException(status_code=401, detail="Invalid token signature")
 
-    if payload.get("aud") != audience:
+    audience_claim = payload.get("aud")
+    delegated = payload.get("delegated_aud")
+    direct = audience in audience_claim if isinstance(audience_claim, list) else audience_claim == audience
+    delegated_ok = isinstance(delegated, list) and audience in delegated
+    if not direct and not delegated_ok:
         raise HTTPException(status_code=403, detail="Invalid token audience")
 
     now = int(time.time())
