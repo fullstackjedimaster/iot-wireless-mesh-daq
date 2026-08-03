@@ -16,7 +16,8 @@ interface PanelStatusResponse {
     voltage: string | undefined;
     current: string | undefined;
     power: string | undefined;
-    temperature: string | undefined;
+    temperature?: string | undefined;
+    irradiance?: number | string;
 }
 
 export type FaultProfile = Record<string, number>;
