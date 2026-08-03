@@ -4,8 +4,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getLayout, getPanelStatus } from "@/lib/api";
 
-interface PanelInfo { mac: string; x: number; y: number; }
-type RawPanelData = { voltage?: number; current?: number; status?: string; };
+interface PanelInfo {
+    mac: string;
+    x: number;
+    y: number;
+}
+
+type RawPanelData = {
+    voltage?: number;
+    current?: number;
+    power?: number;
+    temperature?: number;
+    irradiance?: number;
+    status?: string;
+};
 
 interface Props {
     selectedMac: string;
@@ -16,14 +28,11 @@ interface Props {
 export type PanelTelemetry = {
     voltage?: string;
     current?: string;
-    status?: string;
     power?: string;
     temperature?: string;
+    irradiance?: string;
+    status?: string;
 };
-
-
-
-
 
 const statusColorMap: Record<string, string> = {
     normal: "#0aff02",
@@ -34,15 +43,30 @@ const statusColorMap: Record<string, string> = {
     unknown: "#000000",
 };
 
-export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelectionMeta }:Props) {
+function toFiniteNumber(value: unknown): number | undefined {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
+}
+
+function toTelemetry(raw: RawPanelData | undefined, fallbackStatus?: string): PanelTelemetry {
+    return {
+        status: raw?.status ?? fallbackStatus,
+        voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
+        current: raw?.current !== undefined ? String(raw.current) : undefined,
+        power: raw?.power !== undefined ? String(raw.power) : undefined,
+        temperature: raw?.temperature !== undefined ? String(raw.temperature) : undefined,
+        irradiance: raw?.irradiance !== undefined ? String(raw.irradiance) : undefined,
+    };
+}
+
+export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelectionMeta }: Props) {
     const [layout, setLayout] = useState<PanelInfo[]>([]);
     const [statuses, setStatuses] = useState<Record<string, string>>({});
     const [rawByMac, setRawByMac] = useState<Record<string, RawPanelData | undefined>>({});
 
-    const layoutHashRef = useRef<string>("");
-    const statusHashRef = useRef<string>("");
+    const layoutHashRef = useRef("");
+    const statusHashRef = useRef("");
 
-    // Poll layout
     useEffect(() => {
         let mounted = true;
         const fetchLayoutOnce = async () => {
@@ -56,11 +80,13 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
             } catch {}
         };
         void fetchLayoutOnce();
-        const id = setInterval(fetchLayoutOnce, 5000);
-        return () => { mounted = false; clearInterval(id); };
+        const interval = window.setInterval(fetchLayoutOnce, 5000);
+        return () => {
+            mounted = false;
+            window.clearInterval(interval);
+        };
     }, []);
 
-    // Poll statuses
     useEffect(() => {
         if (layout.length === 0) return;
         let mounted = true;
@@ -70,60 +96,68 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                 const results = await Promise.all(
                     layout.map(async (panel) => {
                         try {
-                            const rawResp = await getPanelStatus(panel.mac);
-                            const voltageNum = Number(rawResp?.voltage);
-                            const currentNum = Number(rawResp?.current);
+                            const response = await getPanelStatus(panel.mac);
                             const raw: RawPanelData = {
-                                status: rawResp?.status !== undefined ? String(rawResp.status).toLowerCase() : undefined,
-                                voltage: Number.isFinite(voltageNum) ? voltageNum : undefined,
-                                current: Number.isFinite(currentNum) ? currentNum : undefined,
+                                status: response?.status !== undefined ? String(response.status).toLowerCase() : undefined,
+                                voltage: toFiniteNumber(response?.voltage),
+                                current: toFiniteNumber(response?.current),
+                                power: toFiniteNumber(response?.power),
+                                temperature: toFiniteNumber(response?.temperature),
+                                irradiance: toFiniteNumber(response?.irradiance),
                             };
-                            const status = raw.status ?? "unknown";
-                            return [panel.mac, { status, raw }] as const;
+                            return [panel.mac, { status: raw.status ?? "unknown", raw }] as const;
                         } catch {
                             return [panel.mac, { status: "unknown", raw: undefined }] as const;
                         }
-                    })
+                    }),
                 );
 
-                const nextStatuses: Record<string, string> = Object.fromEntries(
-                    results.map(([mac, payload]) => [mac, payload.status])
+                if (!mounted) return;
+
+                const nextStatuses = Object.fromEntries(
+                    results.map(([mac, payload]) => [mac, payload.status]),
                 );
-                const nextHash = JSON.stringify(nextStatuses);
-                if (mounted && nextHash !== statusHashRef.current) {
-                    statusHashRef.current = nextHash;
+                const nextRaw = Object.fromEntries(
+                    results.map(([mac, payload]) => [mac, payload.raw]),
+                );
+                const nextStatusHash = JSON.stringify(nextStatuses);
+
+                if (nextStatusHash !== statusHashRef.current) {
+                    statusHashRef.current = nextStatusHash;
                     setStatuses(nextStatuses);
-                    const nextRaw: Record<string, RawPanelData | undefined> = { ...rawByMac };
-                    for (const [mac, payload] of results) nextRaw[mac] = payload.raw;
-                    setRawByMac(nextRaw);
                 }
+                setRawByMac(nextRaw);
             } catch {}
         };
 
         void fetchStatuses();
-        const id = setInterval(fetchStatuses, 5000);
-        return () => { mounted = false; clearInterval(id); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const interval = window.setInterval(fetchStatuses, 5000);
+        return () => {
+            mounted = false;
+            window.clearInterval(interval);
+        };
     }, [layout]);
 
-    // When selection changes, emit telemetry upward.
     useEffect(() => {
         if (!selectedMac) return;
-        const raw = rawByMac[selectedMac];
-        const telem: PanelTelemetry = {
-            // status: statuses[selectedMac] ?? "unknown",
-            voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
-            current: raw?.current !== undefined ? String(raw.current) : undefined,
-        };
-        onSelectionMeta?.(selectedMac, telem);
+        onSelectionMeta?.(
+            selectedMac,
+            toTelemetry(rawByMac[selectedMac], statuses[selectedMac] ?? "unknown"),
+        );
     }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
 
-    const cellWidth = 50, cellHeight = 15, panelWidth = 45, panelHeight = 10;
+    const cellWidth = 50;
+    const cellHeight = 15;
+    const panelWidth = 45;
+    const panelHeight = 10;
 
     const { svgWidth, svgHeight } = useMemo(() => {
-        const maxX = layout.length ? Math.max(...layout.map((p) => p.x)) : 1;
-        const maxY = layout.length ? Math.max(...layout.map((p) => p.y)) : 1;
-        return { svgWidth: Math.max(maxX, 1) * cellWidth, svgHeight: Math.max(maxY, 1) * cellHeight };
+        const maxX = layout.length ? Math.max(...layout.map((panel) => panel.x)) : 1;
+        const maxY = layout.length ? Math.max(...layout.map((panel) => panel.y)) : 1;
+        return {
+            svgWidth: Math.max(maxX, 1) * cellWidth,
+            svgHeight: Math.max(maxY, 1) * cellHeight,
+        };
     }, [layout]);
 
     return (
@@ -138,27 +172,24 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                     const status = statuses[panel.mac] ?? "unknown";
                     const color = statusColorMap[status] ?? "#6b7280";
                     const isSelected = selectedMac === panel.mac;
-                    const cx = (panel.x - 1) * cellWidth + cellWidth / 2;
-                    const cy = (panel.y - 1) * cellHeight + cellHeight / 2;
+                    const centerX = (panel.x - 1) * cellWidth + cellWidth / 2;
+                    const centerY = (panel.y - 1) * cellHeight + cellHeight / 2;
 
                     return (
                         <g
                             key={panel.mac}
                             onClick={() => {
                                 onPanelClick(panel.mac);
-                                const raw = rawByMac[panel.mac];
-                                const telem: PanelTelemetry = {
-                                    // status,
-                                    voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
-                                    current: raw?.current !== undefined ? String(raw.current) : undefined,
-                                };
-                                onSelectionMeta?.(panel.mac, telem);
+                                onSelectionMeta?.(
+                                    panel.mac,
+                                    toTelemetry(rawByMac[panel.mac], status),
+                                );
                             }}
                             className="panel cursor-pointer"
                         >
                             <rect
-                                x={cx - panelWidth / 2}
-                                y={cy - panelHeight / 2}
+                                x={centerX - panelWidth / 2}
+                                y={centerY - panelHeight / 2}
                                 width={panelWidth}
                                 height={panelHeight}
                                 rx={6}
@@ -167,8 +198,8 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                                 strokeWidth={isSelected ? 2 : 0}
                             />
                             <text
-                                x={cx}
-                                y={cy}
+                                x={centerX}
+                                y={centerY}
                                 textAnchor="middle"
                                 alignmentBaseline="middle"
                                 className="panel-label select-none"
@@ -182,4 +213,4 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
             </svg>
         </div>
     );
-};
+}

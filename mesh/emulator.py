@@ -7,7 +7,8 @@ import socket
 from DAQ.commands.protocol import Message, DataIndication
 from DAQ.util.utctime import utcepochnow
 from DAQ.util.config import load_config
-from DAQ.util.faults import get_fault  # ✅ Fault injection support
+from DAQ.util.faults import get_fault  # Fault injection support
+from DAQ.mesh.simulator import SolarPanelSimulator
 
 # -------------------------
 # Config
@@ -28,10 +29,10 @@ PANEL_MACS = [
     "fa:29:eb:6d:87:02",
     "fa:29:eb:6d:87:03",
     "fa:29:eb:6d:87:04",
-    "fa:29:eb:6d:87:05",
-    "fa:29:eb:6d:87:06",
-    "fa:29:eb:6d:87:07",
-    "fa:29:eb:6d:87:08",
+    # "fa:29:eb:6d:87:05",
+    # "fa:29:eb:6d:87:06",
+    # "fa:29:eb:6d:87:07",
+    # "fa:29:eb:6d:87:08",
 ]
 
 FAULTS = {
@@ -85,28 +86,28 @@ def _direct_host() -> str:
 # -------------------------
 # Fault Profile Generator
 # -------------------------
+_SIMULATORS: dict[str, SolarPanelSimulator] = {}
+
+
 def generate_profile(macaddr: str):
     fault = get_fault(macaddr.lower())
     if fault == "random":
         fault = random.choice(FAULTS_KEYS)
+    fault = fault or "normal"
 
-    if fault == "short_circuit":
-        Vi, Ii = 0.0, random.uniform(91.0, 100.0)
-    elif fault == "open_circuit":
-        Vi, Ii = random.uniform(96.0, 100.0), 0.0
-    elif fault == "low_voltage":
-        Vi, Ii = random.uniform(18.0, 24.0), random.uniform(6.0, 7.5)
-    elif fault == "dead_panel":
-        Vi, Ii = 0.0, 0.0
-    else:  # normal (default)
-        Vi, Ii = random.uniform(38.0, 40.0), random.uniform(7.0, 8.0)
+    simulator = _SIMULATORS.get(macaddr)
+    if simulator is None:
+        simulator = SolarPanelSimulator(seed=int(macaddr.replace(":", "")[-6:], 16))
+        _SIMULATORS[macaddr] = simulator
 
-    Pi = round(Vi * Ii, 2)
+    sample = simulator.sample(fault=fault)
     return {
-        "voltage": round(Vi, 2),
-        "current": round(Ii, 2),
-        "power": Pi,
-        "status": fault or "normal",
+        "voltage": sample.voltage,
+        "current": sample.current,
+        "power": sample.power,
+        "temperature": sample.temperature,
+        "irradiance": sample.irradiance,
+        "status": fault,
     }
 
 
@@ -185,6 +186,8 @@ class AsyncEmulator:
 
         profile = generate_profile(macaddr)
         Vi, Ii, Pi = profile["voltage"], profile["current"], profile["power"]
+        temperature = profile["temperature"]
+        irradiance = profile["irradiance"]
         timestamp = utcepochnow() - self.start_time
 
         msg = Message()
@@ -204,7 +207,10 @@ class AsyncEmulator:
         msg.dtype = Message.TYPE_PLM
 
         cmd = DataIndication()
-        cmd.add_data(timestamp, Vi, Vi, Ii, Ii, Pi, Pi)
+        cmd.add_data(
+            timestamp, Vi, Vi, Ii, Ii, Pi, Pi,
+            temperature=temperature, irradiance=irradiance,
+        )
         msg.add_command(cmd)
 
         payload = msg.decompile()
@@ -216,7 +222,10 @@ class AsyncEmulator:
         self.writer.write(message)
         await self.writer.drain()
 
-        print(f"Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f}")
+        print(
+            f"Sent: MAC={mac_clean} V={Vi:.2f} I={Ii:.2f} P={Pi:.2f} "
+            f"T={temperature:.2f}C G={irradiance:.1f}W/m2"
+        )
 
     async def run(self):
         # -----------------------------

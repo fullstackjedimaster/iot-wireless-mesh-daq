@@ -82,13 +82,14 @@ class RawResponse(CommandBase):
 
 class DataIndication(CommandBase):
     CMD = 'DD'
+    LEGACY_SAMPLE_SIZE = 14  # timestamp + six electrical int16 values
+    SOLAR_SAMPLE_SIZE = 18   # legacy fields + temperature + irradiance
 
     def _init(self):
         self.data = []
         self._parsed = False
         self.op_stat = 0
         self.reg_stat = 0
-        # print(f"[DEBUG] DataIndication registered as: {command_mapper.get('DD')}")
 
     def parse(self, raw=None):
         if raw is not None:
@@ -102,24 +103,38 @@ class DataIndication(CommandBase):
             self.op_stat, self.reg_stat = struct.unpack(">HH", self.raw[:4])
             data_raw = self.raw[4:]
 
-            sample_size = 14  # 7 values × 2 bytes each
-            if len(data_raw) % sample_size != 0:
-                print(f"[WARN] Raw payload length {len(data_raw)} not a multiple of {sample_size}")
+            if len(data_raw) % self.SOLAR_SAMPLE_SIZE == 0:
+                sample_size = self.SOLAR_SAMPLE_SIZE
+            elif len(data_raw) % self.LEGACY_SAMPLE_SIZE == 0:
+                sample_size = self.LEGACY_SAMPLE_SIZE
+            else:
+                raise ValueError(
+                    f"Unsupported DataIndication payload length: {len(data_raw)}"
+                )
 
             for i in range(0, len(data_raw), sample_size):
                 chunk = data_raw[i:i + sample_size]
-                if len(chunk) < sample_size:
-                    continue
+                if sample_size == self.SOLAR_SAMPLE_SIZE:
+                    timestamp, Vi, Vo, Ii, Io, Pi, Po, temperature, irradiance = struct.unpack(
+                        ">Hhhhhhhhh", chunk
+                    )
+                else:
+                    timestamp, Vi, Vo, Ii, Io, Pi, Po = struct.unpack(
+                        ">Hhhhhhh", chunk
+                    )
+                    temperature = 0
+                    irradiance = 0
 
-                timestamp, Vi, Vo, Ii, Io, Pi, Po = struct.unpack(">Hhhhhhh", chunk)
                 self.data.append({
                     'timestamp': timestamp,
-                    'Vi': Vi / 100.0,  # ✅ fixed (was /256.0)
+                    'Vi': Vi / 100.0,
                     'Vo': Vo / 100.0,
                     'Ii': Ii / 100.0,
                     'Io': Io / 100.0,
                     'Pi': Pi / 100.0,
-                    'Po': Po / 100.0
+                    'Po': Po / 100.0,
+                    'temperature': temperature / 100.0,
+                    'irradiance': irradiance / 10.0,
                 })
         except Exception as e:
             print(f"[DataIndication] parse() error: {e}")
@@ -130,13 +145,15 @@ class DataIndication(CommandBase):
         raw += struct.pack(">H", getattr(self, "reg_stat", 0))
 
         for point in self.data:
-            raw += struct.pack(">H", safe_int16(point['timestamp']))              # 2 bytes
-            raw += struct.pack(">h", safe_int16(point['Vi'] * 100))              # 2 bytes
-            raw += struct.pack(">h", safe_int16(point['Vo'] * 100))              # 2 bytes
-            raw += struct.pack(">h", safe_int16(point['Ii'] * 100))              # 2 bytes
-            raw += struct.pack(">h", safe_int16(point['Io'] * 100))              # 2 bytes
-            raw += struct.pack(">h", safe_int16(point.get('Pi', 0) * 100)) # 2 bytes
-            raw += struct.pack(">h", safe_int16(point.get('Po', 0) * 100)) # 2 bytes
+            raw += struct.pack(">H", safe_int16(point['timestamp']))
+            raw += struct.pack(">h", safe_int16(point['Vi'] * 100))
+            raw += struct.pack(">h", safe_int16(point['Vo'] * 100))
+            raw += struct.pack(">h", safe_int16(point['Ii'] * 100))
+            raw += struct.pack(">h", safe_int16(point['Io'] * 100))
+            raw += struct.pack(">h", safe_int16(point.get('Pi', 0) * 100))
+            raw += struct.pack(">h", safe_int16(point.get('Po', 0) * 100))
+            raw += struct.pack(">h", safe_int16(point.get('temperature', 0) * 100))
+            raw += struct.pack(">h", safe_int16(point.get('irradiance', 0) * 10))
 
         return self._wrap(raw)
 
@@ -149,8 +166,10 @@ class DataIndication(CommandBase):
             'data': sorted(self.data, key=lambda x: x['timestamp'])
         }
 
-    def add_data(self, timestamp, Vi, Vo, Ii, Io, Pi, Po):
-        """Call this to insert one data record (e.g., from emulator)"""
+    def add_data(
+        self, timestamp, Vi, Vo, Ii, Io, Pi, Po,
+        temperature=0.0, irradiance=0.0,
+    ):
         self.data.append({
             'timestamp': int(timestamp),
             'Vi': round(Vi, 2),
@@ -158,7 +177,9 @@ class DataIndication(CommandBase):
             'Ii': round(Ii, 2),
             'Io': round(Io, 2),
             'Pi': round(Pi, 2),
-            'Po': round(Po, 2)
+            'Po': round(Po, 2),
+            'temperature': round(temperature, 2),
+            'irradiance': round(irradiance, 1),
         })
 
 

@@ -268,6 +268,8 @@ class DAQProcess(ProcessBase, MeshCommands):
                 Io=data['Io'],
                 Pi=data['Pi'],
                 Po=data['Po'],
+                temperature=data.get('temperature', 0.0),
+                irradiance=data.get('irradiance', 0.0),
             )
             # Push through pipeline
             asyncio.create_task(self.bson_handler.data_queue.put(payload))

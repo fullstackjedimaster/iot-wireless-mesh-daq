@@ -134,6 +134,7 @@ class Cloud:
         current = _as_float(payload.get("Ii"))
         power = _as_float(payload.get("Pi"))
         temperature = _as_float(payload.get("temperature"))
+        irradiance = _as_float(payload.get("irradiance"))
         status = await get_ai_status(normalized_mac, voltage, current)
 
         redis_key = f"sitearray:monitor:{normalized_mac}"
@@ -142,18 +143,20 @@ class Cloud:
             "current": str(current),
             "power": str(power),
             "temperature": str(temperature),
+            "irradiance": str(irradiance),
             "status": str(status),
         }
 
         try:
             self.redis_conn.hset(redis_key, mapping=values)
             logger.info(
-                "%s V=%.2f I=%.2f P=%.2f T=%.2f %s",
+                "%s V=%.2f I=%.2f P=%.2f T=%.2f G=%.1f %s",
                 normalized_mac,
                 voltage,
                 current,
                 power,
                 temperature,
+                irradiance,
                 status,
             )
         except Exception:

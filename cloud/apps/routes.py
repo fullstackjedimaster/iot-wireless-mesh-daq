@@ -80,6 +80,7 @@ def get_panel_status(mac: str):
         "current": data.get("current"),
         "power": data.get("power"),
         "temperature": data.get("temperature"),
+        "irradiance": data.get("irradiance"),
     }
 
 
