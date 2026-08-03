@@ -81,6 +81,10 @@ def get_panel_status(mac: str):
         "power": data.get("power"),
         "temperature": data.get("temperature"),
         "irradiance": data.get("irradiance"),
+        "expected_power": data.get("expected_power"),
+        "performance_ratio": data.get("performance_ratio"),
+        "environmental_state": data.get("environmental_state"),
+        "diagnostic_basis": data.get("diagnostic_basis"),
     }
 
 

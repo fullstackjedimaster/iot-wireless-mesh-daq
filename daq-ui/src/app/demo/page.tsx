@@ -47,9 +47,13 @@ export default function MeshDaqDemoPage() {
             power: currentTelemetry.power ?? undefined,
             temperature: currentTelemetry.temperature ?? undefined,
             irradiance: currentTelemetry.irradiance ?? undefined,
+            expected_power: currentTelemetry.expected_power ?? undefined,
+            performance_ratio: currentTelemetry.performance_ratio ?? undefined,
+            environmental_state: currentTelemetry.environmental_state ?? undefined,
+            diagnostic_basis: currentTelemetry.diagnostic_basis ?? undefined,
         }),
         [currentTelemetry],
-    ) as Attrs & { irradiance?: string };
+    ) as Attrs;
 
     useEffect(() => {
         let mounted = true;

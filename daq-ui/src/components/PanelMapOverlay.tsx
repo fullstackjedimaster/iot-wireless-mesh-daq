@@ -16,6 +16,10 @@ type RawPanelData = {
     power?: number;
     temperature?: number;
     irradiance?: number;
+    expected_power?: number;
+    performance_ratio?: number;
+    environmental_state?: string;
+    diagnostic_basis?: string;
     status?: string;
 };
 
@@ -56,6 +60,10 @@ function toTelemetry(raw: RawPanelData | undefined, fallbackStatus?: string): Pa
         power: raw?.power !== undefined ? String(raw.power) : undefined,
         temperature: raw?.temperature !== undefined ? String(raw.temperature) : undefined,
         irradiance: raw?.irradiance !== undefined ? String(raw.irradiance) : undefined,
+        expected_power: raw?.expected_power !== undefined ? String(raw.expected_power) : undefined,
+        performance_ratio: raw?.performance_ratio !== undefined ? String(raw.performance_ratio) : undefined,
+        environmental_state: raw?.environmental_state,
+        diagnostic_basis: raw?.diagnostic_basis,
     };
 }
 
@@ -104,6 +112,10 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                                 power: toFiniteNumber(response?.power),
                                 temperature: toFiniteNumber(response?.temperature),
                                 irradiance: toFiniteNumber(response?.irradiance),
+                                expected_power: toFiniteNumber(response?.expected_power),
+                                performance_ratio: toFiniteNumber(response?.performance_ratio),
+                                environmental_state: response?.environmental_state !== undefined ? String(response.environmental_state) : undefined,
+                                diagnostic_basis: response?.diagnostic_basis !== undefined ? String(response.diagnostic_basis) : undefined,
                             };
                             return [panel.mac, { status: raw.status ?? "unknown", raw }] as const;
                         } catch {

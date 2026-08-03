@@ -1,172 +1,135 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+from typing import Any
+
 from .config import get_redis_conn
 
+RATED_POWER_W = 292.5
+TEMP_COEFFICIENT_PER_C = -0.004
+
 FAULTS_METADATA = {
-    "OPEN_CIRCUIT": {
-        "description": "Panel is receiving light but producing little or no power.",
-        "thresholds": {
-            "Po_mean_ratio": "< 0.02",
-            "irradiance_mean": "> 400"
-        },
-        "severity": "high",
-        "diagnosis": "Power output is near zero despite adequate irradiance, indicating an electrical disconnect or broken connection."
-    },
-    "SNAPPED_DIODE": {
-        "description": "Panel diode failure affecting output voltage pattern.",
-        "thresholds": {
-            "Vo_offset_step": "~3.5% increments",
-            "diode_count": "1-3 typically"
-        },
-        "severity": "moderate",
-        "diagnosis": "Voltage deviates from inverter by stepwise percentages; snapped diode likely if deviation matches multiple."
-    },
-    "POWER_DROP": {
-        "description": "Noticeable power drop not attributed to open circuit or diode issues.",
-        "thresholds": {
-            "percent_loss": "< 95"
-        },
-        "severity": "medium",
-        "diagnosis": "Output loss exceeds normal variation; may indicate shading, string issues, or degradation."
-    },
-    "DEAD_PANEL": {
-        "description": "Average panel voltage is too low to function.",
-        "thresholds": {
-            "avg_voltage": "< 1.5"
-        },
-        "severity": "critical",
-        "diagnosis": "Voltage below operational minimum; panel is likely not contributing any power."
-    },
-    "LOW_VOLTAGE": {
-        "description": "Operating voltage below acceptable system range.",
-        "thresholds": {
-            "voltage": "< 20"
-        },
-        "severity": "low",
-        "diagnosis": "Low voltage may indicate bad wiring, load mismatch, or environmental loss."
-    },
-    "LOW_POWER": {
-        "description": "Panel is producing very little power.",
-        "thresholds": {
-            "power": "< 10"
-        },
-        "severity": "low",
-        "diagnosis": "Insufficient output — possibly from shading, dirt, or degradation."
-    },
-    "GROSS_POWER_DROP": {
-        "description": "Severe output drop, possibly environmental.",
-        "thresholds": {
-            "percent_loss": "> 50"
-        },
-        "severity": "high",
-        "diagnosis": "Major loss in performance often due to system fault or poor weather."
-    },
-    "SHADING": {
-        "description": "Intermittent or irregular output linked to shade patterns.",
-        "thresholds": {
-            "pattern": "clustered loss events"
-        },
-        "severity": "variable",
-        "diagnosis": "May indicate obstruction or seasonal shade near the panel."
-    },
-    "INVERTER_OFFLINE": {
-        "description": "Inverter communication has dropped.",
-        "thresholds": {
-            "heartbeat_miss": "> 30 mins"
-        },
-        "severity": "critical",
-        "diagnosis": "Data not being received from inverter — it may be powered off or disconnected."
-    },
-    "STRING_OFFLINE": {
-        "description": "String of panels not reporting data.",
-        "thresholds": {
-            "heartbeat_miss": "> 30 mins"
-        },
-        "severity": "critical",
-        "diagnosis": "Likely wiring or device-level outage across string path."
-    }
+    "DEAD_PANEL": {"description": "Panel is not producing usable voltage or current despite adequate irradiance.", "severity": "critical", "priority": 4},
+    "OPEN_CIRCUIT": {"description": "Panel voltage is present but current and power are near zero under adequate irradiance.", "severity": "high", "priority": 3},
+    "SHORT_CIRCUIT": {"description": "Panel voltage has collapsed while current remains abnormally high.", "severity": "high", "priority": 3},
+    "OVER_TEMPERATURE": {"description": "Panel temperature exceeds the configured safe operating warning threshold.", "severity": "moderate", "priority": 2},
+    "GROSS_POWER_DROP": {"description": "Measured power is less than half of the irradiance- and temperature-adjusted expectation.", "severity": "high", "priority": 2},
+    "POSSIBLE_SHADING": {"description": "Power is materially below expectation while irradiance remains sufficient.", "severity": "medium", "priority": 1},
+    "LOW_VOLTAGE": {"description": "Panel voltage is below the expected operating range under useful irradiance.", "severity": "low", "priority": 1},
+    "LOW_IRRADIANCE": {"description": "Available sunlight is too low for meaningful electrical fault diagnosis.", "severity": "informational", "priority": 0},
+    "NORMAL": {"description": "Telemetry is consistent with normal irradiance- and temperature-adjusted operation.", "severity": "normal", "priority": 0},
+    "UNKNOWN": {"description": "Telemetry was missing or invalid.", "severity": "unknown", "priority": 0},
 }
+
+SUPPORTED_INJECTION_FAULTS = {
+    "short_circuit", "open_circuit", "low_voltage", "dead_panel", "random", "normal"
+}
+
+@dataclass(frozen=True)
+class FaultAssessment:
+    status: str
+    expected_power: float
+    performance_ratio: float
+    diagnostic_basis: str
+    environmental_state: str
+
+
+def _float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def expected_power_w(irradiance: float, temperature: float) -> float:
+    irradiance_factor = max(0.0, min(1.25, irradiance / 1000.0))
+    temperature_factor = max(0.55, min(1.12, 1.0 + TEMP_COEFFICIENT_PER_C * (temperature - 25.0)))
+    return max(0.0, RATED_POWER_W * irradiance_factor * temperature_factor)
+
+
+def assess_metrics(
+    voltage: float,
+    current: float,
+    power: float,
+    temperature: float,
+    irradiance: float,
+) -> FaultAssessment:
+    v, i, p, t, g = map(_float, (voltage, current, power, temperature, irradiance))
+    expected = expected_power_w(g, t)
+    ratio = p / expected if expected > 1.0 else 0.0
+    environment = "low_irradiance" if g < 100.0 else "productive_irradiance"
+
+    def result(status: str, basis: str) -> FaultAssessment:
+        return FaultAssessment(status, round(expected, 2), round(ratio, 3), basis, environment)
+
+    if g < 100.0:
+        return result("low_irradiance", "Irradiance below 100 W/m²; electrical fault diagnosis is suppressed.")
+    if g >= 400.0 and v <= 1.5 and i <= 0.15:
+        return result("dead_panel", "Voltage and current are both near zero despite adequate irradiance.")
+    if g >= 400.0 and v <= 2.0 and i >= 5.0:
+        return result("short_circuit", "Voltage collapsed while current remained high under adequate irradiance.")
+    if g >= 400.0 and v >= 25.0 and i <= 0.15 and p <= max(5.0, expected * 0.02):
+        return result("open_circuit", "Voltage is present but current and power are near zero under adequate irradiance.")
+    if t >= 70.0:
+        return result("over_temperature", "Panel temperature is at or above 70 °C.")
+    if g >= 300.0 and expected >= 25.0 and ratio < 0.50:
+        return result("gross_power_drop", "Power is below 50% of the irradiance- and temperature-adjusted expectation.")
+    if g >= 400.0 and expected >= 25.0 and ratio < 0.75:
+        return result("possible_shading", "Power is below 75% of expectation while irradiance remains sufficient.")
+    if g >= 200.0 and 1.5 < v < 20.0:
+        return result("low_voltage", "Voltage is below 20 V under useful irradiance.")
+    return result("normal", "Measurements are within the expected solar operating envelope.")
+
+
+def compute_status_from_metrics(
+    voltage: float,
+    current: float,
+    power: float = 0.0,
+    temperature: float = 25.0,
+    irradiance: float = 0.0,
+) -> str:
+    return assess_metrics(voltage, current, power, temperature, irradiance).status
+
+
+def assessment_dict(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return asdict(assess_metrics(*args, **kwargs))
 
 
 def set_fault(mac: str, fault: str):
-    r = get_redis_conn(db=3)
-    mac = mac.lower()
-    r.set(f"fault_injection:{mac}", fault)
+    get_redis_conn(db=3).set(f"fault_injection:{mac.lower()}", fault)
+
 
 def get_fault(mac: str) -> str:
-    r = get_redis_conn(db=3)
-    mac = mac.lower()
-    val = r.get(f"fault_injection:{mac}")
-    if val:
-        return val.decode("utf-8")
-    return "normal"
+    value = get_redis_conn(db=3).get(f"fault_injection:{mac.lower()}")
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return str(value) if value else "normal"
+
 
 def reset_fault(mac: str):
-    r = get_redis_conn(db=3)
-    mac = mac.lower()
-    r.delete(f"fault_injection:{mac}")
+    get_redis_conn(db=3).delete(f"fault_injection:{mac.lower()}")
+
+
+def normalize_fault_token(token: str) -> tuple[str, str]:
+    if not isinstance(token, str):
+        return "normal", "NORMAL"
+    normalized = token.strip().replace(" ", "_").lower()
+    if normalized == "reset":
+        normalized = "normal"
+    if normalized not in SUPPORTED_INJECTION_FAULTS:
+        normalized = "normal"
+    return normalized, normalized.upper()
 
 
 def generate_profile(faults: list[dict]) -> dict:
-    """
-    Generate a status profile summary from raw fault entries.
-    """
-    profile = {fault_type: 0 for fault_type in FAULTS_METADATA}
+    profile = {name: 0 for name in FAULTS_METADATA}
     for fault in faults:
-        fault_type = fault.get("type")
-        if fault_type in profile:
-            profile[fault_type] += 1
+        name = str(fault.get("type", "UNKNOWN")).upper()
+        if name in profile:
+            profile[name] += 1
     return profile
 
+
 def compute_status(profile: dict) -> str:
-    """
-    Derive overall system status from the fault profile using metadata priorities.
-    """
-    if not profile:
-        return "normal"
-
-    priority_order = sorted(
-        FAULTS_METADATA.items(),
-        key=lambda item: item[1].get("severity", 0),
-        reverse=True
-    )
-
-    for fault_type, meta in priority_order:
-        count = profile.get(fault_type, 0)
-        if count > 0:
-            return fault_type
-    return "normal"
-
-def compute_status_from_metrics(voltage: float, current: float) -> str:
-    try:
-        v = float(voltage)
-        i = float(current)
-    except (ValueError, TypeError):
-        return "unknown"
-
-    if v == 0.0 and i > 90.0:
-        return "short_circuit"
-    if v > 95.0 and i == 0.0:
-        return "open_circuit"
-    if 15.0 < v < 26.0:
-        return "low_voltage"
-    if v == 0.0 and i == 0.0:
-        return "dead_panel"
-    return "normal"
-
-def normalize_fault_token(token: str) -> tuple[str, str]:
-    """
-    Returns (lowercase_for_emulator, uppercase_for_profile)
-    Accepts 'low_voltage' / 'LOW_VOLTAGE' / 'Low Voltage' etc.
-    """
-    if not isinstance(token, str):
-        return "normal", "NORMAL"
-    t = token.strip().replace(" ", "_").lower()
-    # whitelist known codes
-    known = {
-        "short_circuit", "open_circuit", "low_voltage",
-        "dead_panel", "power_drop", "low_power", "random", "reset", "normal"
-    }
-    if t == "reset":
-        t = "normal"
-    if t not in known:
-        t = "normal"
-    return t, t.upper()
+    active = [(name, FAULTS_METADATA[name]["priority"]) for name, count in profile.items() if count and name in FAULTS_METADATA]
+    return max(active, key=lambda item: item[1])[0].lower() if active else "normal"

@@ -10,14 +10,18 @@ interface Panel {
     width?: number;
 }
 
-interface PanelStatusResponse {
+export interface PanelStatusResponse {
     mac: string;
     status: string;
-    voltage: string | undefined;
-    current: string | undefined;
-    power: string | undefined;
-    temperature?: string | undefined;
+    voltage?: number | string;
+    current?: number | string;
+    power?: number | string;
+    temperature?: number | string;
     irradiance?: number | string;
+    expected_power?: number | string;
+    performance_ratio?: number | string;
+    environmental_state?: string;
+    diagnostic_basis?: string;
 }
 
 export type FaultProfile = Record<string, number>;
