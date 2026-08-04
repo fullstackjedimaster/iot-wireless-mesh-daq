@@ -130,65 +130,64 @@ export default function MeshDaqDemoPage() {
                     margin: "0 auto",
                 }}
             >
-                <fieldset className="fieldset-section">
-                    <legend>Logs</legend>
-                    <div
-                        className="daq-log-grid"
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "minmax(0, 1fr)",
-                            gap: "8px",
-                            width: "100%",
-                            minWidth: 0,
-                        }}
-                    >
-                        <LogPanel
-                            title="Mesh Logs"
-                            source="mesh"
+                 <main className="w-full overflow-x-hidden pb-4" style={{ width: "100%", maxWidth: "100%" }}>
+                    <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
+                    <fieldset className="fieldset-section">
+                        <legend>
+                            Logs
+                        </legend>
+                        <div
+                            className="daq-log-grid"
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "minmax(0, 1fr)",
+                                gap: "8px",
+                                width: "100%",
+                                minWidth: 0,
+                            }}
+                        >
+                            <LogPanel title="Mesh Logs" source="mesh" />
+                            <LogPanel title="Cloud Logs" source="cloud" />
+                        </div>
+                    </fieldset>
+                    <fieldset className="fieldset-section">
+                        <legend>
+                            Nodes
+                        </legend>
+                        <PanelMapOverlay
+                            selectedMac={selectedMac}
+                            onPanelClick={handlePanelClick}
+                            onSelectionMeta={handleSelectionMeta}
                         />
-                        <LogPanel
-                            title="Cloud Logs"
-                            source="cloud"
+
+                        <FaultLegend />
+                    </fieldset>
+                    <fieldset className="fieldset-section">
+                        <legend>
+                            {`DAQ:  ${selectedMac || "—"}`}
+                        </legend>
+                        <ChartPanel selectedMac={selectedMac} />
+                    </fieldset>
+                    <fieldset className="fieldset-section">
+                        <legend>
+                            Fault Injection
+                        </legend>
+                        <ControlPanel />
+                    </fieldset>
+
+                    <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
+                        <BlinkyThing
+                            size={36}
+                            dotSize={7}
+                            gap={6}
+                            colors={["#22d3ee", "#f59e0b", "#ef4444"]}
+                            intervalMs={800}
+                            framed={false}
+                            stealth
+                            ariaLabel="Purely decorative blinking lights"
                         />
                     </div>
-                </fieldset>
-
-                <fieldset className="fieldset-section">
-                    <legend>Nodes</legend>
-                    <PanelMapOverlay
-                        selectedMac={selectedMac}
-                        onPanelClick={handlePanelClick}
-                        onSelectionMeta={handleSelectionMeta}
-                    />
-                    <FaultLegend />
-                </fieldset>
-
-                <fieldset className="fieldset-section">
-                    <legend>{`DAQ: ${selectedMac || "—"}`}</legend>
-                    <ChartPanel selectedMac={selectedMac} />
-                </fieldset>
-
-                <fieldset className="fieldset-section">
-                    <legend>Fault Injection</legend>
-                    <ControlPanel />
-                </fieldset>
-            </div>
-
-            <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
-                <BlinkyThing
-                    size={36}
-                    dotSize={7}
-                    gap={6}
-                    colors={[
-                        "#22d3ee",
-                        "#f59e0b",
-                        "#ef4444",
-                    ]}
-                    intervalMs={800}
-                    framed={false}
-                    stealth
-                    ariaLabel="Purely decorative blinking lights"
-                />
+                 </main>
             </div>
         </DemoShell>
     );
