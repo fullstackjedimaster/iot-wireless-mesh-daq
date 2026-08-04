@@ -1,7 +1,13 @@
 // /daq-ui/src/components/PanelMapOverlay.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+
 import { getLayout, getPanelStatus } from "@/lib/api";
 
 interface PanelInfo {
@@ -26,20 +32,36 @@ type RawPanelData = {
 interface Props {
     selectedMac: string;
     onPanelClick: (mac: string) => void;
-    onSelectionMeta?: (mac: string, telem: PanelTelemetry) => void;
+    onSelectionMeta?: (
+        mac: string,
+        telemetry: PanelTelemetry,
+    ) => void;
 }
 
+/*
+ * Values are serialized as strings before being passed into Modular RAG.
+ * Keeping all scalar telemetry fields consistent avoids mixed numeric/string
+ * contracts between the dashboard, postMessage payload, and dock.
+ */
 export type PanelTelemetry = {
     voltage?: string;
     current?: string;
     power?: string;
     temperature?: string;
     irradiance?: string;
+    expected_power?: string;
+    performance_ratio?: string;
+    environmental_state?: string;
+    diagnostic_basis?: string;
     status?: string;
 };
 
 const statusColorMap: Record<string, string> = {
     normal: "#0aff02",
+    low_irradiance: "#64748b",
+    possible_shading: "#a855f7",
+    gross_power_drop: "#6d28d9",
+    over_temperature: "#f97316",
     low_voltage: "#fa7115",
     dead_panel: "#5a5a5a",
     short_circuit: "#f10000",
@@ -52,43 +74,74 @@ function toFiniteNumber(value: unknown): number | undefined {
     return Number.isFinite(number) ? number : undefined;
 }
 
-function toTelemetry(raw: RawPanelData | undefined, fallbackStatus?: string): PanelTelemetry {
+function serializeNumber(
+    value: number | undefined,
+): string | undefined {
+    return value !== undefined ? String(value) : undefined;
+}
+
+function toTelemetry(
+    raw: RawPanelData | undefined,
+    fallbackStatus?: string,
+): PanelTelemetry {
     return {
         status: raw?.status ?? fallbackStatus,
-        voltage: raw?.voltage !== undefined ? String(raw.voltage) : undefined,
-        current: raw?.current !== undefined ? String(raw.current) : undefined,
-        power: raw?.power !== undefined ? String(raw.power) : undefined,
-        temperature: raw?.temperature !== undefined ? String(raw.temperature) : undefined,
-        irradiance: raw?.irradiance !== undefined ? String(raw.irradiance) : undefined,
-        expected_power: raw?.expected_power !== undefined ? String(raw.expected_power) : undefined,
-        performance_ratio: raw?.performance_ratio !== undefined ? String(raw.performance_ratio) : undefined,
+        voltage: serializeNumber(raw?.voltage),
+        current: serializeNumber(raw?.current),
+        power: serializeNumber(raw?.power),
+        temperature: serializeNumber(raw?.temperature),
+        irradiance: serializeNumber(raw?.irradiance),
+        expected_power: serializeNumber(raw?.expected_power),
+        performance_ratio: serializeNumber(
+            raw?.performance_ratio,
+        ),
         environmental_state: raw?.environmental_state,
         diagnostic_basis: raw?.diagnostic_basis,
     };
 }
 
-export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelectionMeta }: Props) {
+export default function PanelMapOverlay({
+    selectedMac,
+    onPanelClick,
+    onSelectionMeta,
+}: Props) {
     const [layout, setLayout] = useState<PanelInfo[]>([]);
-    const [statuses, setStatuses] = useState<Record<string, string>>({});
-    const [rawByMac, setRawByMac] = useState<Record<string, RawPanelData | undefined>>({});
+    const [statuses, setStatuses] = useState<
+        Record<string, string>
+    >({});
+    const [rawByMac, setRawByMac] = useState<
+        Record<string, RawPanelData | undefined>
+    >({});
 
     const layoutHashRef = useRef("");
     const statusHashRef = useRef("");
 
     useEffect(() => {
         let mounted = true;
+
         const fetchLayoutOnce = async () => {
             try {
                 const data = await getLayout();
                 const nextHash = JSON.stringify(data);
-                if (mounted && nextHash !== layoutHashRef.current) {
+
+                if (
+                    mounted &&
+                    nextHash !== layoutHashRef.current
+                ) {
                     layoutHashRef.current = nextHash;
                     setLayout((data as PanelInfo[]) ?? []);
                 }
-            } catch {}
+            } catch {
+                // Retain the last valid layout when a poll fails.
+            }
         };
+
         void fetchLayoutOnce();
-        const interval = window.setInterval(fetchLayoutOnce, 5000);
+        const interval = window.setInterval(
+            fetchLayoutOnce,
+            5000,
+        );
+
         return () => {
             mounted = false;
             window.clearInterval(interval);
@@ -97,6 +150,7 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
 
     useEffect(() => {
         if (layout.length === 0) return;
+
         let mounted = true;
 
         const fetchStatuses = async () => {
@@ -104,46 +158,116 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                 const results = await Promise.all(
                     layout.map(async (panel) => {
                         try {
-                            const response = await getPanelStatus(panel.mac);
+                            const response =
+                                await getPanelStatus(panel.mac);
+
                             const raw: RawPanelData = {
-                                status: response?.status !== undefined ? String(response.status).toLowerCase() : undefined,
-                                voltage: toFiniteNumber(response?.voltage),
-                                current: toFiniteNumber(response?.current),
-                                power: toFiniteNumber(response?.power),
-                                temperature: toFiniteNumber(response?.temperature),
-                                irradiance: toFiniteNumber(response?.irradiance),
-                                expected_power: toFiniteNumber(response?.expected_power),
-                                performance_ratio: toFiniteNumber(response?.performance_ratio),
-                                environmental_state: response?.environmental_state !== undefined ? String(response.environmental_state) : undefined,
-                                diagnostic_basis: response?.diagnostic_basis !== undefined ? String(response.diagnostic_basis) : undefined,
+                                status:
+                                    response?.status !== undefined
+                                        ? String(
+                                              response.status,
+                                          ).toLowerCase()
+                                        : undefined,
+                                voltage: toFiniteNumber(
+                                    response?.voltage,
+                                ),
+                                current: toFiniteNumber(
+                                    response?.current,
+                                ),
+                                power: toFiniteNumber(
+                                    response?.power,
+                                ),
+                                temperature: toFiniteNumber(
+                                    response?.temperature,
+                                ),
+                                irradiance: toFiniteNumber(
+                                    response?.irradiance,
+                                ),
+                                expected_power: toFiniteNumber(
+                                    response?.expected_power,
+                                ),
+                                performance_ratio:
+                                    toFiniteNumber(
+                                        response?.performance_ratio,
+                                    ),
+                                environmental_state:
+                                    response?.environmental_state !==
+                                    undefined
+                                        ? String(
+                                              response.environmental_state,
+                                          )
+                                        : undefined,
+                                diagnostic_basis:
+                                    response?.diagnostic_basis !==
+                                    undefined
+                                        ? String(
+                                              response.diagnostic_basis,
+                                          )
+                                        : undefined,
                             };
-                            return [panel.mac, { status: raw.status ?? "unknown", raw }] as const;
+
+                            return [
+                                panel.mac,
+                                {
+                                    status:
+                                        raw.status ?? "unknown",
+                                    raw,
+                                },
+                            ] as const;
                         } catch {
-                            return [panel.mac, { status: "unknown", raw: undefined }] as const;
+                            return [
+                                panel.mac,
+                                {
+                                    status: "unknown",
+                                    raw: undefined,
+                                },
+                            ] as const;
                         }
                     }),
                 );
 
                 if (!mounted) return;
 
-                const nextStatuses = Object.fromEntries(
-                    results.map(([mac, payload]) => [mac, payload.status]),
-                );
-                const nextRaw = Object.fromEntries(
-                    results.map(([mac, payload]) => [mac, payload.raw]),
-                );
-                const nextStatusHash = JSON.stringify(nextStatuses);
+                const nextStatuses: Record<string, string> =
+                    Object.fromEntries(
+                        results.map(([mac, payload]) => [
+                            mac,
+                            payload.status,
+                        ]),
+                    );
 
-                if (nextStatusHash !== statusHashRef.current) {
+                const nextRaw: Record<
+                    string,
+                    RawPanelData | undefined
+                > = Object.fromEntries(
+                    results.map(([mac, payload]) => [
+                        mac,
+                        payload.raw,
+                    ]),
+                );
+
+                const nextStatusHash =
+                    JSON.stringify(nextStatuses);
+
+                if (
+                    nextStatusHash !== statusHashRef.current
+                ) {
                     statusHashRef.current = nextStatusHash;
                     setStatuses(nextStatuses);
                 }
+
                 setRawByMac(nextRaw);
-            } catch {}
+            } catch {
+                // Retain the last valid telemetry when a poll fails.
+            }
         };
 
         void fetchStatuses();
-        const interval = window.setInterval(fetchStatuses, 5000);
+        const interval = window.setInterval(
+            fetchStatuses,
+            5000,
+        );
+
         return () => {
             mounted = false;
             window.clearInterval(interval);
@@ -152,11 +276,20 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
 
     useEffect(() => {
         if (!selectedMac) return;
+
         onSelectionMeta?.(
             selectedMac,
-            toTelemetry(rawByMac[selectedMac], statuses[selectedMac] ?? "unknown"),
+            toTelemetry(
+                rawByMac[selectedMac],
+                statuses[selectedMac] ?? "unknown",
+            ),
         );
-    }, [selectedMac, statuses, rawByMac, onSelectionMeta]);
+    }, [
+        selectedMac,
+        statuses,
+        rawByMac,
+        onSelectionMeta,
+    ]);
 
     const cellWidth = 50;
     const cellHeight = 15;
@@ -164,8 +297,17 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
     const panelHeight = 10;
 
     const { svgWidth, svgHeight } = useMemo(() => {
-        const maxX = layout.length ? Math.max(...layout.map((panel) => panel.x)) : 1;
-        const maxY = layout.length ? Math.max(...layout.map((panel) => panel.y)) : 1;
+        const maxX = layout.length
+            ? Math.max(
+                  ...layout.map((panel) => panel.x),
+              )
+            : 1;
+        const maxY = layout.length
+            ? Math.max(
+                  ...layout.map((panel) => panel.y),
+              )
+            : 1;
+
         return {
             svgWidth: Math.max(maxX, 1) * cellWidth,
             svgHeight: Math.max(maxY, 1) * cellHeight,
@@ -181,11 +323,19 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                 className="w-full h-auto"
             >
                 {layout.map((panel) => {
-                    const status = statuses[panel.mac] ?? "unknown";
-                    const color = statusColorMap[status] ?? "#6b7280";
-                    const isSelected = selectedMac === panel.mac;
-                    const centerX = (panel.x - 1) * cellWidth + cellWidth / 2;
-                    const centerY = (panel.y - 1) * cellHeight + cellHeight / 2;
+                    const status =
+                        statuses[panel.mac] ?? "unknown";
+                    const color =
+                        statusColorMap[status] ??
+                        "#6b7280";
+                    const isSelected =
+                        selectedMac === panel.mac;
+                    const centerX =
+                        (panel.x - 1) * cellWidth +
+                        cellWidth / 2;
+                    const centerY =
+                        (panel.y - 1) * cellHeight +
+                        cellHeight / 2;
 
                     return (
                         <g
@@ -194,20 +344,35 @@ export default function PanelMapOverlay({ selectedMac, onPanelClick, onSelection
                                 onPanelClick(panel.mac);
                                 onSelectionMeta?.(
                                     panel.mac,
-                                    toTelemetry(rawByMac[panel.mac], status),
+                                    toTelemetry(
+                                        rawByMac[panel.mac],
+                                        status,
+                                    ),
                                 );
                             }}
                             className="panel cursor-pointer"
                         >
                             <rect
-                                x={centerX - panelWidth / 2}
-                                y={centerY - panelHeight / 2}
+                                x={
+                                    centerX -
+                                    panelWidth / 2
+                                }
+                                y={
+                                    centerY -
+                                    panelHeight / 2
+                                }
                                 width={panelWidth}
                                 height={panelHeight}
                                 rx={6}
                                 fill={color}
-                                stroke={isSelected ? "#000" : "none"}
-                                strokeWidth={isSelected ? 2 : 0}
+                                stroke={
+                                    isSelected
+                                        ? "#000"
+                                        : "none"
+                                }
+                                strokeWidth={
+                                    isSelected ? 2 : 0
+                                }
                             />
                             <text
                                 x={centerX}

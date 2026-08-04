@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
 import { BlinkyThing } from "@/components/BlinkyThing";
 import ChartPanel from "@/components/ChartPanel";
 import ControlPanel from "@/components/ControlPanel";
+import DemoShell from "@/components/demo-shell/DemoShell";
 import { FaultLegend } from "@/components/FaultLegend";
 import LogPanel from "@/components/LogPanel";
 import PanelMapOverlay, {
@@ -39,21 +45,22 @@ export default function MeshDaqDemoPage() {
         [],
     );
 
-    const attrs = useMemo(
+    const attrs: Attrs = useMemo(
         () => ({
-            status: currentTelemetry.status ?? undefined,
-            voltage: currentTelemetry.voltage ?? undefined,
-            current: currentTelemetry.current ?? undefined,
-            power: currentTelemetry.power ?? undefined,
-            temperature: currentTelemetry.temperature ?? undefined,
-            irradiance: currentTelemetry.irradiance ?? undefined,
-            expected_power: currentTelemetry.expected_power ?? undefined,
-            performance_ratio: currentTelemetry.performance_ratio ?? undefined,
-            environmental_state: currentTelemetry.environmental_state ?? undefined,
-            diagnostic_basis: currentTelemetry.diagnostic_basis ?? undefined,
+            status: currentTelemetry.status,
+            voltage: currentTelemetry.voltage,
+            current: currentTelemetry.current,
+            power: currentTelemetry.power,
+            temperature: currentTelemetry.temperature,
+            irradiance: currentTelemetry.irradiance,
+            expected_power: currentTelemetry.expected_power,
+            performance_ratio: currentTelemetry.performance_ratio,
+            environmental_state:
+                currentTelemetry.environmental_state,
+            diagnostic_basis: currentTelemetry.diagnostic_basis,
         }),
         [currentTelemetry],
-    ) as Attrs;
+    );
 
     useEffect(() => {
         let mounted = true;
@@ -77,7 +84,7 @@ export default function MeshDaqDemoPage() {
 
             if (!firstMac) {
                 throw new Error(
-                    "[demo/page] The first layout item does not contain a MAC address.",
+                    "[demo/page] First layout item has no MAC address.",
                 );
             }
 
@@ -102,77 +109,87 @@ export default function MeshDaqDemoPage() {
     }, [selectedMac, attrs, setSelectedTarget]);
 
     return (
-        <main className="daq-demo-shell">
-            <header className="daq-demo-hero">
-                <p className="daq-demo-eyebrow">
-                    Solar IoT · Wireless Telemetry
-                </p>
-                <h1>Wireless Mesh DAQ Dashboard</h1>
-                <p>
-                    A live monitoring and fault-injection interface for a
-                    wireless photovoltaic data-acquisition mesh. Select a node
-                    to inspect telemetry, review device and cloud logs, and
-                    simulate field faults.
-                </p>
-            </header>
-
-            <section
-                className="daq-demo-card"
-                aria-label="Wireless Mesh DAQ interactive demo"
+        <DemoShell
+            eyebrow="Solar IoT"
+            title="Wireless Mesh DAQ Demo"
+            directions="Select a panel, then choose and trigger a fault to simulate field conditions. Watch the electrical and environmental telemetry respond."
+            status={
+                selectedMac
+                    ? `Selected: ${selectedMac}`
+                    : "Connecting"
+            }
+        >
+            {/*
+              `daq-demo-app` is only a layout boundary. All visual styling
+              inside it continues to come from Mesh DAQ's existing globals.css.
+            */}
+            <div
+                className="daq-demo-app"
+                style={{
+                    width: "min(420px, 100%)",
+                    margin: "0 auto",
+                }}
             >
-                <div className="daq-demo-card-heading">
-                    <div>
-                        <p className="daq-demo-card-kicker">Live system</p>
-                        <h2>Mesh Operations Console</h2>
-                    </div>
-                    <span className="daq-demo-status-pill">
-                        {selectedMac ? `Selected: ${selectedMac}` : "Connecting"}
-                    </span>
-                </div>
-
-                <div className="daq-demo-console">
-                    <fieldset className="fieldset-section">
-                        <legend>Logs</legend>
-                        <div className="daq-log-grid">
-                            <LogPanel title="Mesh Logs" source="mesh" />
-                            <LogPanel title="Cloud Logs" source="cloud" />
-                        </div>
-                    </fieldset>
-
-                    <fieldset className="fieldset-section">
-                        <legend>Nodes</legend>
-                        <PanelMapOverlay
-                            selectedMac={selectedMac}
-                            onPanelClick={handlePanelClick}
-                            onSelectionMeta={handleSelectionMeta}
+                <fieldset className="fieldset-section">
+                    <legend>Logs</legend>
+                    <div
+                        className="daq-log-grid"
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr)",
+                            gap: "8px",
+                            width: "100%",
+                            minWidth: 0,
+                        }}
+                    >
+                        <LogPanel
+                            title="Mesh Logs"
+                            source="mesh"
                         />
-                        <FaultLegend />
-                    </fieldset>
+                        <LogPanel
+                            title="Cloud Logs"
+                            source="cloud"
+                        />
+                    </div>
+                </fieldset>
 
-                    <fieldset className="fieldset-section">
-                        <legend>{`DAQ: ${selectedMac || "—"}`}</legend>
-                        <ChartPanel selectedMac={selectedMac} />
-                    </fieldset>
+                <fieldset className="fieldset-section">
+                    <legend>Nodes</legend>
+                    <PanelMapOverlay
+                        selectedMac={selectedMac}
+                        onPanelClick={handlePanelClick}
+                        onSelectionMeta={handleSelectionMeta}
+                    />
+                    <FaultLegend />
+                </fieldset>
 
-                    <fieldset className="fieldset-section">
-                        <legend>Fault Injection</legend>
-                        <ControlPanel />
-                    </fieldset>
-                </div>
-            </section>
+                <fieldset className="fieldset-section">
+                    <legend>{`DAQ: ${selectedMac || "—"}`}</legend>
+                    <ChartPanel selectedMac={selectedMac} />
+                </fieldset>
+
+                <fieldset className="fieldset-section">
+                    <legend>Fault Injection</legend>
+                    <ControlPanel />
+                </fieldset>
+            </div>
 
             <div className="fixed bottom-3 right-3 z-40 pointer-events-none">
                 <BlinkyThing
                     size={36}
                     dotSize={7}
                     gap={6}
-                    colors={["#22d3ee", "#f59e0b", "#ef4444"]}
+                    colors={[
+                        "#22d3ee",
+                        "#f59e0b",
+                        "#ef4444",
+                    ]}
                     intervalMs={800}
                     framed={false}
                     stealth
                     ariaLabel="Purely decorative blinking lights"
                 />
             </div>
-        </main>
+        </DemoShell>
     );
 }
