@@ -89,6 +89,30 @@ class SolarPanelSimulator:
         elif fault == "dead_panel":
             voltage = 0.0
             current = 0.0
+        elif fault == "over_temperature":
+            # Force a clearly visible thermal warning while retaining output.
+            temperature = self.random.uniform(72.0, 82.0)
+            voltage = self.nominal_vmp * (1.0 - 0.0035 * (temperature - 25.0))
+            current = self.nominal_imp * irradiance_ratio * 0.96
+        elif fault == "gross_power_drop":
+            # Adequate sunlight, but severe electrical under-performance.
+            irradiance = max(650.0, irradiance)
+            irradiance_ratio = irradiance / self.reference_irradiance
+            voltage = self.nominal_vmp * (1.0 - 0.0035 * (temperature - 25.0))
+            current = self.nominal_imp * irradiance_ratio * self.random.uniform(0.28, 0.38)
+        elif fault == "possible_shading":
+            # Keep measured irradiance useful while reducing panel current enough
+            # to create a 50-70% performance ratio.
+            irradiance = max(550.0, irradiance)
+            irradiance_ratio = irradiance / self.reference_irradiance
+            voltage = self.nominal_vmp * (1.0 - 0.0035 * (temperature - 25.0))
+            current = self.nominal_imp * irradiance_ratio * self.random.uniform(0.58, 0.68)
+        elif fault == "low_irradiance":
+            irradiance = self.random.uniform(35.0, 85.0)
+            temperature = self.ambient_temperature + 0.030 * irradiance
+            irradiance_ratio = irradiance / self.reference_irradiance
+            voltage = self.nominal_vmp * (1.0 - 0.0035 * (temperature - 25.0))
+            current = self.nominal_imp * irradiance_ratio
 
         voltage = max(0.0, voltage)
         current = max(0.0, current)

@@ -5,7 +5,7 @@ export const FaultLegend = () => {
     return (
         <section className="fault-legend-wrap" aria-labelledby="fault-legend-title">
             <h3 id="fault-legend-title" className="fault-legend-header">
-                Fault Legend
+                Status Legend
             </h3>
 
             <ul

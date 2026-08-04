@@ -22,7 +22,16 @@ FAULTS_METADATA = {
 }
 
 SUPPORTED_INJECTION_FAULTS = {
-    "short_circuit", "open_circuit", "low_voltage", "dead_panel", "random", "normal"
+    "short_circuit",
+    "open_circuit",
+    "low_voltage",
+    "dead_panel",
+    "over_temperature",
+    "gross_power_drop",
+    "possible_shading",
+    "low_irradiance",
+    "random",
+    "normal",
 }
 
 @dataclass(frozen=True)

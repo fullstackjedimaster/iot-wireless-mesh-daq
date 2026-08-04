@@ -29,10 +29,10 @@ PANEL_MACS = [
     "fa:29:eb:6d:87:02",
     "fa:29:eb:6d:87:03",
     "fa:29:eb:6d:87:04",
-    "fa:29:eb:6d:87:05",
-     "fa:29:eb:6d:87:06",
-     "fa:29:eb:6d:87:07",
-     "fa:29:eb:6d:87:08",
+    # "fa:29:eb:6d:87:05",
+    # "fa:29:eb:6d:87:06",
+    # "fa:29:eb:6d:87:07",
+    # "fa:29:eb:6d:87:08",
 ]
 
 FAULTS = {
@@ -40,6 +40,10 @@ FAULTS = {
     "open_circuit": None,
     "low_voltage": None,
     "dead_panel": None,
+    "over_temperature": None,
+    "gross_power_drop": None,
+    "possible_shading": None,
+    "low_irradiance": None,
     "normal": None,
 }
 FAULTS_KEYS = list(FAULTS.keys())

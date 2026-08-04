@@ -1,60 +1,70 @@
-// ai-core/faults/metadata.ts
-
-import { FaultMetadata } from "./types.js"
+import type { FaultMetadata } from "./types";
 
 export const FAULTS_METADATA: Record<string, FaultMetadata> = {
-  OPEN_CIRCUIT: {
-    label: "Open Circuit",
-    threshold: 0.02,
-    unit: "proj_power_ratio",
-    color: "#FF6B6B",
-    priority: 3,
-  },
-  SHORT_CIRCUIT: {
-    label: "Short Circuit",
-    threshold: 0.02,
-    unit: "proj_power_ratio",
-    color: "#f10000",
-    priority: 3,
-  },
-  // SNAPPED_DIODE: {
-  //   label: "Snapped Diode",
-  //   threshold: 3.5,
-  //   unit: "vo_percentage_window",
-  //   color: "#F7B801",
-  //   priority: 2,
-  // },
-  // POWER_DROP: {
-  //   label: "Power Drop",
-  //   threshold: 95,
-  //   unit: "percent_loss",
-  //   color: "#6A5ACD",
-  //   priority: 1,
-  // },
-  DEAD_PANEL: {
-    label: "Dead Panel",
-    threshold: 1.5,
-    unit: "avg_voltage",
-    color: "#CCCCCC",
-    priority: 4,
-  },
-  LOW_VOLTAGE: {
-    label: "Low Voltage",
-    threshold: 20,
-    unit: "voltage",
-    color: "#00CED1",
-    priority: 0,
-  },
-  // LOW_POWER: {
-  //   label: "Low Power",
-  //   threshold: 10,
-  //   unit: "power",
-  //   color: "#008B8B",
-  //   priority: 0,
-  // },
-  NORMAL: {
-    label: "Normal",
-    color: "#00FF00",
-    priority: 0,
-  },
-}
+    NORMAL: {
+        label: "Normal",
+        color: "#0aff02",
+        priority: 0,
+    },
+    LOW_IRRADIANCE: {
+        label: "Low Irradiance",
+        threshold: 100,
+        unit: "W/m²",
+        color: "#64748b",
+        priority: 0,
+    },
+    POSSIBLE_SHADING: {
+        label: "Possible Shading",
+        threshold: 0.75,
+        unit: "performance_ratio",
+        color: "#a855f7",
+        priority: 1,
+    },
+    GROSS_POWER_DROP: {
+        label: "Gross Power Drop",
+        threshold: 0.5,
+        unit: "performance_ratio",
+        color: "#6d28d9",
+        priority: 2,
+    },
+    OVER_TEMPERATURE: {
+        label: "Over Temperature",
+        threshold: 70,
+        unit: "°C",
+        color: "#f97316",
+        priority: 2,
+    },
+    LOW_VOLTAGE: {
+        label: "Low Voltage",
+        threshold: 20,
+        unit: "V",
+        color: "#fa7115",
+        priority: 1,
+    },
+    OPEN_CIRCUIT: {
+        label: "Open Circuit",
+        threshold: 0.02,
+        unit: "projected_power_ratio",
+        color: "#004aff",
+        priority: 3,
+    },
+    SHORT_CIRCUIT: {
+        label: "Short Circuit",
+        threshold: 2,
+        unit: "V",
+        color: "#f10000",
+        priority: 3,
+    },
+    DEAD_PANEL: {
+        label: "Dead Panel",
+        threshold: 1.5,
+        unit: "V",
+        color: "#5a5a5a",
+        priority: 4,
+    },
+    UNKNOWN: {
+        label: "Unknown",
+        color: "#000000",
+        priority: 0,
+    },
+};

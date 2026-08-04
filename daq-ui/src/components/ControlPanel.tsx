@@ -47,9 +47,9 @@ export default function ControlPanel() {
         if (!selectedPanel || !fault) return
         try {
             await injectFault(selectedPanel, fault)
-            setMessage("✅ Fault injected!")
+            setMessage("Condition triggered.")
         } catch {
-            setMessage("⚠️ Failed to inject fault.")
+            setMessage("Failed to trigger condition.")
         }
     }
 
@@ -79,7 +79,7 @@ export default function ControlPanel() {
                     value={fault}
                     onChange={(e) => setFault(e.target.value)}
                 >
-                    <option value="">Fault...</option>
+                    <option value="">Condition...</option>
                     {faultOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
@@ -91,14 +91,14 @@ export default function ControlPanel() {
                     className=""
 
                 >
-                    Inject Fault
+                    Trigger Condition
                 </button>
                 <button
                     onClick={handleClear}
                     className=""
 
                 >
-                    Clear Faults
+                    Clear Conditions
                 </button>
 
             </div>
