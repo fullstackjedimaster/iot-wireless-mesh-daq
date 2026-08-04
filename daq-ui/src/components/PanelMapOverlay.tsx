@@ -66,7 +66,7 @@ const statusColorMap: Record<string, string> = {
     dead_panel: "#5a5a5a",
     short_circuit: "#f10000",
     open_circuit: "#004aff",
-    unknown: "#000000", 
+    unknown: "#000000",
 };
 
 function toFiniteNumber(value: unknown): number | undefined {
