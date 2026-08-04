@@ -1,141 +1,18 @@
 "use client";
-
 import { useEffect } from "react";
 
-type EmbedHeightReporterProps = {
-    contentRootId: string;
-};
-
-const MAX_HEIGHT = 5000;
-const CHANGE_THRESHOLD = 2;
-const SETTLE_DELAYS_MS = [0, 50, 150, 350];
-const DOCK_RESIZE_EVENT = "rag-dock-resize";
-
-function getParentOrigin(): string {
-    const configured = new URLSearchParams(window.location.search).get(
-        "embedParentOrigin",
-    );
-
-    if (configured) {
-        try {
-            return new URL(configured).origin;
-        } catch {
-            return "";
-        }
-    }
-
-    if (!document.referrer) return "";
-
-    try {
-        return new URL(document.referrer).origin;
-    } catch {
-        return "";
-    }
+type Props = { contentRootId: string };
+const MAX_HEIGHT=6000, THRESHOLD=1;
+function parentOrigin(){ const q=new URLSearchParams(location.search).get("embedParentOrigin"); try{return q?new URL(q).origin:new URL(document.referrer).origin}catch{return ""} }
+function naturalHeight(root:HTMLElement){
+    const body=document.body, html=document.documentElement;
+    return Math.min(MAX_HEIGHT,Math.max(1,Math.ceil(Math.max(root.getBoundingClientRect().bottom,root.scrollHeight,root.offsetHeight,body.scrollHeight,body.offsetHeight,html.scrollHeight,html.offsetHeight))));
 }
-
-function measure(element: HTMLElement): number {
-    const rectHeight = element.getBoundingClientRect().height;
-    return Math.min(
-        MAX_HEIGHT,
-        Math.max(
-            1,
-            Math.ceil(Math.max(rectHeight, element.offsetHeight, element.scrollHeight)),
-        ),
-    );
-}
-
-export default function EmbedHeightReporter({
-    contentRootId,
-}: EmbedHeightReporterProps) {
-    useEffect(() => {
-        if (window.parent === window) return;
-
-        const rootElement = document.getElementById(contentRootId);
-        if (!(rootElement instanceof HTMLElement)) {
-            console.warn(
-                `[EmbedHeightReporter] Missing #${contentRootId}; height reporting disabled.`,
-            );
-            return;
-        }
-
-        const measuredRoot: HTMLElement = rootElement;
-
-        const targetOrigin = getParentOrigin();
-        if (!targetOrigin) {
-            console.warn(
-                "[EmbedHeightReporter] Parent origin is unavailable; height reporting disabled.",
-            );
-            return;
-        }
-
-        let animationFrame = 0;
-        let lastHeight = 0;
-        let disposed = false;
-        const timers = new Set<number>();
-
-        function report(): void {
-            if (disposed) return;
-
-            window.cancelAnimationFrame(animationFrame);
-            animationFrame = window.requestAnimationFrame(() => {
-                if (disposed) return;
-
-                const height = measure(measuredRoot);
-                if (
-                    lastHeight > 0 &&
-                    Math.abs(height - lastHeight) < CHANGE_THRESHOLD
-                ) {
-                    return;
-                }
-
-                lastHeight = height;
-                window.parent.postMessage(
-                    { type: "EMBED_HEIGHT", height },
-                    targetOrigin,
-                );
-            });
-        }
-
-        function schedule(): void {
-            for (const delay of SETTLE_DELAYS_MS) {
-                const timer = window.setTimeout(() => {
-                    timers.delete(timer);
-                    report();
-                }, delay);
-                timers.add(timer);
-            }
-        }
-
-        const resizeObserver = new ResizeObserver(schedule);
-        resizeObserver.observe(measuredRoot);
-
-        const mutationObserver = new MutationObserver(schedule);
-        mutationObserver.observe(measuredRoot, {
-            childList: true,
-            subtree: true,
-            characterData: true,
-            attributes: true,
-            attributeFilter: ["class", "style"],
-        });
-
-        window.addEventListener("load", schedule);
-        window.addEventListener("resize", schedule);
-        window.addEventListener(DOCK_RESIZE_EVENT, schedule);
-
-        schedule();
-
-        return () => {
-            disposed = true;
-            window.cancelAnimationFrame(animationFrame);
-            for (const timer of timers) window.clearTimeout(timer);
-            timers.clear();
-            resizeObserver.disconnect();
-            mutationObserver.disconnect();
-            window.removeEventListener("load", schedule);
-            window.removeEventListener("resize", schedule);
-            window.removeEventListener(DOCK_RESIZE_EVENT, schedule);
-        };
-    }, [contentRootId]);
-
-    return null;
+export default function EmbedHeightReporter({contentRootId}:Props){
+ useEffect(()=>{ if(parent===window)return; const root=document.getElementById(contentRootId); const origin=parentOrigin(); if(!(root instanceof HTMLElement)||!origin)return;
+ let raf=0,last=0,dead=false; const report=()=>{ cancelAnimationFrame(raf); raf=requestAnimationFrame(()=>{if(dead)return; const height=naturalHeight(root); if(Math.abs(height-last)<THRESHOLD)return; last=height; parent.postMessage({type:"EMBED_HEIGHT",height},origin);});};
+ const ro=new ResizeObserver(report), mo=new MutationObserver(report); ro.observe(root); ro.observe(document.body); mo.observe(root,{subtree:true,childList:true,characterData:true,attributes:true});
+ const timers=[0,50,150,350,750].map(ms=>window.setTimeout(report,ms)); addEventListener("load",report); addEventListener("resize",report); addEventListener("rag-dock-resize",report);
+ return()=>{dead=true;cancelAnimationFrame(raf);timers.forEach(clearTimeout);ro.disconnect();mo.disconnect();removeEventListener("load",report);removeEventListener("resize",report);removeEventListener("rag-dock-resize",report)};
+ },[contentRootId]); return null;
 }

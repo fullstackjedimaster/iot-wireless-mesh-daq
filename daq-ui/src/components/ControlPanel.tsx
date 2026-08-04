@@ -13,7 +13,11 @@ const faultOptions = [
     { value: "open_circuit", label: "Open Circuit" },
     { value: "low_voltage", label: "Low Voltage" },
     { value: "dead_panel", label: "Dead Panel" },
-    { value: "random", label: "Random" },
+    { value: "over_temperature", label: "Over Temperature" },
+    { value: "gross_power_drop", label: "Gross Power Drop" },
+    { value: "possible_shading", label: "Possible Shading" },
+    { value: "low_irradiance", label: "Low Irradiance" },
+    { value: "random", label: "Random Condition" },
     { value: "reset", label: "Reset to Normal" },
 ]
 
