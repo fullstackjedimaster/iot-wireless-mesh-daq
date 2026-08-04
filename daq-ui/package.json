@@ -17,7 +17,8 @@
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.0",
     "swr": "^2.3.4",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@fsj/demo-kit": "file:packages/demo-kit"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

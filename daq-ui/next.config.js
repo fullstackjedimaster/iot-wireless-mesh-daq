@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["@fsj/demo-kit"],
   reactStrictMode: true,
 
   // IMPORTANT: run as a Node server (not static export)
