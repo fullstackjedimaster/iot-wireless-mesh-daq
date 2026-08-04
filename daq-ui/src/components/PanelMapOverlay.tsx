@@ -38,11 +38,6 @@ interface Props {
     ) => void;
 }
 
-/*
- * Values are serialized as strings before being passed into Modular RAG.
- * Keeping all scalar telemetry fields consistent avoids mixed numeric/string
- * contracts between the dashboard, postMessage payload, and dock.
- */
 export type PanelTelemetry = {
     voltage?: string;
     current?: string;
@@ -69,7 +64,12 @@ const statusColorMap: Record<string, string> = {
     unknown: "#000000",
 };
 
-function toFiniteNumber(value: unknown): number | undefined {
+const CABLE_COLOR = "#111111";
+const CABLE_HIGHLIGHT = "#3f3f46";
+
+function toFiniteNumber(
+    value: unknown,
+): number | undefined {
     const number = Number(value);
     return Number.isFinite(number) ? number : undefined;
 }
@@ -99,6 +99,17 @@ function toTelemetry(
         diagnostic_basis: raw?.diagnostic_basis,
     };
 }
+
+type PositionedPanel = PanelInfo & {
+    centerX: number;
+    centerY: number;
+};
+
+type StringColumn = {
+    x: number;
+    centerX: number;
+    panels: PositionedPanel[];
+};
 
 export default function PanelMapOverlay({
     selectedMac,
@@ -137,6 +148,7 @@ export default function PanelMapOverlay({
         };
 
         void fetchLayoutOnce();
+
         const interval = window.setInterval(
             fetchLayoutOnce,
             5000,
@@ -263,6 +275,7 @@ export default function PanelMapOverlay({
         };
 
         void fetchStatuses();
+
         const interval = window.setInterval(
             fetchStatuses,
             5000,
@@ -291,51 +304,323 @@ export default function PanelMapOverlay({
         onSelectionMeta,
     ]);
 
-    const cellWidth = 50;
-    const cellHeight = 15;
-    const panelWidth = 45;
-    const panelHeight = 10;
+    const geometry = useMemo(() => {
+        const cellWidth = 58;
+        const cellHeight = 24;
+        const panelWidth = 50;
+        const panelHeight = 13;
+        const topPadding = 9;
+        const sidePadding = 8;
+        const cableGap = 3;
+        const busDrop = 19;
+        const inverterGap = 10;
+        const inverterWidth = 58;
+        const inverterHeight = 38;
 
-    const { svgWidth, svgHeight } = useMemo(() => {
         const maxX = layout.length
-            ? Math.max(
-                  ...layout.map((panel) => panel.x),
-              )
+            ? Math.max(...layout.map((panel) => panel.x))
             : 1;
         const maxY = layout.length
-            ? Math.max(
-                  ...layout.map((panel) => panel.y),
-              )
+            ? Math.max(...layout.map((panel) => panel.y))
             : 1;
 
+        const positioned: PositionedPanel[] = layout.map(
+            (panel) => ({
+                ...panel,
+                centerX:
+                    sidePadding +
+                    (panel.x - 1) * cellWidth +
+                    cellWidth / 2,
+                centerY:
+                    topPadding +
+                    (panel.y - 1) * cellHeight +
+                    cellHeight / 2,
+            }),
+        );
+
+        const grouped = new Map<number, PositionedPanel[]>();
+
+        for (const panel of positioned) {
+            const existing = grouped.get(panel.x) ?? [];
+            existing.push(panel);
+            grouped.set(panel.x, existing);
+        }
+
+        const strings: StringColumn[] = Array.from(
+            grouped.entries(),
+        )
+            .sort(([xA], [xB]) => xA - xB)
+            .map(([x, panels]) => {
+                const sortedPanels = [...panels].sort(
+                    (a, b) => a.y - b.y,
+                );
+
+                return {
+                    x,
+                    centerX:
+                        sortedPanels[0]?.centerX ??
+                        sidePadding + cellWidth / 2,
+                    panels: sortedPanels,
+                };
+            });
+
+        const boardWidth =
+            sidePadding * 2 + Math.max(maxX, 1) * cellWidth;
+
+        const panelFieldBottom =
+            topPadding +
+            Math.max(maxY, 1) * cellHeight +
+            panelHeight / 2;
+
+        const busY = panelFieldBottom + busDrop;
+        const inverterTop = busY + inverterGap;
+        const inverterCenterX = boardWidth / 2;
+        const inverterCenterY =
+            inverterTop + inverterHeight / 2;
+
+        const svgHeight =
+            inverterTop + inverterHeight + 9;
+
         return {
-            svgWidth: Math.max(maxX, 1) * cellWidth,
-            svgHeight: Math.max(maxY, 1) * cellHeight,
+            cellWidth,
+            cellHeight,
+            panelWidth,
+            panelHeight,
+            cableGap,
+            boardWidth,
+            svgHeight,
+            busY,
+            inverterTop,
+            inverterWidth,
+            inverterHeight,
+            inverterCenterX,
+            inverterCenterY,
+            positioned,
+            strings,
         };
     }, [layout]);
 
+    const panelByMac = useMemo(
+        () =>
+            new Map(
+                geometry.positioned.map((panel) => [
+                    panel.mac,
+                    panel,
+                ]),
+            ),
+        [geometry.positioned],
+    );
+
     return (
-        <div className="panel-section">
+        <div
+            className="panel-section"
+            style={{
+                width: "100%",
+                minWidth: 0,
+            }}
+        >
             <svg
                 width="100%"
-                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                viewBox={`0 0 ${geometry.boardWidth} ${geometry.svgHeight}`}
                 preserveAspectRatio="xMidYMid meet"
                 className="w-full h-auto"
+                role="img"
+                aria-label="Solar panel strings connected to an inverter"
             >
-                {layout.map((panel) => {
+                <defs>
+                    <filter
+                        id="panel-shadow"
+                        x="-30%"
+                        y="-50%"
+                        width="160%"
+                        height="200%"
+                    >
+                        <feDropShadow
+                            dx="0"
+                            dy="1.2"
+                            stdDeviation="1.2"
+                            floodColor="#000"
+                            floodOpacity="0.35"
+                        />
+                    </filter>
+
+                    <linearGradient
+                        id="inverter-face"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                    >
+                        <stop
+                            offset="0%"
+                            stopColor="#2b2b2b"
+                        />
+                        <stop
+                            offset="100%"
+                            stopColor="#090909"
+                        />
+                    </linearGradient>
+                </defs>
+
+                {/*
+                  Draw all wiring first so the panel nodes sit cleanly on top.
+                */}
+                <g
+                    aria-hidden="true"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    {geometry.strings.map((string) => {
+                        if (string.panels.length === 0) {
+                            return null;
+                        }
+
+                        const first = string.panels[0];
+                        const last =
+                            string.panels[
+                                string.panels.length - 1
+                            ];
+
+                        const topY =
+                            first.centerY +
+                            geometry.panelHeight / 2 +
+                            geometry.cableGap;
+                        const bottomY =
+                            last.centerY +
+                            geometry.panelHeight / 2 +
+                            geometry.cableGap;
+
+                        return (
+                            <g key={`string-${string.x}`}>
+                                {string.panels
+                                    .slice(0, -1)
+                                    .map((panel, index) => {
+                                        const next =
+                                            string.panels[
+                                                index + 1
+                                            ];
+
+                                        const y1 =
+                                            panel.centerY +
+                                            geometry.panelHeight /
+                                                2 +
+                                            geometry.cableGap;
+                                        const y2 =
+                                            next.centerY -
+                                            geometry.panelHeight /
+                                                2 -
+                                            geometry.cableGap;
+
+                                        return (
+                                            <g
+                                                key={`${panel.mac}-${next.mac}`}
+                                            >
+                                                <path
+                                                    d={`M ${string.centerX} ${y1} L ${string.centerX} ${y2}`}
+                                                    stroke={
+                                                        CABLE_HIGHLIGHT
+                                                    }
+                                                    strokeWidth="4.8"
+                                                />
+                                                <path
+                                                    d={`M ${string.centerX} ${y1} L ${string.centerX} ${y2}`}
+                                                    stroke={
+                                                        CABLE_COLOR
+                                                    }
+                                                    strokeWidth="3.2"
+                                                />
+                                            </g>
+                                        );
+                                    })}
+
+                                <path
+                                    d={[
+                                        `M ${string.centerX} ${bottomY}`,
+                                        `L ${string.centerX} ${
+                                            geometry.busY - 8
+                                        }`,
+                                        `Q ${string.centerX} ${
+                                            geometry.busY
+                                        } ${
+                                            string.centerX +
+                                            Math.sign(
+                                                geometry.inverterCenterX -
+                                                    string.centerX,
+                                            ) *
+                                                8
+                                        } ${geometry.busY}`,
+                                        `L ${
+                                            geometry.inverterCenterX
+                                        } ${geometry.busY}`,
+                                    ].join(" ")}
+                                    stroke={CABLE_HIGHLIGHT}
+                                    strokeWidth="5.4"
+                                />
+                                <path
+                                    d={[
+                                        `M ${string.centerX} ${bottomY}`,
+                                        `L ${string.centerX} ${
+                                            geometry.busY - 8
+                                        }`,
+                                        `Q ${string.centerX} ${
+                                            geometry.busY
+                                        } ${
+                                            string.centerX +
+                                            Math.sign(
+                                                geometry.inverterCenterX -
+                                                    string.centerX,
+                                            ) *
+                                                8
+                                        } ${geometry.busY}`,
+                                        `L ${
+                                            geometry.inverterCenterX
+                                        } ${geometry.busY}`,
+                                    ].join(" ")}
+                                    stroke={CABLE_COLOR}
+                                    strokeWidth="3.5"
+                                />
+
+                                <circle
+                                    cx={string.centerX}
+                                    cy={topY}
+                                    r="2.1"
+                                    fill={CABLE_COLOR}
+                                    stroke="none"
+                                />
+                            </g>
+                        );
+                    })}
+
+                    <path
+                        d={`M ${geometry.inverterCenterX} ${geometry.busY} L ${geometry.inverterCenterX} ${geometry.inverterTop}`}
+                        stroke={CABLE_HIGHLIGHT}
+                        strokeWidth="6"
+                    />
+                    <path
+                        d={`M ${geometry.inverterCenterX} ${geometry.busY} L ${geometry.inverterCenterX} ${geometry.inverterTop}`}
+                        stroke={CABLE_COLOR}
+                        strokeWidth="4"
+                    />
+
+                    <circle
+                        cx={geometry.inverterCenterX}
+                        cy={geometry.busY}
+                        r="4.2"
+                        fill="#171717"
+                        stroke="#4b5563"
+                        strokeWidth="1"
+                    />
+                </g>
+
+                {geometry.positioned.map((panel) => {
                     const status =
                         statuses[panel.mac] ?? "unknown";
                     const color =
                         statusColorMap[status] ??
-                        "#6b7280";
+                        statusColorMap.unknown;
                     const isSelected =
                         selectedMac === panel.mac;
-                    const centerX =
-                        (panel.x - 1) * cellWidth +
-                        cellWidth / 2;
-                    const centerY =
-                        (panel.y - 1) * cellHeight +
-                        cellHeight / 2;
 
                     return (
                         <g
@@ -351,42 +636,148 @@ export default function PanelMapOverlay({
                                 );
                             }}
                             className="panel cursor-pointer"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Select panel ${panel.mac}`}
+                            onKeyDown={(event) => {
+                                if (
+                                    event.key === "Enter" ||
+                                    event.key === " "
+                                ) {
+                                    event.preventDefault();
+                                    onPanelClick(panel.mac);
+                                    onSelectionMeta?.(
+                                        panel.mac,
+                                        toTelemetry(
+                                            rawByMac[panel.mac],
+                                            status,
+                                        ),
+                                    );
+                                }
+                            }}
+                            filter="url(#panel-shadow)"
                         >
                             <rect
                                 x={
-                                    centerX -
-                                    panelWidth / 2
+                                    panel.centerX -
+                                    geometry.panelWidth / 2
                                 }
                                 y={
-                                    centerY -
-                                    panelHeight / 2
+                                    panel.centerY -
+                                    geometry.panelHeight / 2
                                 }
-                                width={panelWidth}
-                                height={panelHeight}
+                                width={geometry.panelWidth}
+                                height={geometry.panelHeight}
                                 rx={6}
                                 fill={color}
                                 stroke={
                                     isSelected
                                         ? "#000"
-                                        : "none"
+                                        : "rgba(0,0,0,0.45)"
                                 }
                                 strokeWidth={
-                                    isSelected ? 2 : 0
+                                    isSelected ? 2.2 : 0.8
                                 }
                             />
+
                             <text
-                                x={centerX}
-                                y={centerY}
+                                x={panel.centerX}
+                                y={panel.centerY}
                                 textAnchor="middle"
-                                alignmentBaseline="middle"
+                                dominantBaseline="middle"
                                 className="panel-label select-none"
-                                fill="#000"
+                                fill={
+                                    status === "open_circuit" ||
+                                    status === "gross_power_drop"
+                                        ? "#fff"
+                                        : "#000"
+                                }
                             >
                                 {panel.mac}
                             </text>
                         </g>
                     );
                 })}
+
+                <g
+                    aria-label="Inverter"
+                    transform={`translate(${
+                        geometry.inverterCenterX -
+                        geometry.inverterWidth / 2
+                    } ${geometry.inverterTop})`}
+                    filter="url(#panel-shadow)"
+                >
+                    <rect
+                        x="0"
+                        y="0"
+                        width={geometry.inverterWidth}
+                        height={geometry.inverterHeight}
+                        rx="5"
+                        fill="url(#inverter-face)"
+                        stroke="#050505"
+                        strokeWidth="1"
+                    />
+
+                    <rect
+                        x="8"
+                        y="6"
+                        width={
+                            geometry.inverterWidth - 16
+                        }
+                        height="18"
+                        rx="2.5"
+                        fill="#202020"
+                        stroke="#474747"
+                        strokeWidth="0.8"
+                    />
+
+                    <path
+                        d={`M 18 15
+                            C 22 7, 26 7, 30 15
+                            S 38 23, 42 15`}
+                        fill="none"
+                        stroke="#f8fafc"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                    />
+
+                    <text
+                        x={geometry.inverterWidth / 2}
+                        y="30"
+                        textAnchor="middle"
+                        fill="#f8fafc"
+                        fontSize="6"
+                        fontWeight="800"
+                        letterSpacing="0.4"
+                    >
+                        INVERTER
+                    </text>
+
+                    <circle
+                        cx={
+                            geometry.inverterWidth / 2 -
+                            7
+                        }
+                        cy="34"
+                        r="1.35"
+                        fill="#22c55e"
+                    />
+                    <circle
+                        cx={geometry.inverterWidth / 2}
+                        cy="34"
+                        r="1.35"
+                        fill="#a3a3a3"
+                    />
+                    <circle
+                        cx={
+                            geometry.inverterWidth / 2 +
+                            7
+                        }
+                        cy="34"
+                        r="1.35"
+                        fill="#a3a3a3"
+                    />
+                </g>
             </svg>
         </div>
     );
