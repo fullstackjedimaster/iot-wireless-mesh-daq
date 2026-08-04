@@ -314,8 +314,8 @@ export default function PanelMapOverlay({
         const cableGap = 3;
         const busDrop = 19;
         const inverterGap = 10;
-        const inverterWidth = 58;
-        const inverterHeight = 38;
+        const inverterWidth = 50;
+        const inverterHeight = 32;
 
         const maxX = layout.length
             ? Math.max(...layout.map((panel) => panel.x))
@@ -724,17 +724,17 @@ export default function PanelMapOverlay({
                         width={
                             geometry.inverterWidth - 16
                         }
-                        height="18"
-                        rx="2.5"
+                        height="15"
+                        rx="2.3"
                         fill="#202020"
                         stroke="#474747"
                         strokeWidth="0.8"
                     />
 
                     <path
-                        d={`M 18 15
-                            C 22 7, 26 7, 30 15
-                            S 38 23, 42 15`}
+                        d={`M 15 13
+                            C 19 6, 22 6, 25 13
+                            S 32 20, 35 13`}
                         fill="none"
                         stroke="#f8fafc"
                         strokeWidth="1.8"
@@ -743,10 +743,10 @@ export default function PanelMapOverlay({
 
                     <text
                         x={geometry.inverterWidth / 2}
-                        y="30"
+                        y="25"
                         textAnchor="middle"
                         fill="#f8fafc"
-                        fontSize="6"
+                        fontSize="5.3"
                         fontWeight="800"
                         letterSpacing="0.4"
                     >
@@ -758,13 +758,13 @@ export default function PanelMapOverlay({
                             geometry.inverterWidth / 2 -
                             7
                         }
-                        cy="34"
+                        cy="28.5"
                         r="1.35"
                         fill="#22c55e"
                     />
                     <circle
                         cx={geometry.inverterWidth / 2}
-                        cy="34"
+                        cy="28.5"
                         r="1.35"
                         fill="#a3a3a3"
                     />
@@ -773,7 +773,7 @@ export default function PanelMapOverlay({
                             geometry.inverterWidth / 2 +
                             7
                         }
-                        cy="34"
+                        cy="28.5"
                         r="1.35"
                         fill="#a3a3a3"
                     />
