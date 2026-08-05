@@ -85,7 +85,7 @@ export default function HomePage() {
 
     return (
         <main className="w-full overflow-x-hidden pb-4" style={{ width: "100%", maxWidth: "100%" }}>
-            <h1 className="header">Wireless Mesh DAQ Dashboard</h1>
+            <h1 className="header">Solar Mesh DAQ Dashboard</h1>
             <fieldset className="fieldset-section">
                 <legend>
                     Logs
