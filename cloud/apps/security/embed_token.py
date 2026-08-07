@@ -20,10 +20,6 @@ SKEW_SECONDS = 30
 MIN_SECRET_LENGTH = 32
 
 
-def embed_lock_enabled() -> bool:
-    return os.getenv("EMBED_LOCK_ENABLED", "false").strip().lower() == "true"
-
-
 def _b64url_decode(value: str) -> bytes:
     padding = "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode(value.strip() + padding)
@@ -104,9 +100,6 @@ def verify_embed_token(
 
 def require_embed_token(audience: str) -> Callable[[Request], bool]:
     async def _dep(request: Request) -> bool:
-        if not embed_lock_enabled():
-            return True
-
         header_token = (request.headers.get(HEADER_TOKEN) or "").strip()
         cookie_token = (request.cookies.get(TOKEN_COOKIE) or "").strip()
         sid = (request.cookies.get(SESSION_COOKIE) or "").strip()

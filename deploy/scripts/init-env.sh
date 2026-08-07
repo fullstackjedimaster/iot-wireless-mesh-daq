@@ -4,7 +4,7 @@ set -euo pipefail
 # deploy/scripts/init-env.sh
 
 ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../env" && pwd)"
-SHARED_PORTFOLIO_ENV_DIR="/opt/stacks/portfolio/deploy/shared/env"
+
 
 log()  { echo -e "\033[1;32m[+] $*\033[0m"; }
 warn() { echo -e "\033[1;33m[!] $*\033[0m"; }
@@ -75,8 +75,9 @@ main() {
     copy_example "$example" "$target"
   done
 
-  local example="${SHARED_PORTFOLIO_ENV_DIR}/embed.env"
-  local target="${ENV_DIR}/embed.env"
+  SHARED_PORTFOLIO_ENV_DIR="/opt/stacks/portfolio/deploy/shared/env"
+  local example="${SHARED_PORTFOLIO_ENV_DIR}/shared.env"
+  local target="${ENV_DIR}/shared.env"
   copy_example "$example" "$target"
 
   local pg_file="${ENV_DIR}/postgres.env"
