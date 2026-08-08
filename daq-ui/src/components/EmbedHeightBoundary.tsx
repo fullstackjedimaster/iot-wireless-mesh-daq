@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-import EmbedHeightReporter from "@/src/components/EmbedHeightReporter";
+import EmbedHeightReporter from "@/components/EmbedHeightReporter";
 
 type EmbedHeightBoundaryProps = {
     children: ReactNode;
